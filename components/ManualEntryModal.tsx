@@ -25,6 +25,32 @@ const INITIAL_DATA: RegistrationData = {
   remaining_amount: ''
 };
 
+// Helper component moved OUTSIDE to prevent focus loss during re-renders
+const InputField = ({ 
+  label, 
+  value, 
+  field, 
+  placeholder, 
+  onChange 
+}: { 
+  label: string, 
+  value: string, 
+  field: keyof RegistrationData, 
+  placeholder?: string,
+  onChange: (key: keyof RegistrationData, val: string) => void
+}) => (
+  <div className="flex flex-col gap-1.5">
+    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{label}</label>
+    <input
+      type="text"
+      value={value}
+      placeholder={placeholder}
+      onChange={(e) => onChange(field, e.target.value)}
+      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
+    />
+  </div>
+);
+
 export const ManualEntryModal: React.FC<ManualEntryModalProps> = ({ isOpen, onClose, onSubmit }) => {
   const [formData, setFormData] = useState<RegistrationData>(INITIAL_DATA);
 
@@ -40,19 +66,6 @@ export const ManualEntryModal: React.FC<ManualEntryModalProps> = ({ isOpen, onCl
     setFormData(INITIAL_DATA);
     onClose();
   };
-
-  const InputField = ({ label, value, field, placeholder }: { label: string, value: string, field: keyof RegistrationData, placeholder?: string }) => (
-    <div className="flex flex-col gap-1.5">
-      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{label}</label>
-      <input
-        type="text"
-        value={value}
-        placeholder={placeholder}
-        onChange={(e) => handleChange(field, e.target.value)}
-        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
-      />
-    </div>
-  );
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
@@ -71,26 +84,26 @@ export const ManualEntryModal: React.FC<ManualEntryModalProps> = ({ isOpen, onCl
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-6">
               <h3 className="text-xs font-black text-indigo-400 uppercase tracking-widest border-b border-indigo-50 pb-2">Student Information</h3>
-              <InputField label="Admission ID" value={formData.admission_id} field="admission_id" placeholder="EHA-3HC-..." />
-              <InputField label="Full Name" value={formData.name} field="name" />
+              <InputField label="Admission ID" value={formData.admission_id} field="admission_id" placeholder="EHA-3HC-..." onChange={handleChange} />
+              <InputField label="Full Name" value={formData.name} field="name" onChange={handleChange} />
               <div className="grid grid-cols-2 gap-4">
-                <InputField label="Gender" value={formData.gender} field="gender" />
-                <InputField label="Age" value={formData.age} field="age" />
+                <InputField label="Gender" value={formData.gender} field="gender" onChange={handleChange} />
+                <InputField label="Age" value={formData.age} field="age" onChange={handleChange} />
               </div>
-              <InputField label="Qualification" value={formData.qualification} field="qualification" />
-              <InputField label="Medium" value={formData.medium} field="medium" />
-              <InputField label="Contact No" value={formData.contact_no} field="contact_no" />
-              <InputField label="Address" value={formData.address} field="address" />
+              <InputField label="Qualification" value={formData.qualification} field="qualification" onChange={handleChange} />
+              <InputField label="Medium" value={formData.medium} field="medium" onChange={handleChange} />
+              <InputField label="Contact No" value={formData.contact_no} field="contact_no" onChange={handleChange} />
+              <InputField label="Address" value={formData.address} field="address" onChange={handleChange} />
             </div>
 
             <div className="space-y-6">
               <h3 className="text-xs font-black text-indigo-400 uppercase tracking-widest border-b border-indigo-50 pb-2">Payment Details</h3>
-              <InputField label="Initial Payment" value={formData.initial_payment} field="initial_payment" />
-              <InputField label="Date" value={formData.date} field="date" placeholder="DD/MM/YYYY" />
-              <InputField label="UTR / Transaction ID" value={formData.utr} field="utr" />
-              <InputField label="Received AC" value={formData.received_ac} field="received_ac" />
-              <InputField label="Discount" value={formData.discount} field="discount" />
-              <InputField label="Remaining Amount" value={formData.remaining_amount} field="remaining_amount" />
+              <InputField label="Initial Payment" value={formData.initial_payment} field="initial_payment" onChange={handleChange} />
+              <InputField label="Date" value={formData.date} field="date" placeholder="DD/MM/YYYY" onChange={handleChange} />
+              <InputField label="UTR / Transaction ID" value={formData.utr} field="utr" onChange={handleChange} />
+              <InputField label="Received AC" value={formData.received_ac} field="received_ac" onChange={handleChange} />
+              <InputField label="Discount" value={formData.discount} field="discount" onChange={handleChange} />
+              <InputField label="Remaining Amount" value={formData.remaining_amount} field="remaining_amount" onChange={handleChange} />
             </div>
           </div>
         </form>
