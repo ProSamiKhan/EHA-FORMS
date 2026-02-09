@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { RegistrationData } from '../types';
 
@@ -64,7 +63,8 @@ export const ManualEntryModal: React.FC<ManualEntryModalProps> = ({ isOpen, onCl
             <p className="text-xs text-indigo-600 font-bold uppercase tracking-tighter">Direct Data Submission</p>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-white rounded-full transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></button>
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-8 max-h-[70vh] overflow-y-auto custom-scrollbar">
