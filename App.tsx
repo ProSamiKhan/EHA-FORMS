@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { ProcessingRecord, RegistrationData, UserRole, AppConfig } from './types';
@@ -21,7 +20,7 @@ const App: React.FC = () => {
   const [config, setConfig] = useState<AppConfig>({
     appName: 'English House Academy',
     appSubtitle: 'Premium Registration Portal',
-    logoUrl: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ4w7ji5StjjdpZTvD_pk6DJ-YIY2t5aA_ILQ&s' 
+    logoUrl: 'https://englishhouseacademy.in/wp-content/uploads/2022/03/187-X-43-px-EHA-LOGO-PNG.png' 
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -220,23 +219,27 @@ const App: React.FC = () => {
     <div className="min-h-screen pb-24 lg:pb-10 bg-[#f8fafc]">
       {/* HEADER - MOBILE OPTIMIZED */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 lg:h-20 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 lg:h-20 flex items-center justify-between relative">
+          
+          {/* LEFT: LOGO */}
           <div className="flex items-center space-x-3 lg:space-x-8">
             <button 
               onClick={() => setActiveTab('processing')}
               className="flex items-center space-x-3 group active:scale-95 transition-transform"
             >
-              <div className="w-8 h-8 lg:w-10 lg:h-10 bg-[#000080] rounded-lg lg:rounded-xl flex items-center justify-center shadow-md shadow-indigo-100 group-hover:bg-[#000066] overflow-hidden shrink-0">
-                  {config.logoUrl ? (
-                    <img src={config.logoUrl} alt="Logo" className="w-full h-full object-cover" />
-                  ) : (
-                    <span className="text-white text-base lg:text-xl font-black italic">E</span>
-                  )}
-              </div>
-              <div className="text-left overflow-hidden">
-                <h1 className="text-xs lg:text-lg font-bold text-slate-900 leading-tight truncate max-w-[150px] sm:max-w-none">{config.appName}</h1>
-                <p className="text-[9px] lg:text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-none mt-0.5">{config.appSubtitle}</p>
-              </div>
+              {config.logoUrl ? (
+                <img src={config.logoUrl} alt="EHA Logo" className="h-8 lg:h-12 w-auto object-contain" />
+              ) : (
+                <div className="w-8 h-8 lg:w-10 lg:h-10 bg-[#000080] rounded-lg lg:rounded-xl flex items-center justify-center shadow-md shadow-indigo-100 overflow-hidden shrink-0">
+                  <span className="text-white text-base lg:text-xl font-black italic">E</span>
+                </div>
+              )}
+              {!config.logoUrl && (
+                <div className="text-left overflow-hidden">
+                  <h1 className="text-xs lg:text-lg font-bold text-slate-900 leading-tight truncate max-w-[150px] sm:max-w-none">{config.appName}</h1>
+                  <p className="text-[9px] lg:text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-none mt-0.5">{config.appSubtitle}</p>
+                </div>
+              )}
             </button>
 
             {/* DESKTOP NAVIGATION */}
@@ -248,7 +251,15 @@ const App: React.FC = () => {
               )}
             </nav>
           </div>
+
+          {/* CENTER: MOBILE SUBTITLE (NEW) */}
+          <div className="lg:hidden absolute left-1/2 -translate-x-1/2 pointer-events-none px-2 text-center">
+            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-tight whitespace-nowrap">
+              Digital Registration<br/>Portal
+            </p>
+          </div>
           
+          {/* RIGHT: ACTIONS */}
           <div className="flex items-center gap-2">
              {/* DESKTOP ONLY ACTION BUTTONS */}
              <button 
@@ -266,8 +277,8 @@ const App: React.FC = () => {
                 <span>Upload Image</span>
              </button>
              
-             {/* LOGOUT - ALWAYS VISIBLE ON RIGHT */}
-             <button onClick={handleLogout} className="p-2 text-slate-400 hover:text-red-500 transition-colors" title="Logout">
+             {/* LOGOUT */}
+             <button onClick={handleLogout} className="p-2 text-slate-400 hover:text-red-500 transition-colors shrink-0" title="Logout">
                 <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
              </button>
           </div>

@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ProcessingRecord, RegistrationData } from '../types';
 
 interface ProcessingCardProps {
@@ -9,20 +9,23 @@ interface ProcessingCardProps {
   onSync: (id: string) => void;
 }
 
+const BASE_FEES = 20000;
+
 const DataRow: React.FC<{ 
   label: string; 
   value: string; 
   isEditing: boolean; 
   onChange: (val: string) => void 
-}> = ({ label, value, isEditing, onChange }) => (
+  type?: string
+}> = ({ label, value, isEditing, onChange, type = "text" }) => (
   <div className="flex flex-col py-1.5 border-b border-slate-50 last:border-0">
     <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">{label}</span>
     {isEditing ? (
       <input 
-        type="text" 
+        type={type} 
         value={value} 
         onChange={(e) => onChange(e.target.value)}
-        className="text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-md px-2 py-1 w-full focus:outline-none focus:ring-1 focus:ring-indigo-500"
+        className="text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-md px-2 py-1 w-full focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-all"
       />
     ) : (
       <span className={`text-xs font-bold truncate ${value === 'CHECK_MANUALLY' ? 'text-red-500' : 'text-slate-700'}`}>
@@ -35,6 +38,19 @@ const DataRow: React.FC<{
 export const ProcessingCard: React.FC<ProcessingCardProps> = ({ record, onRemove, onUpdate, onSync }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [tempData, setTempData] = useState<RegistrationData | null>(null);
+
+  useEffect(() => {
+    if (isEditing && tempData) {
+      const paid = parseFloat(tempData.initial_payment) || 0;
+      const disc = parseFloat(tempData.discount) || 0;
+      const remaining = BASE_FEES - paid - disc;
+      const finalRem = remaining >= 0 ? remaining : 0;
+      
+      if (tempData.remaining_amount !== String(finalRem)) {
+        setTempData({ ...tempData, remaining_amount: String(finalRem) });
+      }
+    }
+  }, [tempData?.initial_payment, tempData?.discount, isEditing]);
 
   const startEditing = () => {
     setTempData({ ...record.data! });
@@ -73,7 +89,7 @@ export const ProcessingCard: React.FC<ProcessingCardProps> = ({ record, onRemove
             ) : (
               <div className="w-full h-full flex flex-col items-center justify-center bg-indigo-50 text-indigo-300 gap-1">
                 <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
-                <span className="text-[8px] font-black uppercase tracking-widest">Manual</span>
+                <span className="text-[8px] font-black uppercase tracking-widest">Manual Entry</span>
               </div>
             )}
           </div>
@@ -116,7 +132,7 @@ export const ProcessingCard: React.FC<ProcessingCardProps> = ({ record, onRemove
             <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest animate-pulse">Scanning Document...</p>
           </div>
         ) : record.status === 'completed' && record.data ? (
-          <div className="space-y-8">
+          <div className="space-y-8 animate-in fade-in duration-500">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               {/* Profile Section */}
               <div className="space-y-3">
@@ -124,8 +140,8 @@ export const ProcessingCard: React.FC<ProcessingCardProps> = ({ record, onRemove
                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-400"></span> Student Profile
                 </h4>
                 <div className="bg-slate-50/50 p-4 rounded-2xl space-y-1">
-                    <DataRow label="ID" value={isEditing ? tempData!.admission_id : record.data.admission_id} isEditing={isEditing} onChange={(v) => handleDataChange('admission_id', v)} />
-                    <DataRow label="Full Name" value={isEditing ? tempData!.name : record.data.name} isEditing={isEditing} onChange={(v) => handleDataChange('name', v)} />
+                    <DataRow label="Admission ID" value={isEditing ? tempData!.admission_id : record.data.admission_id} isEditing={isEditing} onChange={(v) => handleDataChange('admission_id', v)} />
+                    <DataRow label="Student Name" value={isEditing ? tempData!.name : record.data.name} isEditing={isEditing} onChange={(v) => handleDataChange('name', v)} />
                     <div className="grid grid-cols-2 gap-4">
                         <DataRow label="Age" value={isEditing ? tempData!.age : record.data.age} isEditing={isEditing} onChange={(v) => handleDataChange('age', v)} />
                         <DataRow label="Gender" value={isEditing ? tempData!.gender : record.data.gender} isEditing={isEditing} onChange={(v) => handleDataChange('gender', v)} />
@@ -143,43 +159,43 @@ export const ProcessingCard: React.FC<ProcessingCardProps> = ({ record, onRemove
                 <div className="bg-slate-50/50 p-4 rounded-2xl space-y-1">
                     <DataRow label="Primary No" value={isEditing ? tempData!.contact_no : record.data.contact_no} isEditing={isEditing} onChange={(v) => handleDataChange('contact_no', v)} />
                     <DataRow label="WhatsApp" value={isEditing ? tempData!.whatsapp_no : record.data.whatsapp_no} isEditing={isEditing} onChange={(v) => handleDataChange('whatsapp_no', v)} />
-                    <DataRow label="Address/City" value={isEditing ? tempData!.address : record.data.address} isEditing={isEditing} onChange={(v) => handleDataChange('address', v)} />
-                    <DataRow label="Date" value={isEditing ? tempData!.date : record.data.date} isEditing={isEditing} onChange={(v) => handleDataChange('date', v)} />
+                    <DataRow label="Address / City" value={isEditing ? tempData!.address : record.data.address} isEditing={isEditing} onChange={(v) => handleDataChange('address', v)} />
+                    <DataRow label="Registration Date" value={isEditing ? tempData!.date : record.data.date} isEditing={isEditing} onChange={(v) => handleDataChange('date', v)} />
                 </div>
               </div>
 
               {/* Payment Section */}
               <div className="space-y-3">
                 <h4 className="text-[10px] font-black text-indigo-400 uppercase tracking-widest flex items-center gap-2">
-                   <span className="w-1.5 h-1.5 rounded-full bg-indigo-400"></span> Account details
+                   <span className="w-1.5 h-1.5 rounded-full bg-indigo-400"></span> Account Details
                 </h4>
                 <div className="bg-slate-50/50 p-4 rounded-2xl space-y-1">
-                    <DataRow label="Initial Pay" value={isEditing ? tempData!.initial_payment : record.data.initial_payment} isEditing={isEditing} onChange={(v) => handleDataChange('initial_payment', v)} />
-                    <DataRow label="Discount" value={isEditing ? tempData!.discount : record.data.discount} isEditing={isEditing} onChange={(v) => handleDataChange('discount', v)} />
-                    <DataRow label="Pending" value={isEditing ? tempData!.remaining_amount : record.data.remaining_amount} isEditing={isEditing} onChange={(v) => handleDataChange('remaining_amount', v)} />
-                    <DataRow label="Txn ID (UTR)" value={isEditing ? tempData!.utr : record.data.utr} isEditing={isEditing} onChange={(v) => handleDataChange('utr', v)} />
-                    <DataRow label="A/C Received" value={isEditing ? tempData!.received_ac : record.data.received_ac} isEditing={isEditing} onChange={(v) => handleDataChange('received_ac', v)} />
+                    <DataRow label="Initial Pay" value={isEditing ? tempData!.initial_payment : record.data.initial_payment} isEditing={isEditing} onChange={(v) => handleDataChange('initial_payment', v)} type="number" />
+                    <DataRow label="Discount" value={isEditing ? tempData!.discount : record.data.discount} isEditing={isEditing} onChange={(v) => handleDataChange('discount', v)} type="number" />
+                    <DataRow label="Pending Amount" value={isEditing ? tempData!.remaining_amount : record.data.remaining_amount} isEditing={isEditing} onChange={(v) => handleDataChange('remaining_amount', v)} type="number" />
+                    <DataRow label="UTR / Transaction ID" value={isEditing ? tempData!.utr : record.data.utr} isEditing={isEditing} onChange={(v) => handleDataChange('utr', v)} />
+                    <DataRow label="Received In A/C" value={isEditing ? tempData!.received_ac : record.data.received_ac} isEditing={isEditing} onChange={(v) => handleDataChange('received_ac', v)} />
                 </div>
               </div>
             </div>
 
             {/* Action Bar */}
-            <div className="flex justify-between items-center pt-6 border-t border-slate-50">
+            <div className="flex flex-col sm:flex-row justify-between items-center pt-6 border-t border-slate-50 gap-4">
                 <div className="flex items-center gap-2">
                    <div className={`w-2 h-2 rounded-full ${record.syncStatus === 'synced' ? 'bg-green-500' : 'bg-slate-200 animate-pulse'}`}></div>
                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                     {record.syncStatus === 'synced' ? 'Cloud Sync Completed' : 'Waiting for Sync'}
+                     {record.syncStatus === 'synced' ? 'Cloud Sync Completed' : 'Waiting for Data Sync'}
                    </span>
                 </div>
                 <button 
                     onClick={() => onSync(record.id)}
                     disabled={record.syncStatus === 'synced' || record.syncStatus === 'syncing' || isEditing}
-                    className={`flex items-center gap-3 px-8 py-3.5 rounded-2xl text-xs font-black uppercase tracking-widest transition-all shadow-lg ${
+                    className={`w-full sm:w-auto flex items-center justify-center gap-3 px-8 py-3.5 rounded-2xl text-xs font-black uppercase tracking-widest transition-all shadow-lg ${
                     record.syncStatus === 'synced' ? 'bg-green-600 text-white shadow-green-100' : 
                     record.syncStatus === 'failed' ? 'bg-red-600 text-white shadow-red-100' : 
                     record.syncStatus === 'syncing' ? 'bg-amber-500 text-white shadow-amber-100' : 
                     'bg-slate-900 text-white hover:bg-slate-800 active:scale-95 shadow-slate-200'
-                    } disabled:opacity-50 disabled:scale-100`}
+                    } disabled:opacity-50 disabled:scale-100 disabled:shadow-none`}
                 >
                     {syncIcon()}
                     <span>
