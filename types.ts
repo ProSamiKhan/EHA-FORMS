@@ -20,6 +20,7 @@ export interface RegistrationData {
 export interface ProcessingRecord {
   id: string;
   timestamp: number;
+  syncedAt?: number;
   fileName: string;
   imageUrl: string;
   data: RegistrationData | null;
