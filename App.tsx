@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { ProcessingRecord, RegistrationData } from './types';
@@ -72,8 +71,7 @@ const App: React.FC = () => {
         data: extractedData 
       } : r));
 
-      // Automatically sync after OCR success
-      performSync(record.id, extractedData);
+      // Auto-sync removed: user must review first
     } catch (error: any) {
       setRecords(prev => prev.map(r => r.id === record.id ? { 
         ...r, 
@@ -103,8 +101,7 @@ const App: React.FC = () => {
     };
     setRecords(prev => [newRecord, ...prev]);
     
-    // Automatically sync manual entry
-    performSync(id, data);
+    // Auto-sync removed: user must review first
   };
 
   const updateRecordData = (id: string, newData: RegistrationData) => {
@@ -224,9 +221,9 @@ const App: React.FC = () => {
             </div>
 
             <div className="bg-indigo-50 p-6 rounded-3xl border border-indigo-100">
-                <h3 className="text-xs font-black text-indigo-400 uppercase mb-4 tracking-widest">Auto-Sheet Sync</h3>
+                <h3 className="text-xs font-black text-indigo-400 uppercase mb-4 tracking-widest">Manual Confirmation</h3>
                 <p className="text-xs text-indigo-900/70 leading-relaxed font-medium">
-                    Ab aapka data <strong>automatically</strong> Google Sheet mein save ho jayega. Har entry ke saath ek sync status icon dikhega.
+                    Data extract hone ke baad use **Review** karein. Sab kuch sahi hone par **"Submit to Sheet"** button dabayein.
                 </p>
             </div>
           </div>
