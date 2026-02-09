@@ -13,35 +13,32 @@ export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
   const [error, setError] = useState<string | null>(null);
   const [lastRefreshed, setLastRefreshed] = useState<number>(Date.now());
 
-  // Function to normalize keys coming from Google Sheet headers
-  // Maps "Admission ID" or "admission id" to "admission_id"
+  // Precise mapping based on the user's screenshot headers
   const normalizeData = (rawItems: any[]): RegistrationData[] => {
     return rawItems.map(item => {
-      const normalized: any = {};
-      Object.keys(item).forEach(key => {
-        const standardKey = key.toLowerCase().replace(/\s+/g, '_');
-        normalized[standardKey] = item[key];
+      // Create a lowercase key map for easy lookup
+      const row: any = {};
+      Object.keys(item).forEach(k => {
+        row[k.toLowerCase().trim()] = item[k];
       });
 
-      // Special handling for common field names if they still don't match exactly
-      const final: RegistrationData = {
-        admission_id: String(normalized.admission_id || normalized.id || ''),
-        name: String(normalized.name || normalized.student_name || ''),
-        gender: String(normalized.gender || normalized.sex || ''),
-        age: String(normalized.age || ''),
-        qualification: String(normalized.qualification || ''),
-        medium: String(normalized.medium || ''),
-        contact_no: String(normalized.contact_no || normalized.phone || normalized.mobile || ''),
-        whatsapp_no: String(normalized.whatsapp_no || normalized.whatsapp || ''),
-        address: String(normalized.address || normalized.city || ''),
-        initial_payment: String(normalized.initial_payment || normalized.paid || normalized.amount || '0'),
-        date: String(normalized.date || new Date().toLocaleDateString('en-GB')),
-        utr: String(normalized.utr || normalized.transaction_id || ''),
-        received_ac: String(normalized.received_ac || ''),
-        discount: String(normalized.discount || '0'),
-        remaining_amount: String(normalized.remaining_amount || normalized.due || '0')
+      return {
+        admission_id: String(row['admission id'] || row['admission_id'] || row['id'] || ''),
+        name: String(row['name'] || row['student name'] || ''),
+        gender: String(row['gender'] || ''),
+        age: String(row['age'] || ''),
+        qualification: String(row['qualification'] || ''),
+        medium: String(row['medium'] || ''),
+        contact_no: String(row['contact no'] || row['contact_no'] || ''),
+        whatsapp_no: String(row['whatsapp no'] || row['whatsapp_no'] || ''),
+        address: String(row['address'] || ''),
+        initial_payment: String(row['initial payment'] || row['initial_payment'] || '0'),
+        date: String(row['date'] || ''),
+        utr: String(row['utr'] || ''),
+        received_ac: String(row['received ac'] || row['received_ac'] || ''),
+        discount: String(row['discount'] || '0'),
+        remaining_amount: String(row['remaining amount'] || row['remaining_amount'] || '0')
       };
-      return final;
     });
   };
 
@@ -51,15 +48,22 @@ export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
       setError(null);
       try {
         const rawData = await fetchAllRegistrations();
-        if (rawData.length > 0) {
-          const processed = normalizeData(rawData);
-          setRemoteData(processed);
-        } else {
-          console.warn("No data returned from Google Sheets");
+        console.log("Analytics: Received data from Cloud", rawData);
+        
+        if (Array.isArray(rawData)) {
+          if (rawData.length > 0) {
+            const processed = normalizeData(rawData);
+            setRemoteData(processed);
+          } else {
+            console.warn("Sheet is connected but has no records yet.");
+            setRemoteData([]);
+          }
+        } else if (rawData && (rawData as any).error) {
+          setError(`Cloud Error: ${(rawData as any).error}`);
         }
       } catch (err) {
-        console.error("Cloud fetch failed:", err);
-        setError("Could not connect to Google Sheets.");
+        console.error("Dashboard fetch error:", err);
+        setError("Network error: Could not sync with Google Sheets.");
       } finally {
         setIsLoading(false);
       }
@@ -74,20 +78,28 @@ export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
     
     const uniqueMap = new Map<string, RegistrationData>();
     
+    // Remote data from Google Sheets takes priority
     remoteData.forEach(item => {
       if (item.admission_id) uniqueMap.set(item.admission_id, item);
     });
     
+    // Add local synced data if not already present in remote
     localSynced.forEach(item => {
-      if (item.admission_id) uniqueMap.set(item.admission_id, item);
+      if (item.admission_id && !uniqueMap.has(item.admission_id)) {
+        uniqueMap.set(item.admission_id, item);
+      }
     });
 
-    return Array.from(uniqueMap.values()).sort((a, b) => {
+    const combined = Array.from(uniqueMap.values());
+
+    return combined.sort((a, b) => {
         try {
-            const [d1, m1, y1] = (a.date || "").split('/');
-            const [d2, m2, y2] = (b.date || "").split('/');
-            if (!y1 || !y2) return 0;
-            return new Date(`${y2}-${m2}-${d2}`).getTime() - new Date(`${y1}-${m1}-${d1}`).getTime();
+            if (!a.date || !b.date) return 0;
+            const parseDate = (dStr: string) => {
+                const [d, m, y] = dStr.split('/');
+                return new Date(`${y}-${m}-${d}`).getTime();
+            };
+            return parseDate(b.date) - parseDate(a.date);
         } catch (e) {
             return 0;
         }
@@ -101,16 +113,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
     let totalRevenue = 0;
 
     allSyncedData.forEach(data => {
-      const g = (data.gender || 'Unknown').trim().toLowerCase();
+      const g = (data.gender || 'Other').trim().toLowerCase();
       genderMap[g] = (genderMap[g] || 0) + 1;
 
-      const addr = data.address || '';
-      const parts = addr.split(/[,\s]+/).filter(p => p.length > 2);
-      const city = (parts[parts.length - 1] || 'Other').toLowerCase();
-      cityMap[city] = (cityMap[city] || 0) + 1;
+      const addr = (data.address || '').trim().toLowerCase();
+      if (addr) {
+          // Simple city extraction: last part of address
+          const parts = addr.split(/[,\s]+/).filter(p => p.length > 1);
+          const city = parts[parts.length - 1] || 'Other';
+          cityMap[city] = (cityMap[city] || 0) + 1;
+      }
 
-      const paymentStr = String(data.initial_payment || '0').replace(/[^0-9.]/g, '');
-      const payment = parseFloat(paymentStr) || 0;
+      const payment = parseFloat(String(data.initial_payment).replace(/[^0-9.]/g, '')) || 0;
       totalRevenue += payment;
     });
 
@@ -125,9 +139,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
     <div className="space-y-8 animate-in fade-in duration-500 pb-10">
       <div className="flex justify-between items-center">
         <div>
-            <h2 className="text-xl font-black text-slate-900">Academy Performance</h2>
+            <h2 className="text-xl font-black text-slate-900">Cloud Insights</h2>
             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
-              {error ? <span className="text-red-500">{error}</span> : "Real-time Cloud Sync Analytics"}
+              {error ? <span className="text-red-500">{error}</span> : "Synchronized Google Sheet Analytics"}
             </p>
         </div>
         <button 
@@ -142,16 +156,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm relative overflow-hidden group">
           <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-full -mr-16 -mt-16 transition-transform group-hover:scale-110"></div>
-          <h3 className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1 relative">Cloud Total Admissions</h3>
-          <p className="text-4xl font-black text-slate-900 relative">{isLoading ? "..." : stats.total}</p>
+          <h3 className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1 relative">Total Admissions</h3>
+          <p className="text-4xl font-black text-slate-900 relative tracking-tighter">{isLoading ? "..." : stats.total}</p>
           <div className="mt-4 flex items-center text-green-500 text-xs font-bold gap-1 relative">
             <div className={`w-2 h-2 rounded-full ${isLoading ? 'bg-amber-400 animate-pulse' : (stats.total > 0 ? 'bg-green-500' : 'bg-slate-300')}`}></div>
-            <span>{isLoading ? "Fetching data..." : (stats.total > 0 ? "Cloud Synced" : "No Cloud Data Found")}</span>
+            <span>{isLoading ? "Fetching data..." : (stats.total > 0 ? "Synced with Sheet" : "Empty Sheet")}</span>
           </div>
         </div>
 
         <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm">
-          <h3 className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-4">Registration Demographics</h3>
+          <h3 className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-4">Gender Distribution</h3>
           <div className="space-y-4">
             {Object.entries(stats.genderMap).length > 0 ? Object.entries(stats.genderMap).map(([gender, count]) => {
               const percentage = Math.round((Number(count) / stats.total) * 100) || 0;
@@ -159,31 +173,28 @@ export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
                 <div key={gender} className="space-y-1.5">
                   <div className="flex justify-between text-[10px] font-black uppercase tracking-wider">
                     <span className="text-slate-500">{gender}</span>
-                    <span className="text-indigo-600">{count} students ({percentage}%)</span>
+                    <span className="text-indigo-600">{count} ({percentage}%)</span>
                   </div>
                   <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                    <div className="h-full bg-indigo-500 rounded-full transition-all duration-1000" style={{ width: `${percentage}%` }}></div>
+                    <div className="h-full bg-indigo-500 rounded-full" style={{ width: `${percentage}%` }}></div>
                   </div>
                 </div>
               );
             }) : (
-                <div className="h-20 flex flex-col items-center justify-center border-2 border-dashed border-slate-50 rounded-2xl">
-                    <p className="text-slate-300 text-[10px] font-black uppercase italic">No demographics to show</p>
+                <div className="h-16 flex items-center justify-center border-2 border-dashed border-slate-50 rounded-2xl">
+                    <p className="text-slate-300 text-[10px] font-black uppercase italic">Awaiting Records</p>
                 </div>
             )}
           </div>
         </div>
 
-        <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm group">
-          <h3 className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-4">Financial Overview</h3>
-          <div className="space-y-1">
-             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Collected</p>
-             <p className="text-3xl font-black text-slate-900 tracking-tight">₹{stats.totalRevenue.toLocaleString()}</p>
-          </div>
-          <div className="mt-6 pt-6 border-t border-slate-50">
-             <div className="flex justify-between items-center">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Active Locations</span>
-                <span className="text-xs font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-lg">{Object.keys(stats.cityMap).length} Areas</span>
+        <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm">
+          <h3 className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1">Total Revenue</h3>
+          <p className="text-3xl font-black text-slate-900 tracking-tight">₹{stats.totalRevenue.toLocaleString()}</p>
+          <div className="mt-6 pt-6 border-t border-slate-50 flex justify-between items-center">
+             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Across {stats.total} entries</span>
+             <div className="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center text-green-600">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
              </div>
           </div>
         </div>
@@ -191,30 +202,25 @@ export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-sm flex flex-col h-full">
-            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6">Geographic Reach</h3>
+            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6">Top Locations</h3>
             <div className="space-y-4 flex-1">
                 {Object.entries(stats.cityMap)
                 .sort((a, b) => Number(b[1]) - Number(a[1]))
                 .slice(0, 8)
                 .map(([city, count]) => (
-                    <div key={city} className="flex items-center justify-between p-3 bg-slate-50 rounded-2xl border border-slate-100/50 hover:bg-white transition-colors">
-                    <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-xl bg-white shadow-sm flex items-center justify-center text-[10px] font-black text-indigo-400 border border-slate-50 uppercase">
-                            {city.substring(0, 1)}
-                        </div>
-                        <span className="text-xs font-black text-slate-700 uppercase tracking-wider">{city}</span>
-                    </div>
-                    <span className="text-xs font-black text-slate-900">{count}</span>
+                    <div key={city} className="flex items-center justify-between p-3 bg-slate-50 rounded-2xl border border-slate-100/50">
+                        <span className="text-xs font-black text-slate-700 uppercase tracking-wider truncate max-w-[150px]">{city}</span>
+                        <span className="text-xs font-black text-indigo-600 bg-white px-2 py-0.5 rounded-lg border border-slate-100">{count}</span>
                     </div>
                 ))}
-                {stats.total === 0 && !isLoading && <p className="text-slate-300 text-xs italic text-center py-10">Waiting for cloud data...</p>}
+                {stats.total === 0 && !isLoading && <p className="text-slate-300 text-xs italic text-center py-10">No data available</p>}
             </div>
         </div>
 
-        <div className="lg:col-span-2 bg-white rounded-[40px] border border-slate-100 shadow-sm overflow-hidden flex flex-col">
+        <div className="lg:col-span-2 bg-white rounded-[40px] border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[400px]">
             <div className="px-8 py-6 border-b border-slate-50 flex justify-between items-center bg-slate-50/50">
-                <h3 className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Master Cloud Log</h3>
-                <span className="text-[10px] font-bold text-indigo-600 bg-white px-3 py-1 rounded-full shadow-sm">Verified Synced Records</span>
+                <h3 className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Latest Cloud Logs</h3>
+                <span className="text-[10px] font-bold text-indigo-600 bg-white px-3 py-1 rounded-full shadow-sm">{allSyncedData.length} Records</span>
             </div>
             <div className="overflow-x-auto grow">
                 <table className="w-full text-left">
@@ -223,14 +229,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
                         <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-wider">Admission ID</th>
                         <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-wider">Student Name</th>
                         <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-wider">Date</th>
-                        <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-wider text-right">Amount</th>
+                        <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-wider text-right">Payment</th>
                     </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
-                    {allSyncedData.slice(0, 15).map((data, idx) => (
+                    {allSyncedData.map((data, idx) => (
                         <tr key={data.admission_id || idx} className="hover:bg-slate-50/30 transition-colors">
                         <td className="px-8 py-4">
-                            <span className="text-[10px] font-mono font-bold text-indigo-600 bg-indigo-50/50 px-2 py-1 rounded-md">{data.admission_id || 'N/A'}</span>
+                            <span className="text-[10px] font-mono font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md">{data.admission_id || 'N/A'}</span>
                         </td>
                         <td className="px-8 py-4">
                             <span className="text-xs font-black text-slate-800 uppercase tracking-tight">{data.name}</span>
@@ -242,8 +248,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
                     {allSyncedData.length === 0 && !isLoading && (
                         <tr>
                             <td colSpan={4} className="px-8 py-20 text-center">
-                                <p className="text-slate-300 font-bold text-sm">No data found in Google Sheet.</p>
-                                <p className="text-[9px] text-slate-300 font-black uppercase mt-1">Check if column headers match exactly or are lowercase.</p>
+                                <p className="text-slate-300 font-bold text-sm">No synchronized records found.</p>
                             </td>
                         </tr>
                     )}
