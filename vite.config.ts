@@ -9,5 +9,9 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
+  },
+  // Ye block Vercel ke environment variables ko browser mein accessible banata hai
+  define: {
+    'process.env.API_KEY': JSON.stringify(process.env.API_KEY)
   }
 });
