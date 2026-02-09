@@ -1,20 +1,35 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { UserRole, AppConfig } from '../types';
 
 interface LoginProps {
-  onLogin: () => void;
+  onLogin: (role: UserRole) => void;
 }
 
 export const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [config, setConfig] = useState<AppConfig>({
+    appName: 'EHA Portal',
+    appSubtitle: 'High-Precision OCR Management',
+    logoUrl: ''
+  });
+
+  useEffect(() => {
+    const savedConfig = localStorage.getItem('eha_app_config');
+    if (savedConfig) {
+      setConfig(JSON.parse(savedConfig));
+    }
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Predefined credentials
-    if (username === 'admin' && password === 'admin') {
-      onLogin();
+    
+    if (username === 'superadmin' && password === 'superadmin') {
+      onLogin('super_admin');
+    } else if (username === 'staff' && password === 'staff') {
+      onLogin('staff');
     } else {
       setError('Invalid ID or Password');
     }
@@ -24,22 +39,26 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
     <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
       <div className="w-full max-w-md bg-white rounded-[40px] shadow-2xl shadow-indigo-100 p-10 border border-slate-100">
         <div className="flex flex-col items-center mb-10">
-          <div className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-xl shadow-indigo-200 mb-6">
-            <span className="text-white text-3xl font-black italic">E</span>
+          <div className="w-20 h-20 bg-indigo-600 rounded-3xl flex items-center justify-center shadow-xl shadow-indigo-200 mb-6 overflow-hidden">
+            {config.logoUrl ? (
+              <img src={config.logoUrl} alt="Logo" className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-white text-4xl font-black italic">E</span>
+            )}
           </div>
-          <h1 className="text-2xl font-black text-slate-900">EHA Portal</h1>
-          <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px] mt-2">Staff Login Required</p>
+          <h1 className="text-2xl font-black text-slate-900 text-center">{config.appName}</h1>
+          <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px] mt-2 text-center">Login Required</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Staff ID</label>
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Account ID</label>
             <input
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-medium"
-              placeholder="Enter ID"
+              placeholder="superadmin or staff"
               required
             />
           </div>
@@ -61,13 +80,15 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
             type="submit"
             className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all hover:-translate-y-0.5 active:translate-y-0 mt-4"
           >
-            Access Dashboard
+            Access Portal
           </button>
         </form>
 
-        <p className="text-center mt-8 text-slate-400 text-xs font-medium italic">
-          High-Precision OCR Management System
-        </p>
+        <div className="mt-8 pt-8 border-t border-slate-50 text-center">
+           <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest">
+             {config.appSubtitle}
+           </p>
+        </div>
       </div>
     </div>
   );

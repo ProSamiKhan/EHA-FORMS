@@ -1,4 +1,12 @@
 
+export type UserRole = 'super_admin' | 'staff';
+
+export interface AppConfig {
+  appName: string;
+  appSubtitle: string;
+  logoUrl: string;
+}
+
 export interface RegistrationData {
   admission_id: string;
   name: string;
