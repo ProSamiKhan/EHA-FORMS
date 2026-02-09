@@ -13,7 +13,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [config, setConfig] = useState<AppConfig>({
     appName: 'English House Academy',
     appSubtitle: 'Premium Registration Portal',
-    logoUrl: ''
+    logoUrl: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ4w7ji5StjjdpZTvD_pk6DJ-YIY2t5aA_ILQ&s'
   });
 
   useEffect(() => {

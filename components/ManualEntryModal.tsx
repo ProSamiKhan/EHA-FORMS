@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { RegistrationData } from '../types';
 
@@ -121,6 +120,11 @@ export const ManualEntryModal: React.FC<ManualEntryModalProps> = ({ isOpen, onCl
                   <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Age</label>
                   <input type="number" value={formData.age} onChange={(e) => handleChange('age', e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold outline-none" />
                 </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Qualification</label>
+                <input type="text" value={formData.qualification} onChange={(e) => handleChange('qualification', e.target.value)} placeholder="e.g. 10th, Graduate" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-500" />
               </div>
 
               <div className="grid grid-cols-2 gap-4">

@@ -1,3 +1,4 @@
+
 import React, { useMemo, useEffect, useState } from 'react';
 import { ProcessingRecord, RegistrationData } from '../types';
 import { fetchAllRegistrations } from '../services/sheetService';
@@ -74,7 +75,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
     localSynced.forEach(item => { if (item.admission_id && !uniqueMap.has(item.admission_id)) uniqueMap.set(item.admission_id, item); });
     return Array.from(uniqueMap.values()).sort((a, b) => {
         try {
-            // FIX: Explicitly type return value as number to avoid arithmetic operation errors
             const parseDate = (s: string): number => {
                 if (!s) return 0;
                 const parts = s.split('/');
@@ -132,7 +132,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
           <h3 className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-4">Gender Distribution</h3>
           <div className="space-y-3">
             {Object.entries(stats.genderMap).map(([gender, count]) => {
-                // FIX: Guard against division by zero and ensure operands are treated as numeric
                 const perc = stats.total > 0 ? Math.round((Number(count) / stats.total) * 100) : 0;
                 return (
                     <div key={gender} className="space-y-1">
@@ -181,7 +180,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
                   {allSyncedData.map((data, idx) => (
                       <tr key={data.admission_id || idx} className="hover:bg-slate-50/30 transition-colors group">
                       <td className="px-8 py-4">
-                          <span className="text-[10px] font-mono font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md">{data.admission_id || 'N/A'}</span>
+                          <button 
+                            onClick={() => setViewingRecord(data)}
+                            className="text-[10px] font-mono font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md hover:bg-indigo-100 active:scale-95 transition-all outline-none"
+                          >
+                            {data.admission_id || 'N/A'}
+                          </button>
                       </td>
                       <td className="px-8 py-4">
                           <span className="text-xs font-black text-slate-800 uppercase tracking-tight">{data.name}</span>

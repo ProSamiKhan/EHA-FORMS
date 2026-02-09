@@ -21,7 +21,7 @@ const App: React.FC = () => {
   const [config, setConfig] = useState<AppConfig>({
     appName: 'English House Academy',
     appSubtitle: 'Premium Registration Portal',
-    logoUrl: '' 
+    logoUrl: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ4w7ji5StjjdpZTvD_pk6DJ-YIY2t5aA_ILQ&s' 
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
