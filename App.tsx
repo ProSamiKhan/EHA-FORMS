@@ -217,27 +217,21 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen pb-24 lg:pb-10 bg-[#f8fafc]">
-      {/* HEADER - MOBILE OPTIMIZED */}
+      {/* HEADER - MOBILE & DESKTOP OPTIMIZED */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 lg:h-20 flex items-center justify-between relative">
           
-          {/* LEFT: LOGO */}
-          <div className="flex items-center space-x-3 lg:space-x-8">
+          {/* LEFT: LOGO + DESKTOP NAV */}
+          <div className="flex items-center space-x-3 lg:space-x-8 z-10">
             <button 
               onClick={() => setActiveTab('processing')}
-              className="flex items-center space-x-3 group active:scale-95 transition-transform"
+              className="flex items-center space-x-3 group active:scale-95 transition-transform shrink-0"
             >
               {config.logoUrl ? (
                 <img src={config.logoUrl} alt="EHA Logo" className="h-8 lg:h-12 w-auto object-contain" />
               ) : (
                 <div className="w-8 h-8 lg:w-10 lg:h-10 bg-[#000080] rounded-lg lg:rounded-xl flex items-center justify-center shadow-md shadow-indigo-100 overflow-hidden shrink-0">
                   <span className="text-white text-base lg:text-xl font-black italic">E</span>
-                </div>
-              )}
-              {!config.logoUrl && (
-                <div className="text-left overflow-hidden">
-                  <h1 className="text-xs lg:text-lg font-bold text-slate-900 leading-tight truncate max-w-[150px] sm:max-w-none">{config.appName}</h1>
-                  <p className="text-[9px] lg:text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-none mt-0.5">{config.appSubtitle}</p>
                 </div>
               )}
             </button>
@@ -251,16 +245,9 @@ const App: React.FC = () => {
               )}
             </nav>
           </div>
-
-          {/* CENTER: MOBILE SUBTITLE (NEW) */}
-          <div className="lg:hidden absolute left-1/2 -translate-x-1/2 pointer-events-none px-2 text-center">
-            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-tight whitespace-nowrap">
-              Digital Registration<br/>Portal
-            </p>
-          </div>
           
           {/* RIGHT: ACTIONS */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 z-10">
              {/* DESKTOP ONLY ACTION BUTTONS */}
              <button 
                 onClick={() => setIsManualModalOpen(true)}
