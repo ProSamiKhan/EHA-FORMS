@@ -36,7 +36,8 @@ Return ONLY a valid JSON object matching the requested schema.
 `;
 
 export const processRegistrationForm = async (base64Image: string): Promise<RegistrationData> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+  // Always use a named parameter for apiKey and obtain it exclusively from process.env.API_KEY.
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   try {
     const response = await ai.models.generateContent({

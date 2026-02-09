@@ -24,5 +24,6 @@ export interface ProcessingRecord {
   imageUrl: string;
   data: RegistrationData | null;
   status: 'pending' | 'processing' | 'completed' | 'error';
+  source: 'ocr' | 'manual';
   error?: string;
 }

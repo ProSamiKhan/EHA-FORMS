@@ -1,13 +1,16 @@
 
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { ProcessingRecord, RegistrationData } from './types';
 import { processRegistrationForm } from './services/geminiService';
 import { ProcessingCard } from './components/ProcessingCard';
+import { ManualEntryModal } from './components/ManualEntryModal';
 
 const App: React.FC = () => {
   const [records, setRecords] = useState<ProcessingRecord[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isManualModalOpen, setIsManualModalOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -29,6 +32,7 @@ const App: React.FC = () => {
         imageUrl,
         data: null,
         status: 'pending',
+        source: 'ocr',
       };
       
       newRecords.push(newRecord);
@@ -37,12 +41,10 @@ const App: React.FC = () => {
     setRecords(prev => [...newRecords, ...prev]);
     setIsUploading(false);
 
-    // Start processing each one
     for (const record of newRecords) {
         processRecord(record);
     }
     
-    // Reset input
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -50,7 +52,6 @@ const App: React.FC = () => {
     setRecords(prev => prev.map(r => r.id === record.id ? { ...r, status: 'processing' } : r));
     
     try {
-      // Find the file again from the input or convert URL to Base64
       const response = await fetch(record.imageUrl);
       const blob = await response.blob();
       const reader = new FileReader();
@@ -77,130 +78,181 @@ const App: React.FC = () => {
     }
   };
 
+  const addManualRecord = (data: RegistrationData) => {
+    const newRecord: ProcessingRecord = {
+      id: uuidv4(),
+      timestamp: Date.now(),
+      fileName: `Manual Entry - ${data.name || 'Student'}`,
+      imageUrl: '',
+      data: data,
+      status: 'completed',
+      source: 'manual',
+    };
+    setRecords(prev => [newRecord, ...prev]);
+  };
+
+  const updateRecordData = (id: string, newData: RegistrationData) => {
+    setRecords(prev => prev.map(r => r.id === id ? { ...r, data: newData } : r));
+  };
+
   const removeRecord = (id: string) => {
     setRecords(prev => {
         const record = prev.find(r => r.id === id);
-        if (record) URL.revokeObjectURL(record.imageUrl);
+        if (record && record.imageUrl) URL.revokeObjectURL(record.imageUrl);
         return prev.filter(r => r.id !== id);
     });
   };
 
   const clearAll = () => {
-    records.forEach(r => URL.revokeObjectURL(r.imageUrl));
+    records.forEach(r => r.imageUrl && URL.revokeObjectURL(r.imageUrl));
     setRecords([]);
   };
 
+  const filteredRecords = useMemo(() => {
+    if (!searchQuery) return records;
+    const lower = searchQuery.toLowerCase();
+    return records.filter(r => 
+        r.data?.name?.toLowerCase().includes(lower) || 
+        r.data?.admission_id?.toLowerCase().includes(lower) ||
+        r.fileName.toLowerCase().includes(lower)
+    );
+  }, [records, searchQuery]);
+
+  const exportToCSV = () => {
+    const completed = records.filter(r => r.status === 'completed' && r.data);
+    if (completed.length === 0) return alert("No completed records to export!");
+
+    const headers = Object.keys(completed[0].data!).join(",");
+    const rows = completed.map(r => 
+        Object.values(r.data!).map(val => `"${String(val).replace(/"/g, '""')}"`).join(",")
+    );
+    
+    const csvContent = [headers, ...rows].join("\n");
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `EHA_SummerCamp_Export_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
-    <div className="min-h-screen pb-20">
+    <div className="min-h-screen pb-20 bg-[#f8fafc]">
       {/* Header */}
-      <header className="bg-indigo-900 text-white shadow-lg sticky top-0 z-50">
+      <header className="bg-white border-b border-slate-200 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center shadow-inner">
-                <span className="text-indigo-900 text-2xl font-black">EHA</span>
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-200">
+                <span className="text-white text-xl font-black italic">E</span>
             </div>
-            <div>
-              <h1 className="text-xl font-bold tracking-tight">OCR Specialist</h1>
-              <p className="text-xs text-indigo-200 font-medium uppercase tracking-widest opacity-80">English House Academy</p>
+            <div className="hidden sm:block">
+              <h1 className="text-lg font-bold text-slate-900 leading-none">OCR Specialist</h1>
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">English House Academy</p>
             </div>
           </div>
           
-          <div className="hidden sm:flex items-center space-x-6 text-sm font-medium">
-             <div className="flex items-center space-x-2 text-indigo-100">
-                <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
-                <span>System Online</span>
-             </div>
+          <div className="flex items-center gap-3">
+             <button 
+                onClick={() => setIsManualModalOpen(true)}
+                className="hidden sm:flex items-center gap-2 bg-white text-slate-600 border border-slate-200 px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-slate-50 transition-all"
+             >
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                <span>Manual Entry</span>
+             </button>
+             <button 
+                onClick={() => fileInputRef.current?.click()}
+                className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all flex items-center gap-2"
+             >
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                <span className="hidden xs:inline">Upload Form</span>
+                <span className="xs:hidden">Upload</span>
+             </button>
           </div>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-10">
         <div className="flex flex-col lg:flex-row gap-8">
-          {/* Left Column: Upload & Stats */}
+          {/* Sidebar */}
           <div className="w-full lg:w-1/4 space-y-6">
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-              <h2 className="text-lg font-bold text-slate-900 mb-4">New Extraction</h2>
-              <div 
-                className={`
-                  border-2 border-dashed rounded-xl p-8 transition-all flex flex-col items-center justify-center text-center cursor-pointer
-                  ${isUploading ? 'bg-slate-50 border-indigo-200' : 'bg-indigo-50/50 border-indigo-200 hover:bg-indigo-50 hover:border-indigo-400'}
-                `}
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <div className="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mb-4">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+            {/* Stats */}
+            <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
+              <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6">Process Summary</h2>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-slate-50 p-4 rounded-2xl">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Total</p>
+                    <p className="text-2xl font-black text-slate-900 leading-none">{records.length}</p>
                 </div>
-                <p className="text-sm font-semibold text-indigo-900 mb-1">Click to Upload</p>
-                <p className="text-xs text-slate-500">Registration form photos (JPG/PNG)</p>
-                <input 
-                  type="file" 
-                  className="hidden" 
-                  ref={fileInputRef}
-                  onChange={handleFileUpload}
-                  accept="image/*"
-                  multiple
-                />
+                <div className="bg-green-50 p-4 rounded-2xl">
+                    <p className="text-[10px] font-bold text-green-400 uppercase mb-1">Ready</p>
+                    <p className="text-2xl font-black text-green-600 leading-none">{records.filter(r => r.status === 'completed').length}</p>
+                </div>
               </div>
-            </div>
-
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-              <h2 className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-4">Batch Summary</h2>
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-slate-600">Total Forms</span>
-                  <span className="text-sm font-bold text-slate-900">{records.length}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-slate-600">Completed</span>
-                  <span className="text-sm font-bold text-green-600">{records.filter(r => r.status === 'completed').length}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-slate-600">Errors</span>
-                  <span className="text-sm font-bold text-red-600">{records.filter(r => r.status === 'error').length}</span>
-                </div>
-                
+              
+              <div className="mt-6 space-y-3">
+                <button 
+                    onClick={exportToCSV}
+                    disabled={records.filter(r => r.status === 'completed').length === 0}
+                    className="w-full py-3 bg-slate-900 text-white rounded-2xl text-xs font-bold uppercase tracking-widest hover:bg-slate-800 transition-all disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+                    Export to Excel
+                </button>
                 {records.length > 0 && (
                   <button 
                     onClick={clearAll}
-                    className="w-full mt-4 py-2 text-xs font-bold text-slate-400 hover:text-red-500 transition-colors uppercase tracking-widest border border-slate-100 rounded-lg hover:bg-red-50"
+                    className="w-full py-3 bg-white text-slate-400 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-red-50 hover:text-red-500 border border-slate-100 transition-all"
                   >
-                    Clear All Records
+                    Clear All History
                   </button>
                 )}
               </div>
             </div>
 
-            <div className="p-6 rounded-2xl bg-gradient-to-br from-indigo-600 to-indigo-800 text-white shadow-lg shadow-indigo-200">
-                <div className="flex items-center space-x-2 mb-3">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-indigo-300"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
-                    <h2 className="font-bold">Extraction Tips</h2>
-                </div>
-                <ul className="text-xs space-y-2 text-indigo-100 leading-relaxed">
-                    <li>• Ensure good lighting when taking the photo.</li>
-                    <li>• Keep the form flat and capture all corners.</li>
-                    <li>• Handwritten text should be dark and clear.</li>
-                    <li>• Use "Check Manually" flag to review illegible data.</li>
-                </ul>
+            <div className="bg-indigo-50 p-6 rounded-3xl border border-indigo-100">
+                <h3 className="text-xs font-black text-indigo-400 uppercase mb-4 tracking-widest">AI Instructions</h3>
+                <p className="text-xs text-indigo-900/70 leading-relaxed font-medium">
+                    Upload clear, upright photos of forms. The AI will prioritize identifying <strong>Admission IDs</strong> and <strong>Payments</strong>. If handwriting is illegible, it will flag it as <span className="font-bold text-red-500">CHECK_MANUALLY</span>.
+                </p>
             </div>
           </div>
 
-          {/* Right Column: Records List */}
-          <div className="w-full lg:w-3/4">
-            {records.length === 0 ? (
-              <div className="bg-white rounded-3xl border-2 border-dashed border-slate-200 h-[400px] flex flex-col items-center justify-center text-center p-10">
-                <div className="w-20 h-20 bg-slate-50 text-slate-300 rounded-full flex items-center justify-center mb-6">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+          {/* Main List */}
+          <div className="w-full lg:w-3/4 space-y-6">
+            {/* Search Bar */}
+            <div className="relative group">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <svg className="h-5 w-5 text-slate-400 group-focus-within:text-indigo-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                 </div>
-                <h3 className="text-xl font-bold text-slate-900 mb-2">No forms processed yet</h3>
-                <p className="text-slate-500 max-w-sm">Upload images of the English House Academy summer camp forms to start high-precision extraction.</p>
+                <input 
+                    type="text" 
+                    placeholder="Search by student name, ID or filename..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="block w-full pl-12 pr-4 py-4 bg-white border border-slate-200 rounded-3xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all shadow-sm"
+                />
+            </div>
+
+            {filteredRecords.length === 0 ? (
+              <div className="bg-white rounded-[40px] border-2 border-dashed border-slate-200 h-[450px] flex flex-col items-center justify-center text-center p-12">
+                <div className="w-24 h-24 bg-slate-50 text-slate-300 rounded-full flex items-center justify-center mb-8">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+                </div>
+                <h3 className="text-2xl font-black text-slate-900 mb-3 tracking-tight">System Ready for Input</h3>
+                <p className="text-slate-500 max-w-sm font-medium leading-relaxed">
+                    {searchQuery ? "No results found for your search. Try different keywords." : "Please upload Summer Camp registration forms or use Manual Entry to begin."}
+                </p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 gap-6">
-                {records.map(record => (
+              <div className="space-y-6">
+                {filteredRecords.map(record => (
                   <ProcessingCard 
                     key={record.id} 
                     record={record} 
-                    onRemove={removeRecord} 
+                    onRemove={removeRecord}
+                    onUpdate={updateRecordData}
                   />
                 ))}
               </div>
@@ -209,13 +261,34 @@ const App: React.FC = () => {
         </div>
       </main>
 
-      {/* Floating Action for Mobile */}
-      <div className="fixed bottom-6 right-6 lg:hidden">
+      <ManualEntryModal 
+        isOpen={isManualModalOpen} 
+        onClose={() => setIsManualModalOpen(false)}
+        onSubmit={addManualRecord}
+      />
+
+      <input 
+        type="file" 
+        className="hidden" 
+        ref={fileInputRef}
+        onChange={handleFileUpload}
+        accept="image/*"
+        multiple
+      />
+
+      {/* Mobile Fab Menu */}
+      <div className="fixed bottom-8 right-8 lg:hidden flex flex-col gap-4">
+        <button 
+          onClick={() => setIsManualModalOpen(true)}
+          className="w-14 h-14 bg-white text-slate-600 rounded-full shadow-2xl flex items-center justify-center hover:bg-slate-50 active:scale-90 transition-all border border-slate-200"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+        </button>
         <button 
           onClick={() => fileInputRef.current?.click()}
-          className="w-14 h-14 bg-indigo-600 text-white rounded-full shadow-xl flex items-center justify-center hover:bg-indigo-700 active:scale-95 transition-all"
+          className="w-16 h-16 bg-indigo-600 text-white rounded-[24px] shadow-2xl shadow-indigo-200 flex items-center justify-center hover:bg-indigo-700 active:scale-90 transition-all"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         </button>
       </div>
     </div>
