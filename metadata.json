@@ -1,0 +1,7 @@
+{
+  "name": "EHA OCR Specialist",
+  "description": "High-precision OCR tool for extracting handwritten data from English House Academy registration forms into structured JSON.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
