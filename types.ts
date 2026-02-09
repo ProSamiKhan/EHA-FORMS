@@ -25,5 +25,6 @@ export interface ProcessingRecord {
   data: RegistrationData | null;
   status: 'pending' | 'processing' | 'completed' | 'error';
   source: 'ocr' | 'manual';
+  syncStatus: 'idle' | 'syncing' | 'synced' | 'failed';
   error?: string;
 }

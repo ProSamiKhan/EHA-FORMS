@@ -6,6 +6,7 @@ interface ProcessingCardProps {
   record: ProcessingRecord;
   onRemove: (id: string) => void;
   onUpdate: (id: string, data: RegistrationData) => void;
+  onSync: (id: string) => void;
 }
 
 const DataRow: React.FC<{ 
@@ -31,7 +32,7 @@ const DataRow: React.FC<{
   </div>
 );
 
-export const ProcessingCard: React.FC<ProcessingCardProps> = ({ record, onRemove, onUpdate }) => {
+export const ProcessingCard: React.FC<ProcessingCardProps> = ({ record, onRemove, onUpdate, onSync }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [tempData, setTempData] = useState<RegistrationData | null>(null);
 
@@ -59,6 +60,15 @@ export const ProcessingCard: React.FC<ProcessingCardProps> = ({ record, onRemove
     alert('JSON copied!');
   };
 
+  const syncIcon = () => {
+    switch(record.syncStatus) {
+      case 'syncing': return <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>;
+      case 'synced': return <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>;
+      case 'failed': return <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>;
+      default: return <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 0 1-9 9m9-9a9 9 0 0 0-9-9m9 9H3m9 9a9 9 0 0 1-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9"/></svg>;
+    }
+  };
+
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col lg:flex-row transition-all hover:shadow-md">
       {/* Image Preview / Source Placeholder */}
@@ -75,17 +85,6 @@ export const ProcessingCard: React.FC<ProcessingCardProps> = ({ record, onRemove
             <span className="text-[10px] font-black uppercase tracking-widest">Manual Entry</span>
           </div>
         )}
-        
-        {record.source === 'ocr' && (
-          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-              <button 
-                  onClick={() => window.open(record.imageUrl, '_blank')}
-                  className="bg-white px-3 py-1.5 rounded-lg text-xs font-bold text-slate-900 hover:bg-indigo-50"
-              >
-                  View Full
-              </button>
-          </div>
-        )}
       </div>
 
       {/* Content */}
@@ -95,9 +94,24 @@ export const ProcessingCard: React.FC<ProcessingCardProps> = ({ record, onRemove
             <div className="flex items-center gap-2 mb-1">
                 <h3 className="text-lg font-bold text-slate-900 truncate">{record.data?.name || record.fileName}</h3>
                 {record.status === 'completed' && (
-                    <span className={`px-2 py-0.5 text-[10px] font-black uppercase rounded-full ${record.source === 'manual' ? 'bg-indigo-100 text-indigo-700' : 'bg-green-100 text-green-700'}`}>
-                      {record.source === 'manual' ? 'Manual' : 'Extracted'}
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className={`px-2 py-0.5 text-[10px] font-black uppercase rounded-full ${record.source === 'manual' ? 'bg-indigo-100 text-indigo-700' : 'bg-green-100 text-green-700'}`}>
+                        {record.source === 'manual' ? 'Manual' : 'Extracted'}
+                      </span>
+                      <button 
+                        onClick={() => onSync(record.id)}
+                        disabled={record.syncStatus === 'synced' || record.syncStatus === 'syncing'}
+                        className={`flex items-center gap-1 px-2 py-0.5 text-[10px] font-black uppercase rounded-full transition-all ${
+                          record.syncStatus === 'synced' ? 'bg-green-600 text-white' : 
+                          record.syncStatus === 'failed' ? 'bg-red-100 text-red-600' : 
+                          record.syncStatus === 'syncing' ? 'bg-amber-100 text-amber-600' : 
+                          'bg-slate-100 text-slate-500 hover:bg-indigo-600 hover:text-white'
+                        }`}
+                      >
+                        {syncIcon()}
+                        <span>{record.syncStatus === 'synced' ? 'Sheet OK' : record.syncStatus === 'syncing' ? 'Syncing...' : 'Sync to Sheet'}</span>
+                      </button>
+                    </div>
                 )}
             </div>
             <p className="text-xs text-slate-400 font-mono">{record.data?.admission_id || 'ID Pending'}</p>
@@ -117,13 +131,6 @@ export const ProcessingCard: React.FC<ProcessingCardProps> = ({ record, onRemove
                       <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
                   )}
                 </button>
-                <button 
-                  onClick={copyToClipboard}
-                  className="p-2 bg-slate-100 text-slate-600 rounded-xl hover:bg-indigo-100 hover:text-indigo-600 transition-all"
-                  title="Copy JSON"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
-                </button>
               </>
             )}
             <button 
@@ -137,21 +144,8 @@ export const ProcessingCard: React.FC<ProcessingCardProps> = ({ record, onRemove
 
         {record.status === 'processing' && (
           <div className="flex-1 flex flex-col items-center justify-center space-y-4 py-8">
-            <div className="relative">
-                <div className="absolute inset-0 rounded-full border-4 border-indigo-100"></div>
-                <div className="animate-spin rounded-full h-12 w-12 border-4 border-indigo-600 border-t-transparent relative z-10"></div>
-            </div>
-            <p className="text-sm font-bold text-indigo-600 animate-pulse">Reading handwriting...</p>
-          </div>
-        )}
-
-        {record.status === 'error' && (
-          <div className="flex-1 flex flex-col items-center justify-center py-8 text-center bg-red-50 rounded-xl border border-red-100">
-            <div className="p-3 bg-red-100 rounded-full text-red-600 mb-3">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
-            </div>
-            <p className="text-sm font-bold text-red-600">Processing Error</p>
-            <p className="text-xs text-red-500 max-w-xs mt-1">{record.error}</p>
+            <div className="animate-spin rounded-full h-8 w-8 border-2 border-indigo-600 border-t-transparent"></div>
+            <p className="text-xs font-bold text-indigo-600">Reading handwriting...</p>
           </div>
         )}
 
@@ -160,20 +154,16 @@ export const ProcessingCard: React.FC<ProcessingCardProps> = ({ record, onRemove
             <div className="space-y-0.5">
               <h4 className="text-[10px] font-black text-indigo-400 uppercase mb-2 tracking-tighter">Student Info</h4>
               <DataRow label="Full Name" value={isEditing ? tempData!.name : record.data.name} isEditing={isEditing} onChange={(v) => handleDataChange('name', v)} />
+              <DataRow label="Admission ID" value={isEditing ? tempData!.admission_id : record.data.admission_id} isEditing={isEditing} onChange={(v) => handleDataChange('admission_id', v)} />
               <DataRow label="Gender" value={isEditing ? tempData!.gender : record.data.gender} isEditing={isEditing} onChange={(v) => handleDataChange('gender', v)} />
               <DataRow label="Age" value={isEditing ? tempData!.age : record.data.age} isEditing={isEditing} onChange={(v) => handleDataChange('age', v)} />
-              <DataRow label="Qualification" value={isEditing ? tempData!.qualification : record.data.qualification} isEditing={isEditing} onChange={(v) => handleDataChange('qualification', v)} />
-              <DataRow label="Medium" value={isEditing ? tempData!.medium : record.data.medium} isEditing={isEditing} onChange={(v) => handleDataChange('medium', v)} />
               <DataRow label="Contact" value={isEditing ? tempData!.contact_no : record.data.contact_no} isEditing={isEditing} onChange={(v) => handleDataChange('contact_no', v)} />
-              <DataRow label="Address" value={isEditing ? tempData!.address : record.data.address} isEditing={isEditing} onChange={(v) => handleDataChange('address', v)} />
             </div>
             <div className="space-y-0.5 mt-6 md:mt-0">
               <h4 className="text-[10px] font-black text-indigo-400 uppercase mb-2 tracking-tighter">Account & Payment</h4>
               <DataRow label="Initial Payment" value={isEditing ? tempData!.initial_payment : record.data.initial_payment} isEditing={isEditing} onChange={(v) => handleDataChange('initial_payment', v)} />
               <DataRow label="Date" value={isEditing ? tempData!.date : record.data.date} isEditing={isEditing} onChange={(v) => handleDataChange('date', v)} />
               <DataRow label="UTR / Txn ID" value={isEditing ? tempData!.utr : record.data.utr} isEditing={isEditing} onChange={(v) => handleDataChange('utr', v)} />
-              <DataRow label="Received AC" value={isEditing ? tempData!.received_ac : record.data.received_ac} isEditing={isEditing} onChange={(v) => handleDataChange('received_ac', v)} />
-              <DataRow label="Discount" value={isEditing ? tempData!.discount : record.data.discount} isEditing={isEditing} onChange={(v) => handleDataChange('discount', v)} />
               <DataRow label="Remaining" value={isEditing ? tempData!.remaining_amount : record.data.remaining_amount} isEditing={isEditing} onChange={(v) => handleDataChange('remaining_amount', v)} />
             </div>
           </div>

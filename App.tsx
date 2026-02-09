@@ -1,8 +1,9 @@
 
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { ProcessingRecord, RegistrationData } from './types';
 import { processRegistrationForm } from './services/geminiService';
+import { syncToGoogleSheets } from './services/sheetService';
 import { ProcessingCard } from './components/ProcessingCard';
 import { ManualEntryModal } from './components/ManualEntryModal';
 
@@ -33,6 +34,7 @@ const App: React.FC = () => {
         data: null,
         status: 'pending',
         source: 'ocr',
+        syncStatus: 'idle',
       };
       
       newRecords.push(newRecord);
@@ -69,6 +71,9 @@ const App: React.FC = () => {
         status: 'completed', 
         data: extractedData 
       } : r));
+
+      // Automatically sync after OCR success
+      performSync(record.id, extractedData);
     } catch (error: any) {
       setRecords(prev => prev.map(r => r.id === record.id ? { 
         ...r, 
@@ -78,21 +83,32 @@ const App: React.FC = () => {
     }
   };
 
+  const performSync = async (id: string, data: RegistrationData) => {
+    setRecords(prev => prev.map(r => r.id === id ? { ...r, syncStatus: 'syncing' } : r));
+    const success = await syncToGoogleSheets(data);
+    setRecords(prev => prev.map(r => r.id === id ? { ...r, syncStatus: success ? 'synced' : 'failed' } : r));
+  };
+
   const addManualRecord = (data: RegistrationData) => {
+    const id = uuidv4();
     const newRecord: ProcessingRecord = {
-      id: uuidv4(),
+      id,
       timestamp: Date.now(),
       fileName: `Manual Entry - ${data.name || 'Student'}`,
       imageUrl: '',
       data: data,
       status: 'completed',
       source: 'manual',
+      syncStatus: 'idle',
     };
     setRecords(prev => [newRecord, ...prev]);
+    
+    // Automatically sync manual entry
+    performSync(id, data);
   };
 
   const updateRecordData = (id: string, newData: RegistrationData) => {
-    setRecords(prev => prev.map(r => r.id === id ? { ...r, data: newData } : r));
+    setRecords(prev => prev.map(r => r.id === id ? { ...r, data: newData, syncStatus: 'idle' } : r));
   };
 
   const removeRecord = (id: string) => {
@@ -140,7 +156,6 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen pb-20 bg-[#f8fafc]">
-      {/* Header */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
           <div className="flex items-center space-x-3">
@@ -166,8 +181,7 @@ const App: React.FC = () => {
                 className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all flex items-center gap-2"
              >
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
-                <span className="hidden xs:inline">Upload Form</span>
-                <span className="xs:hidden">Upload</span>
+                <span>Upload Form</span>
              </button>
           </div>
         </div>
@@ -175,9 +189,7 @@ const App: React.FC = () => {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-10">
         <div className="flex flex-col lg:flex-row gap-8">
-          {/* Sidebar */}
           <div className="w-full lg:w-1/4 space-y-6">
-            {/* Stats */}
             <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
               <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6">Process Summary</h2>
               <div className="grid grid-cols-2 gap-4">
@@ -186,8 +198,8 @@ const App: React.FC = () => {
                     <p className="text-2xl font-black text-slate-900 leading-none">{records.length}</p>
                 </div>
                 <div className="bg-green-50 p-4 rounded-2xl">
-                    <p className="text-[10px] font-bold text-green-400 uppercase mb-1">Ready</p>
-                    <p className="text-2xl font-black text-green-600 leading-none">{records.filter(r => r.status === 'completed').length}</p>
+                    <p className="text-[10px] font-bold text-green-400 uppercase mb-1">Sheet Sync</p>
+                    <p className="text-2xl font-black text-green-600 leading-none">{records.filter(r => r.syncStatus === 'synced').length}</p>
                 </div>
               </div>
               
@@ -212,51 +224,38 @@ const App: React.FC = () => {
             </div>
 
             <div className="bg-indigo-50 p-6 rounded-3xl border border-indigo-100">
-                <h3 className="text-xs font-black text-indigo-400 uppercase mb-4 tracking-widest">AI Instructions</h3>
+                <h3 className="text-xs font-black text-indigo-400 uppercase mb-4 tracking-widest">Auto-Sheet Sync</h3>
                 <p className="text-xs text-indigo-900/70 leading-relaxed font-medium">
-                    Upload clear, upright photos of forms. The AI will prioritize identifying <strong>Admission IDs</strong> and <strong>Payments</strong>. If handwriting is illegible, it will flag it as <span className="font-bold text-red-500">CHECK_MANUALLY</span>.
+                    Ab aapka data <strong>automatically</strong> Google Sheet mein save ho jayega. Har entry ke saath ek sync status icon dikhega.
                 </p>
             </div>
           </div>
 
-          {/* Main List */}
           <div className="w-full lg:w-3/4 space-y-6">
-            {/* Search Bar */}
             <div className="relative group">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                     <svg className="h-5 w-5 text-slate-400 group-focus-within:text-indigo-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                 </div>
                 <input 
                     type="text" 
-                    placeholder="Search by student name, ID or filename..."
+                    placeholder="Search records..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="block w-full pl-12 pr-4 py-4 bg-white border border-slate-200 rounded-3xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all shadow-sm"
+                    className="block w-full pl-12 pr-4 py-4 bg-white border border-slate-200 rounded-3xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-sm"
                 />
             </div>
 
-            {filteredRecords.length === 0 ? (
-              <div className="bg-white rounded-[40px] border-2 border-dashed border-slate-200 h-[450px] flex flex-col items-center justify-center text-center p-12">
-                <div className="w-24 h-24 bg-slate-50 text-slate-300 rounded-full flex items-center justify-center mb-8">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
-                </div>
-                <h3 className="text-2xl font-black text-slate-900 mb-3 tracking-tight">System Ready for Input</h3>
-                <p className="text-slate-500 max-w-sm font-medium leading-relaxed">
-                    {searchQuery ? "No results found for your search. Try different keywords." : "Please upload Summer Camp registration forms or use Manual Entry to begin."}
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-6">
-                {filteredRecords.map(record => (
-                  <ProcessingCard 
-                    key={record.id} 
-                    record={record} 
-                    onRemove={removeRecord}
-                    onUpdate={updateRecordData}
-                  />
-                ))}
-              </div>
-            )}
+            <div className="space-y-6">
+              {filteredRecords.map(record => (
+                <ProcessingCard 
+                  key={record.id} 
+                  record={record} 
+                  onRemove={removeRecord}
+                  onUpdate={updateRecordData}
+                  onSync={(id) => record.data && performSync(id, record.data)}
+                />
+              ))}
+            </div>
           </div>
         </div>
       </main>
@@ -275,22 +274,6 @@ const App: React.FC = () => {
         accept="image/*"
         multiple
       />
-
-      {/* Mobile Fab Menu */}
-      <div className="fixed bottom-8 right-8 lg:hidden flex flex-col gap-4">
-        <button 
-          onClick={() => setIsManualModalOpen(true)}
-          className="w-14 h-14 bg-white text-slate-600 rounded-full shadow-2xl flex items-center justify-center hover:bg-slate-50 active:scale-90 transition-all border border-slate-200"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
-        </button>
-        <button 
-          onClick={() => fileInputRef.current?.click()}
-          className="w-16 h-16 bg-indigo-600 text-white rounded-[24px] shadow-2xl shadow-indigo-200 flex items-center justify-center hover:bg-indigo-700 active:scale-90 transition-all"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        </button>
-      </div>
     </div>
   );
 };
