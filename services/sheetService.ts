@@ -1,20 +1,24 @@
 
 import { RegistrationData } from "../types";
 
-// IMPORTANT: Paste your copied Web App URL from Google Apps Script here
-const GOOGLE_SHEET_WEBAPP_URL = "YOUR_APPS_SCRIPT_URL_HERE";
+/**
+ * IMPORTANT: 
+ * 1. Paste your Google Apps Script "Web App URL" below.
+ * 2. Ensure your Apps Script has: @OnlyCurrentDoc at the top.
+ */
+// Fix: Added explicit string type to avoid TypeScript error where literal value is compared to another literal with no overlap
+const GOOGLE_SHEET_WEBAPP_URL: string = "https://script.google.com/macros/s/AKfycbxXO41V1JdvbEYxj75KGnRNuF6rESQeWyBTgYF7-VaZ-dz2cJc6Ir-FqoU64tNz9fB9/exec";
 
 export const syncToGoogleSheets = async (data: RegistrationData): Promise<boolean> => {
   if (GOOGLE_SHEET_WEBAPP_URL === "YOUR_APPS_SCRIPT_URL_HERE" || !GOOGLE_SHEET_WEBAPP_URL) {
-    console.error("SHEET_SYNC_ERROR: Google Sheet URL is not configured in services/sheetService.ts");
-    alert("Please configure your Google Sheet Web App URL in the code!");
+    console.error("SHEET_SYNC_ERROR: Please replace YOUR_APPS_SCRIPT_URL_HERE with your actual deployment URL.");
     return false;
   }
 
   try {
-    // Note: 'no-cors' mode is used because Google Apps Script redirects 
-    // often trigger CORS blocks in browsers, even if the script works.
-    const response = await fetch(GOOGLE_SHEET_WEBAPP_URL, {
+    // We use 'no-cors' because Google Apps Script redirects (302) often fail CORS 
+    // even when the data is successfully received. 
+    await fetch(GOOGLE_SHEET_WEBAPP_URL, {
       method: "POST",
       mode: "no-cors", 
       headers: {
@@ -23,12 +27,12 @@ export const syncToGoogleSheets = async (data: RegistrationData): Promise<boolea
       body: JSON.stringify(data),
     });
     
-    // With 'no-cors', the response status is always 0. 
-    // We assume success if no error was thrown during fetch.
-    console.log("SHEET_SYNC: Data sent to Google Sheets successfully.");
+    // In 'no-cors' mode, we won't get a readable response, 
+    // but if fetch doesn't throw, the request was dispatched.
+    console.log("SHEET_SYNC: Data sent to sync queue.");
     return true;
   } catch (error) {
-    console.error("SHEET_SYNC_ERROR:", error);
+    console.error("SHEET_SYNC_NETWORK_ERROR:", error);
     return false;
   }
 };
