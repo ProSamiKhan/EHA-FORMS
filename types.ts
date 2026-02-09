@@ -7,6 +7,12 @@ export interface AppConfig {
   logoUrl: string;
 }
 
+export interface UserAccount {
+  username: string;
+  password: string;
+  role: UserRole;
+}
+
 export interface RegistrationData {
   admission_id: string;
   name: string;
