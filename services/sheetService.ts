@@ -6,7 +6,6 @@ const GOOGLE_SHEET_WEBAPP_URL: string = "https://script.google.com/macros/s/AKfy
 
 /**
  * Synchronizes a single registration record to Google Sheets.
- * Uses 'no-cors' for POST to avoid common Apps Script redirection/CORS issues.
  */
 export const syncToGoogleSheets = async (data: RegistrationData): Promise<boolean> => {
   if (!GOOGLE_SHEET_WEBAPP_URL || GOOGLE_SHEET_WEBAPP_URL.includes("YOUR_APPS_SCRIPT")) {
@@ -24,8 +23,6 @@ export const syncToGoogleSheets = async (data: RegistrationData): Promise<boolea
       },
       body: JSON.stringify(data),
     });
-    
-    // In no-cors mode, we assume success if no fetch error occurs
     return true;
   } catch (error) {
     console.error("SHEET_SYNC_ERROR:", error);
@@ -35,7 +32,6 @@ export const syncToGoogleSheets = async (data: RegistrationData): Promise<boolea
 
 /**
  * Fetches all registration records from Google Sheets.
- * Requires the Apps Script to have a doGet() function that returns the sheet data as JSON.
  */
 export const fetchAllRegistrations = async (): Promise<RegistrationData[]> => {
   if (!GOOGLE_SHEET_WEBAPP_URL || GOOGLE_SHEET_WEBAPP_URL.includes("YOUR_APPS_SCRIPT")) {
@@ -43,13 +39,15 @@ export const fetchAllRegistrations = async (): Promise<RegistrationData[]> => {
   }
 
   try {
-    const response = await fetch(GOOGLE_SHEET_WEBAPP_URL, {
+    // Adding a timestamp to avoid browser caching of the GET response
+    const fetchUrl = `${GOOGLE_SHEET_WEBAPP_URL}?t=${Date.now()}`;
+    const response = await fetch(fetchUrl, {
       method: "GET",
-      cache: "no-cache",
+      redirect: "follow", // Explicitly follow redirects for Apps Script
     });
 
     if (!response.ok) {
-        throw new Error("Failed to fetch from Google Sheets");
+        throw new Error(`HTTP Error: ${response.status}`);
     }
 
     const data = await response.json();
