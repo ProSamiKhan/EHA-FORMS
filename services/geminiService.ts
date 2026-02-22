@@ -23,15 +23,15 @@ The user is uploading images of a specific registration form. You must identify 
    - payment1_amount (Initial payment)
    - payment1_date (Format: DD/MM/YYYY)
    - payment1_utr (Transaction ID)
-   - payment2_amount
-   - payment2_date
-   - payment2_utr
-   - payment3_amount
-   - payment3_date
-   - payment3_utr
-   - payment4_amount
-   - payment4_date
-   - payment4_utr
+   - payment2_amount, payment2_date, payment2_utr
+   - payment3_amount, payment3_date, payment3_utr
+   - payment4_amount, payment4_date, payment4_utr
+   - payment5_amount, payment5_date, payment5_utr
+   - payment6_amount, payment6_date, payment6_utr
+   - payment7_amount, payment7_date, payment7_utr
+   - payment8_amount, payment8_date, payment8_utr
+   - payment9_amount, payment9_date, payment9_utr
+   - payment10_amount, payment10_date, payment10_utr
    - received_ac (Account details)
    - discount
    - remaining_amount
@@ -90,6 +90,24 @@ export const processRegistrationForm = async (base64Image: string): Promise<Regi
             payment4_amount: { type: Type.STRING },
             payment4_date: { type: Type.STRING },
             payment4_utr: { type: Type.STRING },
+            payment5_amount: { type: Type.STRING },
+            payment5_date: { type: Type.STRING },
+            payment5_utr: { type: Type.STRING },
+            payment6_amount: { type: Type.STRING },
+            payment6_date: { type: Type.STRING },
+            payment6_utr: { type: Type.STRING },
+            payment7_amount: { type: Type.STRING },
+            payment7_date: { type: Type.STRING },
+            payment7_utr: { type: Type.STRING },
+            payment8_amount: { type: Type.STRING },
+            payment8_date: { type: Type.STRING },
+            payment8_utr: { type: Type.STRING },
+            payment9_amount: { type: Type.STRING },
+            payment9_date: { type: Type.STRING },
+            payment9_utr: { type: Type.STRING },
+            payment10_amount: { type: Type.STRING },
+            payment10_date: { type: Type.STRING },
+            payment10_utr: { type: Type.STRING },
             received_ac: { type: Type.STRING },
             discount: { type: Type.STRING },
             remaining_amount: { type: Type.STRING },

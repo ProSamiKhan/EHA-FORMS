@@ -41,12 +41,11 @@ export const ProcessingCard: React.FC<ProcessingCardProps> = ({ record, onRemove
 
   useEffect(() => {
     if (isEditing && tempData) {
-      const p1 = parseFloat(tempData.payment1_amount) || 0;
-      const p2 = parseFloat(tempData.payment2_amount) || 0;
-      const p3 = parseFloat(tempData.payment3_amount) || 0;
-      const p4 = parseFloat(tempData.payment4_amount) || 0;
+      let totalPaid = 0;
+      for (let i = 1; i <= 10; i++) {
+        totalPaid += parseFloat((tempData as any)[`payment${i}_amount`]) || 0;
+      }
       const disc = parseFloat(tempData.discount) || 0;
-      const totalPaid = p1 + p2 + p3 + p4;
       const remaining = BASE_FEES - totalPaid - disc;
       const finalRem = remaining >= 0 ? remaining : 0;
       
@@ -54,7 +53,12 @@ export const ProcessingCard: React.FC<ProcessingCardProps> = ({ record, onRemove
         setTempData({ ...tempData, remaining_amount: String(finalRem) });
       }
     }
-  }, [tempData?.payment1_amount, tempData?.payment2_amount, tempData?.payment3_amount, tempData?.payment4_amount, tempData?.discount, isEditing]);
+  }, [
+    tempData?.payment1_amount, tempData?.payment2_amount, tempData?.payment3_amount, 
+    tempData?.payment4_amount, tempData?.payment5_amount, tempData?.payment6_amount,
+    tempData?.payment7_amount, tempData?.payment8_amount, tempData?.payment9_amount,
+    tempData?.payment10_amount, tempData?.discount, isEditing
+  ]);
 
   const startEditing = () => {
     setTempData({ ...record.data! });
@@ -198,38 +202,31 @@ export const ProcessingCard: React.FC<ProcessingCardProps> = ({ record, onRemove
                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-400"></span> Payment History
                 </h4>
                 <div className="bg-slate-50/50 dark:bg-slate-800/40 p-4 rounded-2xl space-y-4 border border-transparent dark:border-slate-800/30 custom-scrollbar max-h-[300px] overflow-y-auto">
-                    {/* Pay 1 */}
-                    <div className="border-b border-slate-100 dark:border-slate-800 pb-2">
-                      <DataRow label="Pay 1 (Initial)" value={isEditing ? tempData!.payment1_amount : record.data.payment1_amount} isEditing={isEditing} onChange={(v) => handleDataChange('payment1_amount', v)} type="number" />
-                      <div className="grid grid-cols-2 gap-2">
-                        <DataRow label="Date" value={isEditing ? tempData!.payment1_date : record.data.payment1_date} isEditing={isEditing} onChange={(v) => handleDataChange('payment1_date', v)} />
-                        <DataRow label="UTR" value={isEditing ? tempData!.payment1_utr : record.data.payment1_utr} isEditing={isEditing} onChange={(v) => handleDataChange('payment1_utr', v)} />
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
+                      <div key={num} className="border-b border-slate-100 dark:border-slate-800 pb-2 last:border-0 last:pb-0">
+                        <DataRow 
+                          label={`Pay ${num} ${num === 1 ? '(Initial)' : ''}`} 
+                          value={isEditing ? (tempData as any)[`payment${num}_amount`] : (record.data as any)[`payment${num}_amount`]} 
+                          isEditing={isEditing} 
+                          onChange={(v) => handleDataChange(`payment${num}_amount` as any, v)} 
+                          type="number" 
+                        />
+                        <div className="grid grid-cols-2 gap-2">
+                          <DataRow 
+                            label="Date" 
+                            value={isEditing ? (tempData as any)[`payment${num}_date`] : (record.data as any)[`payment${num}_date`]} 
+                            isEditing={isEditing} 
+                            onChange={(v) => handleDataChange(`payment${num}_date` as any, v)} 
+                          />
+                          <DataRow 
+                            label="UTR" 
+                            value={isEditing ? (tempData as any)[`payment${num}_utr`] : (record.data as any)[`payment${num}_utr`]} 
+                            isEditing={isEditing} 
+                            onChange={(v) => handleDataChange(`payment${num}_utr` as any, v)} 
+                          />
+                        </div>
                       </div>
-                    </div>
-                    {/* Pay 2 */}
-                    <div className="border-b border-slate-100 dark:border-slate-800 pb-2">
-                      <DataRow label="Pay 2" value={isEditing ? tempData!.payment2_amount : record.data.payment2_amount} isEditing={isEditing} onChange={(v) => handleDataChange('payment2_amount', v)} type="number" />
-                      <div className="grid grid-cols-2 gap-2">
-                        <DataRow label="Date" value={isEditing ? tempData!.payment2_date : record.data.payment2_date} isEditing={isEditing} onChange={(v) => handleDataChange('payment2_date', v)} />
-                        <DataRow label="UTR" value={isEditing ? tempData!.payment2_utr : record.data.payment2_utr} isEditing={isEditing} onChange={(v) => handleDataChange('payment2_utr', v)} />
-                      </div>
-                    </div>
-                    {/* Pay 3 */}
-                    <div className="border-b border-slate-100 dark:border-slate-800 pb-2">
-                      <DataRow label="Pay 3" value={isEditing ? tempData!.payment3_amount : record.data.payment3_amount} isEditing={isEditing} onChange={(v) => handleDataChange('payment3_amount', v)} type="number" />
-                      <div className="grid grid-cols-2 gap-2">
-                        <DataRow label="Date" value={isEditing ? tempData!.payment3_date : record.data.payment3_date} isEditing={isEditing} onChange={(v) => handleDataChange('payment3_date', v)} />
-                        <DataRow label="UTR" value={isEditing ? tempData!.payment3_utr : record.data.payment3_utr} isEditing={isEditing} onChange={(v) => handleDataChange('payment3_utr', v)} />
-                      </div>
-                    </div>
-                    {/* Pay 4 */}
-                    <div className="pb-2">
-                      <DataRow label="Pay 4" value={isEditing ? tempData!.payment4_amount : record.data.payment4_amount} isEditing={isEditing} onChange={(v) => handleDataChange('payment4_amount', v)} type="number" />
-                      <div className="grid grid-cols-2 gap-2">
-                        <DataRow label="Date" value={isEditing ? tempData!.payment4_date : record.data.payment4_date} isEditing={isEditing} onChange={(v) => handleDataChange('payment4_date', v)} />
-                        <DataRow label="UTR" value={isEditing ? tempData!.payment4_utr : record.data.payment4_utr} isEditing={isEditing} onChange={(v) => handleDataChange('payment4_utr', v)} />
-                      </div>
-                    </div>
+                    ))}
                 </div>
               </div>
             </div>

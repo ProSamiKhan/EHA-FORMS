@@ -50,6 +50,24 @@ export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
         payment4_amount: String(row['payment4_amount'] || '0'),
         payment4_date: String(row['payment4_date'] || ''),
         payment4_utr: String(row['payment4_utr'] || ''),
+        payment5_amount: String(row['payment5_amount'] || '0'),
+        payment5_date: String(row['payment5_date'] || ''),
+        payment5_utr: String(row['payment5_utr'] || ''),
+        payment6_amount: String(row['payment6_amount'] || '0'),
+        payment6_date: String(row['payment6_date'] || ''),
+        payment6_utr: String(row['payment6_utr'] || ''),
+        payment7_amount: String(row['payment7_amount'] || '0'),
+        payment7_date: String(row['payment7_date'] || ''),
+        payment7_utr: String(row['payment7_utr'] || ''),
+        payment8_amount: String(row['payment8_amount'] || '0'),
+        payment8_date: String(row['payment8_date'] || ''),
+        payment8_utr: String(row['payment8_utr'] || ''),
+        payment9_amount: String(row['payment9_amount'] || '0'),
+        payment9_date: String(row['payment9_date'] || ''),
+        payment9_utr: String(row['payment9_utr'] || ''),
+        payment10_amount: String(row['payment10_amount'] || '0'),
+        payment10_date: String(row['payment10_date'] || ''),
+        payment10_utr: String(row['payment10_utr'] || ''),
         received_ac: String(row['received ac'] || row['received_ac'] || ''),
         discount: String(row['discount'] || '0'),
         remaining_amount: String(row['remaining amount'] || row['remaining_amount'] || '0'),
@@ -108,11 +126,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
       if (d.status === 'cancelled') return;
       const g = (d.gender || 'Other').trim().toLowerCase();
       genderMap[g] = (genderMap[g] || 0) + 1;
-      const p1 = parseFloat(String(d.payment1_amount).replace(/[^0-9.]/g, '')) || 0;
-      const p2 = parseFloat(String(d.payment2_amount).replace(/[^0-9.]/g, '')) || 0;
-      const p3 = parseFloat(String(d.payment3_amount).replace(/[^0-9.]/g, '')) || 0;
-      const p4 = parseFloat(String(d.payment4_amount).replace(/[^0-9.]/g, '')) || 0;
-      revenue += (p1 + p2 + p3 + p4);
+      
+      let studentTotal = 0;
+      for (let i = 1; i <= 10; i++) {
+        studentTotal += parseFloat(String((d as any)[`payment${i}_amount`]).replace(/[^0-9.]/g, '')) || 0;
+      }
+      revenue += studentTotal;
     });
     return { total, genderMap, revenue };
   }, [allSyncedData]);
@@ -252,23 +271,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
                     
                     <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 space-y-3">
                       <h4 className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Payment History</h4>
-                      <div className="space-y-1">
-                        <div className="flex justify-between text-[10px] font-bold">
-                          <span className="text-slate-400">Pay 1: ₹{viewingRecord.payment1_amount}</span>
-                          <span className="text-slate-500">{viewingRecord.payment1_date} | {viewingRecord.payment1_utr}</span>
-                        </div>
-                        <div className="flex justify-between text-[10px] font-bold">
-                          <span className="text-slate-400">Pay 2: ₹{viewingRecord.payment2_amount}</span>
-                          <span className="text-slate-500">{viewingRecord.payment2_date} | {viewingRecord.payment2_utr}</span>
-                        </div>
-                        <div className="flex justify-between text-[10px] font-bold">
-                          <span className="text-slate-400">Pay 3: ₹{viewingRecord.payment3_amount}</span>
-                          <span className="text-slate-500">{viewingRecord.payment3_date} | {viewingRecord.payment3_utr}</span>
-                        </div>
-                        <div className="flex justify-between text-[10px] font-bold">
-                          <span className="text-slate-400">Pay 4: ₹{viewingRecord.payment4_amount}</span>
-                          <span className="text-slate-500">{viewingRecord.payment4_date} | {viewingRecord.payment4_utr}</span>
-                        </div>
+                      <div className="space-y-2 max-h-[200px] overflow-y-auto pr-2 custom-scrollbar">
+                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => {
+                          const amt = (viewingRecord as any)[`payment${num}_amount`];
+                          if (!amt || amt === '0') return null;
+                          return (
+                            <div key={num} className="flex justify-between text-[10px] font-bold border-b border-slate-50 dark:border-slate-800/50 pb-1 last:border-0">
+                              <span className="text-slate-400">Pay {num}: ₹{amt}</span>
+                              <span className="text-slate-500">{(viewingRecord as any)[`payment${num}_date`]} | {(viewingRecord as any)[`payment${num}_utr`]}</span>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
 

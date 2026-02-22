@@ -23,22 +23,37 @@ export interface RegistrationData {
   contact_no: string;
   whatsapp_no: string;
   address: string;
-  // Payment 1 (Initial)
+  // Payments 1-10
   payment1_amount: string;
   payment1_date: string;
   payment1_utr: string;
-  // Payment 2
   payment2_amount: string;
   payment2_date: string;
   payment2_utr: string;
-  // Payment 3
   payment3_amount: string;
   payment3_date: string;
   payment3_utr: string;
-  // Payment 4
   payment4_amount: string;
   payment4_date: string;
   payment4_utr: string;
+  payment5_amount: string;
+  payment5_date: string;
+  payment5_utr: string;
+  payment6_amount: string;
+  payment6_date: string;
+  payment6_utr: string;
+  payment7_amount: string;
+  payment7_date: string;
+  payment7_utr: string;
+  payment8_amount: string;
+  payment8_date: string;
+  payment8_utr: string;
+  payment9_amount: string;
+  payment9_date: string;
+  payment9_utr: string;
+  payment10_amount: string;
+  payment10_date: string;
+  payment10_utr: string;
   
   received_ac: string;
   discount: string;

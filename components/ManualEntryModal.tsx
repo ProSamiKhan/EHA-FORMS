@@ -23,15 +23,15 @@ const INITIAL_DATA: RegistrationData = {
   payment1_amount: '',
   payment1_date: new Date().toLocaleDateString('en-GB'),
   payment1_utr: '',
-  payment2_amount: '',
-  payment2_date: '',
-  payment2_utr: '',
-  payment3_amount: '',
-  payment3_date: '',
-  payment3_utr: '',
-  payment4_amount: '',
-  payment4_date: '',
-  payment4_utr: '',
+  payment2_amount: '', payment2_date: '', payment2_utr: '',
+  payment3_amount: '', payment3_date: '', payment3_utr: '',
+  payment4_amount: '', payment4_date: '', payment4_utr: '',
+  payment5_amount: '', payment5_date: '', payment5_utr: '',
+  payment6_amount: '', payment6_date: '', payment6_utr: '',
+  payment7_amount: '', payment7_date: '', payment7_utr: '',
+  payment8_amount: '', payment8_date: '', payment8_utr: '',
+  payment9_amount: '', payment9_date: '', payment9_utr: '',
+  payment10_amount: '', payment10_date: '', payment10_utr: '',
   received_ac: 'EHA Account',
   discount: '0',
   remaining_amount: '20000',
@@ -58,17 +58,28 @@ export const ManualEntryModal: React.FC<ManualEntryModalProps> = ({ isOpen, onCl
     const p2 = parseFloat(formData.payment2_amount) || 0;
     const p3 = parseFloat(formData.payment3_amount) || 0;
     const p4 = parseFloat(formData.payment4_amount) || 0;
+    const p5 = parseFloat(formData.payment5_amount) || 0;
+    const p6 = parseFloat(formData.payment6_amount) || 0;
+    const p7 = parseFloat(formData.payment7_amount) || 0;
+    const p8 = parseFloat(formData.payment8_amount) || 0;
+    const p9 = parseFloat(formData.payment9_amount) || 0;
+    const p10 = parseFloat(formData.payment10_amount) || 0;
     const disc = parseFloat(formData.discount) || 0;
-    const totalPaid = p1 + p2 + p3 + p4;
+    const totalPaid = p1 + p2 + p3 + p4 + p5 + p6 + p7 + p8 + p9 + p10;
     const remaining = TOTAL_FEES - totalPaid - disc;
     setFormData(prev => ({ ...prev, remaining_amount: String(remaining >= 0 ? remaining : 0) }));
-  }, [formData.payment1_amount, formData.payment2_amount, formData.payment3_amount, formData.payment4_amount, formData.discount]);
+  }, [
+    formData.payment1_amount, formData.payment2_amount, formData.payment3_amount, 
+    formData.payment4_amount, formData.payment5_amount, formData.payment6_amount,
+    formData.payment7_amount, formData.payment8_amount, formData.payment9_amount,
+    formData.payment10_amount, formData.discount
+  ]);
 
   if (!isOpen) return null;
 
   const handleChange = (key: keyof RegistrationData, val: string) => {
     setError('');
-    if (key === 'payment1_utr' || key === 'payment2_utr' || key === 'payment3_utr' || key === 'payment4_utr') {
+    if (key.toString().includes('utr')) {
       const numeric = val.replace(/[^0-9]/g, '').slice(0, 12);
       setFormData(prev => ({ ...prev, [key]: numeric }));
       return;
@@ -79,10 +90,10 @@ export const ManualEntryModal: React.FC<ManualEntryModalProps> = ({ isOpen, onCl
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name) return setError("Student Name is required");
-    if (formData.payment1_utr && formData.payment1_utr.length !== 12) return setError("Payment 1 UTR must be 12 digits");
-    if (formData.payment2_utr && formData.payment2_utr.length !== 12) return setError("Payment 2 UTR must be 12 digits");
-    if (formData.payment3_utr && formData.payment3_utr.length !== 12) return setError("Payment 3 UTR must be 12 digits");
-    if (formData.payment4_utr && formData.payment4_utr.length !== 12) return setError("Payment 4 UTR must be 12 digits");
+    for (let i = 1; i <= 10; i++) {
+      const utr = (formData as any)[`payment${i}_utr`];
+      if (utr && utr.length !== 12) return setError(`Payment ${i} UTR must be 12 digits`);
+    }
     
     onSubmit(formData);
     setFormData(INITIAL_DATA);
@@ -176,47 +187,36 @@ export const ManualEntryModal: React.FC<ManualEntryModalProps> = ({ isOpen, onCl
               <h3 className="text-[10px] font-black text-indigo-400 uppercase tracking-widest border-b border-indigo-50 dark:border-indigo-900/20 pb-2 transition-colors">Payment Schedule</h3>
               
               <div className="space-y-4">
-                {/* Payment 1 */}
-                <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-[9px] font-black text-indigo-500 uppercase tracking-widest">Payment 1 (Initial)</span>
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
+                  <div key={num} className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-[9px] font-black text-indigo-500 uppercase tracking-widest">Payment {num} {num === 1 ? '(Initial)' : ''}</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <input 
+                        type="number" 
+                        placeholder="Amount" 
+                        value={(formData as any)[`payment${num}_amount`]} 
+                        onChange={(e) => handleChange(`payment${num}_amount` as any, e.target.value)} 
+                        className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 text-xs font-bold outline-none dark:text-slate-100" 
+                      />
+                      <input 
+                        type="text" 
+                        placeholder="Date" 
+                        value={(formData as any)[`payment${num}_date`]} 
+                        onChange={(e) => handleChange(`payment${num}_date` as any, e.target.value)} 
+                        className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 text-xs font-bold outline-none dark:text-slate-100" 
+                      />
+                    </div>
+                    <input 
+                      type="text" 
+                      placeholder="UTR (12 Digits)" 
+                      value={(formData as any)[`payment${num}_utr`]} 
+                      onChange={(e) => handleChange(`payment${num}_utr` as any, e.target.value)} 
+                      className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 text-xs font-mono font-bold outline-none dark:text-slate-100" 
+                    />
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <input type="number" placeholder="Amount" value={formData.payment1_amount} onChange={(e) => handleChange('payment1_amount', e.target.value)} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 text-xs font-bold outline-none dark:text-slate-100" />
-                    <input type="text" placeholder="Date" value={formData.payment1_date} onChange={(e) => handleChange('payment1_date', e.target.value)} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 text-xs font-bold outline-none dark:text-slate-100" />
-                  </div>
-                  <input type="text" placeholder="UTR (12 Digits)" value={formData.payment1_utr} onChange={(e) => handleChange('payment1_utr', e.target.value)} className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 text-xs font-mono font-bold outline-none dark:text-slate-100" />
-                </div>
-
-                {/* Payment 2 */}
-                <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-3">
-                  <span className="text-[9px] font-black text-indigo-500 uppercase tracking-widest">Payment 2</span>
-                  <div className="grid grid-cols-2 gap-3">
-                    <input type="number" placeholder="Amount" value={formData.payment2_amount} onChange={(e) => handleChange('payment2_amount', e.target.value)} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 text-xs font-bold outline-none dark:text-slate-100" />
-                    <input type="text" placeholder="Date" value={formData.payment2_date} onChange={(e) => handleChange('payment2_date', e.target.value)} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 text-xs font-bold outline-none dark:text-slate-100" />
-                  </div>
-                  <input type="text" placeholder="UTR (12 Digits)" value={formData.payment2_utr} onChange={(e) => handleChange('payment2_utr', e.target.value)} className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 text-xs font-mono font-bold outline-none dark:text-slate-100" />
-                </div>
-
-                {/* Payment 3 */}
-                <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-3">
-                  <span className="text-[9px] font-black text-indigo-500 uppercase tracking-widest">Payment 3</span>
-                  <div className="grid grid-cols-2 gap-3">
-                    <input type="number" placeholder="Amount" value={formData.payment3_amount} onChange={(e) => handleChange('payment3_amount', e.target.value)} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 text-xs font-bold outline-none dark:text-slate-100" />
-                    <input type="text" placeholder="Date" value={formData.payment3_date} onChange={(e) => handleChange('payment3_date', e.target.value)} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 text-xs font-bold outline-none dark:text-slate-100" />
-                  </div>
-                  <input type="text" placeholder="UTR (12 Digits)" value={formData.payment3_utr} onChange={(e) => handleChange('payment3_utr', e.target.value)} className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 text-xs font-mono font-bold outline-none dark:text-slate-100" />
-                </div>
-
-                {/* Payment 4 */}
-                <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-3">
-                  <span className="text-[9px] font-black text-indigo-500 uppercase tracking-widest">Payment 4</span>
-                  <div className="grid grid-cols-2 gap-3">
-                    <input type="number" placeholder="Amount" value={formData.payment4_amount} onChange={(e) => handleChange('payment4_amount', e.target.value)} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 text-xs font-bold outline-none dark:text-slate-100" />
-                    <input type="text" placeholder="Date" value={formData.payment4_date} onChange={(e) => handleChange('payment4_date', e.target.value)} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 text-xs font-bold outline-none dark:text-slate-100" />
-                  </div>
-                  <input type="text" placeholder="UTR (12 Digits)" value={formData.payment4_utr} onChange={(e) => handleChange('payment4_utr', e.target.value)} className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 text-xs font-mono font-bold outline-none dark:text-slate-100" />
-                </div>
+                ))}
               </div>
 
               <div className="space-y-4">
