@@ -159,7 +159,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
         received_ac: String(row['received ac'] || row['received_ac'] || ''),
         discount: String(row['discount'] || '0'),
         remaining_amount: String(row['remaining amount'] || row['remaining_amount'] || '0'),
-        status: (row['status'] || 'active').toLowerCase() as 'active' | 'cancelled'
+        status: (row['status'] || 'active').toLowerCase() as 'active' | 'cancelled' | 'pending'
       };
     });
   };
@@ -209,17 +209,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
   const [timeRange, setTimeRange] = useState<TimeRange>('lifetime');
   const [customStart, setCustomStart] = useState<string>('');
   const [customEnd, setCustomEnd] = useState<string>('');
-  const [admRange, setAdmRange] = useState<TimeRange>('lifetime');
-  const [revRange, setRevRange] = useState<TimeRange>('lifetime');
-  const [genRange, setGenRange] = useState<TimeRange>('lifetime');
-  const [chartRange, setChartRange] = useState<TimeRange>('lifetime');
-  const [revChartRange, setRevChartRange] = useState<TimeRange>('lifetime');
-
-  const [admCustom, setAdmCustom] = useState<{ start: string, end: string }>({ start: '', end: '' });
-  const [revCustom, setRevCustom] = useState<{ start: string, end: string }>({ start: '', end: '' });
-  const [genCustom, setGenCustom] = useState<{ start: string, end: string }>({ start: '', end: '' });
-  const [chartCustom, setChartCustom] = useState<{ start: string, end: string }>({ start: '', end: '' });
-  const [revChartCustom, setRevChartCustom] = useState<{ start: string, end: string }>({ start: '', end: '' });
 
   const parseDate = (s: string): Date | null => {
     if (!s) return null;
@@ -262,11 +251,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
   };
 
   const filteredData = useMemo(() => getFilteredData(timeRange), [allSyncedData, timeRange, customStart, customEnd]);
-  const admData = useMemo(() => getFilteredData(admRange, admCustom), [allSyncedData, admRange, admCustom, customStart, customEnd]);
-  const revData = useMemo(() => getFilteredData(revRange, revCustom), [allSyncedData, revRange, revCustom, customStart, customEnd]);
-  const genData = useMemo(() => getFilteredData(genRange, genCustom), [allSyncedData, genRange, genCustom, customStart, customEnd]);
-  const chartFiltered = useMemo(() => getFilteredData(chartRange, chartCustom), [allSyncedData, chartRange, chartCustom, customStart, customEnd]);
-  const revChartFiltered = useMemo(() => getFilteredData(revChartRange, revChartCustom), [allSyncedData, revChartRange, revChartCustom, customStart, customEnd]);
 
   const getChartData = (data: RegistrationData[], range: TimeRange) => {
     const dailyMap: Record<string, number> = {};
@@ -295,15 +279,31 @@ export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
     return range === 'lifetime' ? result.slice(-30) : result;
   };
 
-  const admChartData = useMemo(() => getChartData(chartFiltered, chartRange), [chartFiltered, chartRange]);
-  const revChartData = useMemo(() => getChartData(revChartFiltered, revChartRange), [revChartFiltered, revChartRange]);
+  const admChartData = useMemo(() => getChartData(filteredData, timeRange), [filteredData, timeRange]);
+  const revChartData = useMemo(() => getChartData(filteredData, timeRange), [filteredData, timeRange]);
 
   const getStats = (data: RegistrationData[]) => {
     const total = data.length;
     const genderMap: Record<string, number> = {};
     let revenue = 0;
+    let cancelledCount = 0;
+    let pendingCount = 0;
+    let fullyPaid = 0;
+    let partialPaid = 0;
+    let discountCount = 0;
+    let freeCount = 0;
+
     data.forEach(d => {
-      if (d.status === 'cancelled') return;
+      const status = (d.status || 'active').toLowerCase();
+      if (status === 'cancelled') {
+        cancelledCount++;
+        return;
+      }
+      if (status === 'pending') {
+        pendingCount++;
+        return;
+      }
+      
       const g = (d.gender || 'Other').trim().toLowerCase();
       genderMap[g] = (genderMap[g] || 0) + 1;
       let studentTotal = 0;
@@ -311,54 +311,43 @@ export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
         studentTotal += parseFloat(String((d as any)[`payment${i}_amount`]).replace(/[^0-9.]/g, '')) || 0;
       }
       revenue += studentTotal;
+
+      const discount = parseFloat(String(d.discount || '0')) || 0;
+      if (discount > 0) discountCount++;
+
+      const totalFees = 20000;
+      const target = totalFees - discount;
+
+      if (studentTotal === 0) freeCount++;
+      else if (studentTotal >= target) fullyPaid++;
+      else if (studentTotal > 0) partialPaid++;
     });
-    return { total, genderMap, revenue };
+    return { total, genderMap, revenue, cancelledCount, pendingCount, fullyPaid, partialPaid, discountCount, freeCount };
   };
 
   const globalStats = useMemo(() => getStats(filteredData), [filteredData]);
-  const admStats = useMemo(() => getStats(admData), [admData]);
-  const revStats = useMemo(() => getStats(revData), [revData]);
-  const genStats = useMemo(() => getStats(genData), [genData]);
+  const lifetimeStats = useMemo(() => getStats(allSyncedData), [allSyncedData]);
 
-  const MiniFilter = ({ current, onChange, custom, onCustomChange }: { 
-    current: TimeRange, 
-    onChange: (r: TimeRange) => void,
-    custom?: { start: string, end: string },
-    onCustomChange?: (c: { start: string, end: string }) => void
-  }) => (
-    <div className="space-y-2 mt-2">
-      <div className="flex flex-wrap gap-1">
-        {(['today', 'yesterday', 'week', 'month', 'year', 'lifetime', 'custom'] as TimeRange[]).map(r => (
-          <button
-            key={r}
-            onClick={() => onChange(r)}
-            className={`px-1.5 py-0.5 text-[7px] font-black uppercase tracking-tighter rounded-md transition-all ${
-              current === r ? 'bg-indigo-600 text-white' : 'bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-slate-600'
-            }`}
-          >
-            {r}
-          </button>
-        ))}
-      </div>
-      {current === 'custom' && onCustomChange && (
-        <div className="flex items-center gap-1 animate-in fade-in slide-in-from-top-1">
-          <input 
-            type="date" 
-            value={custom?.start || ''} 
-            onChange={(e) => onCustomChange({ ...custom!, start: e.target.value })}
-            className="text-[7px] bg-slate-50 dark:bg-slate-800 border-none rounded p-0.5 text-slate-600 dark:text-slate-300 outline-none"
-          />
-          <span className="text-[7px] text-slate-400 font-bold">to</span>
-          <input 
-            type="date" 
-            value={custom?.end || ''} 
-            onChange={(e) => onCustomChange({ ...custom!, end: e.target.value })}
-            className="text-[7px] bg-slate-50 dark:bg-slate-800 border-none rounded p-0.5 text-slate-600 dark:text-slate-300 outline-none"
-          />
-        </div>
-      )}
-    </div>
-  );
+  const genderPieData = useMemo(() => {
+    return Object.entries(globalStats.genderMap).map(([name, value]) => ({
+      name: name.charAt(0).toUpperCase() + name.slice(1),
+      value
+    }));
+  }, [globalStats]);
+
+  const COLORS = ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+
+  const handleGlobalTimeRangeChange = (range: TimeRange) => {
+    setTimeRange(range);
+  };
+
+  const handleGlobalCustomDateChange = (type: 'start' | 'end', val: string) => {
+    if (type === 'start') {
+      setCustomStart(val);
+    } else {
+      setCustomEnd(val);
+    }
+  };
 
   return (
     <div className="space-y-8 pb-10 transition-colors">
@@ -371,13 +360,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
             </p>
         </div>
         
-        <div className="flex flex-col md:flex-row items-end gap-2 bg-white dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm">
-          <div className="flex items-center gap-1">
+        <div className="flex flex-col lg:flex-row items-start lg:items-center gap-4 w-full">
+          <div className="flex flex-wrap items-center gap-1 bg-white dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm w-full lg:w-auto overflow-x-auto">
             {(['today', 'yesterday', 'week', 'month', 'year', 'lifetime', 'custom'] as TimeRange[]).map((range) => (
               <button
                 key={range}
-                onClick={() => setTimeRange(range)}
-                className={`px-3 py-1.5 text-[9px] font-black uppercase tracking-widest rounded-xl transition-all ${
+                onClick={() => handleGlobalTimeRangeChange(range)}
+                className={`px-3 py-1.5 text-[9px] font-black uppercase tracking-widest rounded-xl transition-all whitespace-nowrap ${
                   timeRange === range 
                   ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200 dark:shadow-none' 
                   : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
@@ -387,67 +376,47 @@ export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
               </button>
             ))}
           </div>
+          
           {timeRange === 'custom' && (
-            <div className="flex items-center gap-2 px-2 animate-in fade-in slide-in-from-top-1">
+            <div className="flex flex-wrap items-center gap-2 px-2 animate-in fade-in slide-in-from-top-1 bg-white dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm w-full lg:w-auto">
               <input 
                 type="date" 
                 value={customStart} 
-                onChange={(e) => setCustomStart(e.target.value)}
+                onChange={(e) => handleGlobalCustomDateChange('start', e.target.value)}
                 className="text-[9px] bg-slate-50 dark:bg-slate-800 border-none rounded-lg p-1 text-slate-600 dark:text-slate-300 outline-none"
               />
-              <span className="text-[9px] text-slate-400 font-bold">to</span>
+              <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">to</span>
               <input 
                 type="date" 
                 value={customEnd} 
-                onChange={(e) => setCustomEnd(e.target.value)}
+                onChange={(e) => handleGlobalCustomDateChange('end', e.target.value)}
                 className="text-[9px] bg-slate-50 dark:bg-slate-800 border-none rounded-lg p-1 text-slate-600 dark:text-slate-300 outline-none"
               />
             </div>
           )}
-          <div className="w-px h-4 bg-slate-100 dark:bg-slate-800 mx-1 hidden md:block"></div>
-          <button onClick={() => setLastRefreshed(Date.now())} disabled={isLoading} className="p-1.5 text-slate-400 hover:text-indigo-600 transition-colors">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={isLoading ? "animate-spin" : ""}><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
-          </button>
+          
+          <div className="flex items-center gap-2 ml-auto">
+            <button onClick={() => setLastRefreshed(Date.now())} disabled={isLoading} className="p-2 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm text-slate-400 hover:text-indigo-600 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={isLoading ? "animate-spin" : ""}><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
+            </button>
+          </div>
         </div>
       </div>
 
       {/* STAT CARDS */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div className="bg-white dark:bg-slate-900 p-8 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm relative overflow-hidden group transition-colors">
           <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 dark:bg-indigo-900/10 rounded-full -mr-16 -mt-16 group-hover:scale-110 transition-transform"></div>
           <h3 className="text-slate-400 dark:text-slate-500 text-[10px] font-black uppercase tracking-widest mb-1 relative transition-colors">Admissions</h3>
-          <p className="text-4xl font-black text-slate-900 dark:text-slate-100 relative transition-colors">{admStats.total}</p>
-          <MiniFilter current={admRange} onChange={setAdmRange} custom={admCustom} onCustomChange={setAdmCustom} />
+          <p className="text-4xl font-black text-slate-900 dark:text-slate-100 relative transition-colors">{globalStats.total}</p>
           <p className="mt-4 text-green-500 text-[10px] font-bold uppercase tracking-widest flex items-center gap-1 relative">
             <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span> {isLoading ? "Syncing..." : "Live Data"}
           </p>
         </div>
 
         <div className="bg-white dark:bg-slate-900 p-8 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm transition-colors">
-          <h3 className="text-slate-400 dark:text-slate-500 text-[10px] font-black uppercase tracking-widest mb-4 transition-colors">Gender Distribution</h3>
-          <div className="space-y-3">
-            {Object.entries(genStats.genderMap).map(([gender, count]) => {
-                const perc = genStats.total > 0 ? Math.round((Number(count) / genStats.total) * 100) : 0;
-                return (
-                    <div key={gender} className="space-y-1">
-                        <div className="flex justify-between text-[10px] font-black uppercase tracking-wider">
-                            <span className="text-slate-500 dark:text-slate-400">{gender}</span>
-                            <span className="text-indigo-600 dark:text-indigo-400">{count}</span>
-                        </div>
-                        <div className="h-1.5 bg-slate-50 dark:bg-slate-800 rounded-full overflow-hidden transition-colors">
-                            <div className="h-full bg-indigo-500 rounded-full" style={{ width: `${perc}%` }}></div>
-                        </div>
-                    </div>
-                )
-            })}
-          </div>
-          <MiniFilter current={genRange} onChange={setGenRange} custom={genCustom} onCustomChange={setGenCustom} />
-        </div>
-
-        <div className="bg-white dark:bg-slate-900 p-8 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm transition-colors">
           <h3 className="text-slate-400 dark:text-slate-500 text-[10px] font-black uppercase tracking-widest mb-1 transition-colors">Total Revenue</h3>
-          <p className="text-3xl font-black text-slate-900 dark:text-slate-100 tracking-tight transition-colors">₹{revStats.revenue.toLocaleString()}</p>
-          <MiniFilter current={revRange} onChange={setRevRange} custom={revCustom} onCustomChange={setRevCustom} />
+          <p className="text-3xl font-black text-slate-900 dark:text-slate-100 tracking-tight transition-colors">₹{globalStats.revenue.toLocaleString()}</p>
           <div className="mt-6 pt-6 border-t border-slate-50 dark:border-slate-800 flex items-center justify-between transition-colors">
             <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Growth Index</span>
             <div className="w-8 h-8 rounded-lg bg-green-50 dark:bg-green-900/20 flex items-center justify-center text-green-600">
@@ -455,16 +424,89 @@ export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
             </div>
           </div>
         </div>
+
+        <div className="bg-white dark:bg-slate-900 p-8 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm transition-colors">
+          <h3 className="text-slate-400 dark:text-slate-500 text-[10px] font-black uppercase tracking-widest mb-4 transition-colors">Payment Status</h3>
+          <div className="space-y-3">
+            <div className="flex justify-between items-center">
+              <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Fully Paid</span>
+              <span className="text-[11px] font-black text-indigo-600 dark:text-indigo-400">{globalStats.fullyPaid}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Partial</span>
+              <span className="text-[11px] font-black text-amber-600 dark:text-amber-400">{globalStats.partialPaid}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Discount</span>
+              <span className="text-[11px] font-black text-emerald-600 dark:text-emerald-400">{globalStats.discountCount}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Free</span>
+              <span className="text-[11px] font-black text-slate-400">{globalStats.freeCount}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-slate-900 p-8 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm transition-colors">
+          <h3 className="text-slate-400 dark:text-slate-500 text-[10px] font-black uppercase tracking-widest mb-4 transition-colors">Admission Status</h3>
+          <div className="space-y-3">
+            <div className="flex justify-between items-center">
+              <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Total</span>
+              <span className="text-[11px] font-black text-slate-900 dark:text-slate-100">{globalStats.total}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Cancelled</span>
+              <span className="text-[11px] font-black text-red-500">{globalStats.cancelledCount}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Pending</span>
+              <span className="text-[11px] font-black text-amber-500">{globalStats.pendingCount}</span>
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* CHARTS SECTION */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white dark:bg-slate-900 p-8 rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-sm transition-colors">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-white dark:bg-slate-900 p-8 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm transition-colors flex flex-col md:col-span-1">
+          <h3 className="text-slate-400 dark:text-slate-500 text-[10px] font-black uppercase tracking-widest mb-4 transition-colors">Gender Distribution</h3>
+          <div className="flex-1 flex items-center justify-center min-h-[150px]">
+            <ResponsiveContainer width="100%" height={180}>
+              <PieChart>
+                <Pie
+                  data={genderPieData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={50}
+                  outerRadius={70}
+                  paddingAngle={5}
+                  dataKey="value"
+                  label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
+                >
+                  {genderPieData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip 
+                  contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontSize: '10px', fontWeight: 'bold' }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            {genderPieData.map((entry, index) => (
+              <div key={entry.name} className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }}></div>
+                <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">{entry.name}: {entry.value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-slate-900 p-8 rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-sm transition-colors md:col-span-2">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Admission Velocity</h3>
             <span className="px-2 py-1 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-[8px] font-black uppercase rounded-md">Daily Trend</span>
           </div>
-          <MiniFilter current={chartRange} onChange={setChartRange} custom={chartCustom} onCustomChange={setChartCustom} />
           <div className="h-[250px] w-full mt-6">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={admChartData}>
@@ -486,32 +528,32 @@ export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
             </ResponsiveContainer>
           </div>
         </div>
+      </div>
 
-        <div className="bg-white dark:bg-slate-900 p-8 rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-sm transition-colors">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Revenue Growth</h3>
-            <span className="px-2 py-1 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 text-[8px] font-black uppercase rounded-md">Cash Flow</span>
-          </div>
-          <MiniFilter current={revChartRange} onChange={setRevChartRange} custom={revChartCustom} onCustomChange={setRevChartCustom} />
-          <div className="h-[250px] w-full mt-6">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={revChartData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 9, fontWeight: 700, fill: '#94a3b8'}} dy={10} />
-                <YAxis axisLine={false} tickLine={false} tick={{fontSize: 9, fontWeight: 700, fill: '#94a3b8'}} />
-                <Tooltip 
-                  contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontSize: '10px', fontWeight: 'bold' }}
-                />
-                <Bar dataKey="revenue" fill="#10b981" radius={[6, 6, 0, 0]} barSize={20} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+      {/* REVENUE CHART */}
+      <div className="bg-white dark:bg-slate-900 p-8 rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-sm transition-colors">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Revenue Growth</h3>
+          <span className="px-2 py-1 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 text-[8px] font-black uppercase rounded-md">Cash Flow</span>
+        </div>
+        <div className="h-[250px] w-full mt-6">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={revChartData}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 9, fontWeight: 700, fill: '#94a3b8'}} dy={10} />
+              <YAxis axisLine={false} tickLine={false} tick={{fontSize: 9, fontWeight: 700, fill: '#94a3b8'}} />
+              <Tooltip 
+                contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontSize: '10px', fontWeight: 'bold' }}
+              />
+              <Bar dataKey="revenue" fill="#10b981" radius={[6, 6, 0, 0]} barSize={20} />
+            </BarChart>
+          </ResponsiveContainer>
         </div>
       </div>
 
       {/* DATA TABLE */}
       <div className="bg-white dark:bg-slate-900 rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden flex flex-col min-h-[500px] transition-colors">
-          <div className="px-8 py-6 border-b border-slate-50 dark:border-slate-800/50 flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/20 transition-colors">
+          <div className="px-4 md:px-8 py-6 border-b border-slate-50 dark:border-slate-800/50 flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/20 transition-colors">
               <h3 className="text-[10px] font-black text-slate-900 dark:text-slate-100 uppercase tracking-widest transition-colors">Master Cloud Records</h3>
               <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 bg-white dark:bg-slate-800 px-3 py-1 rounded-full shadow-sm dark:shadow-none transition-colors">{allSyncedData.length} Total</span>
           </div>
@@ -519,17 +561,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
               <table className="w-full text-left">
                   <thead>
                   <tr className="border-b border-slate-50 dark:border-slate-800/50">
-                      <th className="px-8 py-4 text-[10px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-wider">Admission ID</th>
-                      <th className="px-8 py-4 text-[10px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-wider">Student Name</th>
-                      <th className="px-8 py-4 text-[10px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-wider">City</th>
-                      <th className="px-8 py-4 text-[10px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-wider">Status</th>
-                      <th className="px-8 py-4 text-[10px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-wider text-right">Action</th>
+                      <th className="px-4 md:px-8 py-4 text-[10px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-wider">Admission ID</th>
+                      <th className="px-4 md:px-8 py-4 text-[10px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-wider">Student Name</th>
+                      <th className="px-4 md:px-8 py-4 text-[10px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-wider">City</th>
+                      <th className="px-4 md:px-8 py-4 text-[10px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-wider">Status</th>
+                      <th className="px-4 md:px-8 py-4 text-[10px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-wider text-right">Action</th>
                   </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50 dark:divide-slate-800/50">
                   {allSyncedData.map((data, idx) => (
                       <tr key={data.admission_id || idx} className="hover:bg-slate-50/30 dark:hover:bg-slate-800/30 transition-colors group">
-                      <td className="px-8 py-4">
+                      <td className="px-4 md:px-8 py-4">
                           <button 
                             onClick={() => setViewingRecord(data)}
                             className="text-[10px] font-mono font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-2 py-1 rounded-md hover:bg-indigo-100 dark:hover:bg-indigo-900/50 active:scale-95 transition-all outline-none"
@@ -537,16 +579,20 @@ export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
                             {data.admission_id || 'N/A'}
                           </button>
                       </td>
-                      <td className="px-8 py-4">
+                      <td className="px-4 md:px-8 py-4">
                           <span className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-tight transition-colors">{data.name}</span>
                       </td>
-                      <td className="px-8 py-4 text-[10px] font-bold text-slate-500 dark:text-slate-600 uppercase transition-colors">{data.address || '—'}</td>
-                      <td className="px-8 py-4">
-                          <span className={`px-2 py-0.5 text-[8px] font-black uppercase rounded-md ${data.status === 'cancelled' ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400' : 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400'}`}>
+                      <td className="px-4 md:px-8 py-4 text-[10px] font-bold text-slate-500 dark:text-slate-600 uppercase transition-colors">{data.address || '—'}</td>
+                      <td className="px-4 md:px-8 py-4">
+                          <span className={`px-2 py-0.5 text-[8px] font-black uppercase rounded-md ${
+                            data.status === 'cancelled' ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400' : 
+                            data.status === 'pending' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400' :
+                            'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400'
+                          }`}>
                             {data.status}
                           </span>
                       </td>
-                      <td className="px-8 py-4 text-right">
+                      <td className="px-4 md:px-8 py-4 text-right">
                           <button onClick={() => setViewingRecord(data)} className="p-2 bg-slate-50 dark:bg-slate-800 text-slate-400 dark:text-slate-600 rounded-xl hover:bg-indigo-600 dark:hover:bg-indigo-500 hover:text-white transition-all active:scale-90 group-hover:bg-indigo-50 dark:group-hover:bg-indigo-900/30 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 shadow-sm dark:shadow-none transition-colors">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0z"/><circle cx="12" cy="12" r="3"/></svg>
                           </button>
@@ -581,7 +627,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
                 
                 {/* Scrollable Content Container */}
                 <div className="max-h-[75vh] overflow-y-auto custom-scrollbar bg-slate-50/30 dark:bg-slate-900/50">
-                  <div ref={modalRef} className="bg-white dark:bg-slate-900 p-10">
+                  <div ref={modalRef} className="bg-white dark:bg-slate-900 p-6 md:p-10">
                       {/* Branding for Export */}
                       <div className="hidden print:block mb-10 text-center border-b border-slate-100 pb-8">
                         <img 
