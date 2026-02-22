@@ -20,6 +20,7 @@ const INITIAL_DATA: RegistrationData = {
   contact_no: '',
   whatsapp_no: '',
   address: '',
+  state: '',
   payment1_amount: '',
   payment1_date: new Date().toLocaleDateString('en-GB'),
   payment1_utr: '',
@@ -38,15 +39,24 @@ const INITIAL_DATA: RegistrationData = {
   status: 'active'
 };
 
+const INDIAN_STATES_AND_UTS = [
+  "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh", "Goa", "Gujarat", 
+  "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka", "Kerala", "Madhya Pradesh", 
+  "Maharashtra", "Manipur", "Meghalaya", "Mizoram", "Nagaland", "Odisha", "Punjab", 
+  "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana", "Tripura", "Uttar Pradesh", 
+  "Uttarakhand", "West Bengal", "Andaman and Nicobar Islands", "Chandigarh", 
+  "Dadra and Nagar Haveli and Daman and Diu", "Delhi", "Jammu and Kashmir", "Ladakh", 
+  "Lakshadweep", "Puducherry"
+];
+
 const INDIAN_CITIES = [
-  "Mumbai", "Delhi", "Bangalore", "Hyderabad", "Ahmedabad", "Chennai", "Kolkata", "Surat", 
-  "Pune", "Jaipur", "Lucknow", "Kanpur", "Nagpur", "Indore", "Thane", "Bhopal", "Visakhapatnam", 
-  "Pimpri-Chinchwad", "Patna", "Vadodara", "Ghaziabad", "Ludhiana", "Agra", "Nashik", "Faridabad", 
-  "Meerut", "Rajkot", "Kalyan-Dombivli", "Vasai-Virar", "Varanasi", "Srinagar", "Aurangabad", 
-  "Dhanbad", "Amritsar", "Navi Mumbai", "Allahabad", "Ranchi", "Howrah", "Jabalpur", "Gwalior", 
-  "Vijayawada", "Jodhpur", "Madurai", "Raipur", "Kota", "Guwahati", "Chandigarh", "Solapur", 
-  "Hubli-Dharwad", "Bareilly", "Moradabad", "Mysore", "Gurgaon", "Aligarh", "Jalandhar", 
-  "Tiruchirappalli", "Bhubaneswar", "Salem", "Mira-Bhayandar", "Warangal", "Guntur"
+  "Mumbai", "Delhi", "Bengaluru", "Hyderabad", "Ahmedabad", "Chennai", "Kolkata", "Pune", 
+  "Jaipur", "Lucknow", "Kanpur", "Nagpur", "Indore", "Thane", "Bhopal", "Visakhapatnam", 
+  "Patna", "Vadodara", "Ghaziabad", "Ludhiana", "Agra", "Nashik", "Faridabad", "Meerut", 
+  "Rajkot", "Varanasi", "Srinagar", "Aurangabad", "Dhanbad", "Amritsar", 
+  "Allahabad (Prayagraj)", "Ranchi", "Coimbatore", "Jabalpur", "Gwalior", "Vijayawada", 
+  "Madurai", "Raipur", "Kota", "Guwahati", "Chandigarh", "Mysuru", "Tiruchirappalli", 
+  "Noida", "Gurugram"
 ];
 
 const toInputDate = (s: string) => {
@@ -183,12 +193,21 @@ export const ManualEntryModal: React.FC<ManualEntryModalProps> = ({ isOpen, onCl
                 </div>
               </div>
 
-              <div className="space-y-1">
-                <label className="text-[9px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest ml-1 transition-colors">Address / City</label>
-                <input list="cities" value={formData.address} onChange={(e) => handleChange('address', e.target.value)} placeholder="Type or Select City" className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-bold outline-none dark:text-slate-100 transition-colors" />
-                <datalist id="cities">
-                  {INDIAN_CITIES.map(c => <option key={c} value={c} />)}
-                </datalist>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest ml-1 transition-colors">State / UT</label>
+                  <input list="states" value={formData.state} onChange={(e) => handleChange('state', e.target.value)} placeholder="Select State" className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-bold outline-none dark:text-slate-100 transition-colors" />
+                  <datalist id="states">
+                    {INDIAN_STATES_AND_UTS.map(s => <option key={s} value={s} />)}
+                  </datalist>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest ml-1 transition-colors">City</label>
+                  <input list="cities" value={formData.address} onChange={(e) => handleChange('address', e.target.value)} placeholder="Select City" className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-bold outline-none dark:text-slate-100 transition-colors" />
+                  <datalist id="cities">
+                    {INDIAN_CITIES.map(c => <option key={c} value={c} />)}
+                  </datalist>
+                </div>
               </div>
               <div className="space-y-1">
                 <label className="text-[9px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest ml-1 transition-colors">Registration Status</label>

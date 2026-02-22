@@ -126,6 +126,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
         contact_no: String(row['contact no'] || row['contact_no'] || ''),
         whatsapp_no: String(row['whatsapp no'] || row['whatsapp_no'] || ''),
         address: String(row['address'] || ''),
+        state: String(row['state'] || ''),
         payment1_amount: String(row['payment1_amount'] || row['payment 1 amount'] || row['initial payment'] || row['initial_payment'] || '0'),
         payment1_date: String(row['payment1_date'] || row['payment 1 date'] || row['date'] || ''),
         payment1_utr: String(row['payment1_utr'] || row['payment 1 utr'] || row['utr'] || ''),
@@ -665,7 +666,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
                         <DetailRow label="Medium" value={viewingRecord.medium} />
                         <DetailRow label="Contact Number" value={viewingRecord.contact_no} />
                         <DetailRow label="WhatsApp Number" value={viewingRecord.whatsapp_no} />
-                        <DetailRow label="Address / City" value={viewingRecord.address} fullWidth />
+                        <DetailRow label="State / UT" value={viewingRecord.state} />
+                        <DetailRow label="City" value={viewingRecord.address} />
                         <DetailRow label="Account Received In" value={viewingRecord.received_ac} />
                         <DetailRow label="Discount Applied" value={`₹${viewingRecord.discount}`} />
                       </div>

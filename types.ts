@@ -23,6 +23,7 @@ export interface RegistrationData {
   contact_no: string;
   whatsapp_no: string;
   address: string;
+  state: string;
   // Payments 1-10
   payment1_amount: string;
   payment1_date: string;
