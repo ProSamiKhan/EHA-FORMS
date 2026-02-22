@@ -20,12 +20,22 @@ The user is uploading images of a specific registration form. You must identify 
    - contact_no
    - whatsapp_no
    - address
-   - initial_payment
-   - date (Format: DD/MM/YYYY)
-   - utr (Transaction ID for payments)
+   - payment1_amount (Initial payment)
+   - payment1_date (Format: DD/MM/YYYY)
+   - payment1_utr (Transaction ID)
+   - payment2_amount
+   - payment2_date
+   - payment2_utr
+   - payment3_amount
+   - payment3_date
+   - payment3_utr
+   - payment4_amount
+   - payment4_date
+   - payment4_utr
    - received_ac (Account details)
    - discount
    - remaining_amount
+   - status (Default to "active" unless "cancelled" is mentioned)
 
 2. BLANK FIELDS: If a field is empty in the image, return an empty string "".
 3. UNCERTAINTY: If the handwriting is completely illegible, return "CHECK_MANUALLY".
@@ -68,17 +78,27 @@ export const processRegistrationForm = async (base64Image: string): Promise<Regi
             contact_no: { type: Type.STRING },
             whatsapp_no: { type: Type.STRING },
             address: { type: Type.STRING },
-            initial_payment: { type: Type.STRING },
-            date: { type: Type.STRING },
-            utr: { type: Type.STRING },
+            payment1_amount: { type: Type.STRING },
+            payment1_date: { type: Type.STRING },
+            payment1_utr: { type: Type.STRING },
+            payment2_amount: { type: Type.STRING },
+            payment2_date: { type: Type.STRING },
+            payment2_utr: { type: Type.STRING },
+            payment3_amount: { type: Type.STRING },
+            payment3_date: { type: Type.STRING },
+            payment3_utr: { type: Type.STRING },
+            payment4_amount: { type: Type.STRING },
+            payment4_date: { type: Type.STRING },
+            payment4_utr: { type: Type.STRING },
             received_ac: { type: Type.STRING },
             discount: { type: Type.STRING },
             remaining_amount: { type: Type.STRING },
+            status: { type: Type.STRING, description: "active or cancelled" },
           },
           required: [
             "admission_id", "name", "gender", "age", "qualification", "medium", 
-            "contact_no", "whatsapp_no", "address", "initial_payment", "date", 
-            "utr", "received_ac", "discount", "remaining_amount"
+            "contact_no", "whatsapp_no", "address", "payment1_amount", "payment1_date", 
+            "payment1_utr", "received_ac", "discount", "remaining_amount", "status"
           ]
         },
       },
