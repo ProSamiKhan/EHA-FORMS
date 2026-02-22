@@ -2,7 +2,7 @@
 import { RegistrationData } from "../types";
 
 // The deployment URL for the Google Apps Script
-const GOOGLE_SHEET_WEBAPP_URL: string = "https://script.google.com/macros/s/AKfycbxXO41V1JdvbEYxj75KGnRNuF6rESQeWyBTgYF7-VaZ-dz2cJc6Ir-FqoU64tNz9fB9/exec";
+const GOOGLE_SHEET_WEBAPP_URL: string = "https://script.google.com/macros/s/AKfycbw-FKws_KxRgDz7zR2taEWfc2TdkkWv-tsJAdv4KVbYeCM-YqYdMkcB6FJzqnzGjUI1/exec";
 
 /**
  * Synchronizes a single registration record to Google Sheets.
