@@ -125,7 +125,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
         medium: String(row['medium'] || ''),
         contact_no: String(row['contact no'] || row['contact_no'] || ''),
         whatsapp_no: String(row['whatsapp no'] || row['whatsapp_no'] || ''),
-        address: String(row['address'] || ''),
+        city: String(row['city'] || row['address'] || ''),
         state: String(row['state'] || ''),
         payment1_amount: String(row['payment1_amount'] || row['payment 1 amount'] || row['initial payment'] || row['initial_payment'] || '0'),
         payment1_date: String(row['payment1_date'] || row['payment 1 date'] || row['date'] || ''),
@@ -583,7 +583,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
                       <td className="px-4 md:px-8 py-4">
                           <span className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-tight transition-colors">{data.name}</span>
                       </td>
-                      <td className="px-4 md:px-8 py-4 text-[10px] font-bold text-slate-500 dark:text-slate-600 uppercase transition-colors">{data.address || '—'}</td>
+                      <td className="px-4 md:px-8 py-4 text-[10px] font-bold text-slate-500 dark:text-slate-600 uppercase transition-colors">{data.city || '—'}</td>
                       <td className="px-4 md:px-8 py-4">
                           <span className={`px-2 py-0.5 text-[8px] font-black uppercase rounded-md ${
                             data.status === 'cancelled' ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400' : 
@@ -667,7 +667,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
                         <DetailRow label="Contact Number" value={viewingRecord.contact_no} />
                         <DetailRow label="WhatsApp Number" value={viewingRecord.whatsapp_no} />
                         <DetailRow label="State / UT" value={viewingRecord.state} />
-                        <DetailRow label="City" value={viewingRecord.address} />
+                        <DetailRow label="City" value={viewingRecord.city} />
                         <DetailRow label="Account Received In" value={viewingRecord.received_ac} />
                         <DetailRow label="Discount Applied" value={`₹${viewingRecord.discount}`} />
                       </div>

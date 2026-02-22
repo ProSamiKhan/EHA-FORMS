@@ -22,7 +22,7 @@ export interface RegistrationData {
   medium: string;
   contact_no: string;
   whatsapp_no: string;
-  address: string;
+  city: string;
   state: string;
   // Payments 1-10
   payment1_amount: string;

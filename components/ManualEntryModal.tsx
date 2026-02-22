@@ -19,7 +19,7 @@ const INITIAL_DATA: RegistrationData = {
   medium: 'English',
   contact_no: '',
   whatsapp_no: '',
-  address: '',
+  city: '',
   state: '',
   payment1_amount: '',
   payment1_date: new Date().toLocaleDateString('en-GB'),
@@ -203,7 +203,7 @@ export const ManualEntryModal: React.FC<ManualEntryModalProps> = ({ isOpen, onCl
                 </div>
                 <div className="space-y-1">
                   <label className="text-[9px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest ml-1 transition-colors">City</label>
-                  <input list="cities" value={formData.address} onChange={(e) => handleChange('address', e.target.value)} placeholder="Select City" className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-bold outline-none dark:text-slate-100 transition-colors" />
+                  <input list="cities" value={formData.city} onChange={(e) => handleChange('city', e.target.value)} placeholder="Select City" className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-bold outline-none dark:text-slate-100 transition-colors" />
                   <datalist id="cities">
                     {INDIAN_CITIES.map(c => <option key={c} value={c} />)}
                   </datalist>
