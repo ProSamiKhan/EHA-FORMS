@@ -3,6 +3,16 @@ import React, { useMemo, useEffect, useState, useRef } from 'react';
 import { ProcessingRecord, RegistrationData } from '../types';
 import { fetchAllRegistrations } from '../services/sheetService';
 import html2canvas from 'html2canvas';
+import { 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
+  LineChart, Line, Cell, PieChart, Pie, AreaChart, Area
+} from 'recharts';
+import { 
+  format, subDays, subMonths, subYears, isAfter, parse, isValid, 
+  startOfDay, startOfWeek, startOfMonth, startOfYear 
+} from 'date-fns';
+
+type TimeRange = 'day' | 'week' | 'month' | 'year' | 'lifetime';
 
 interface DashboardProps {
   records: ProcessingRecord[];
@@ -196,11 +206,74 @@ export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
     });
   }, [remoteData, records]);
 
+  const [timeRange, setTimeRange] = useState<TimeRange>('lifetime');
+
+  const parseDate = (s: string): Date | null => {
+    if (!s) return null;
+    const parts = s.split('/');
+    if (parts.length !== 3) return null;
+    const [d, m, y] = parts;
+    const date = new Date(`${y}-${m}-${d}`);
+    return isValid(date) ? date : null;
+  };
+
+  const filteredData = useMemo(() => {
+    if (timeRange === 'lifetime') return allSyncedData;
+    
+    const now = new Date();
+    let startDate: Date;
+    
+    switch (timeRange) {
+      case 'day': startDate = startOfDay(now); break;
+      case 'week': startDate = startOfWeek(now); break;
+      case 'month': startDate = startOfMonth(now); break;
+      case 'year': startDate = startOfYear(now); break;
+      default: startDate = new Date(0);
+    }
+
+    return allSyncedData.filter(d => {
+      const date = parseDate(d.payment1_date);
+      return date && isAfter(date, startDate);
+    });
+  }, [allSyncedData, timeRange]);
+
+  const chartData = useMemo(() => {
+    const dailyMap: Record<string, number> = {};
+    const revenueMap: Record<string, number> = {};
+    
+    // Sort data by date to ensure chart flows correctly
+    const sorted = [...allSyncedData].sort((a, b) => {
+      const dateA = parseDate(a.payment1_date)?.getTime() || 0;
+      const dateB = parseDate(b.payment1_date)?.getTime() || 0;
+      return dateA - dateB;
+    });
+
+    sorted.forEach(d => {
+      const date = parseDate(d.payment1_date);
+      if (!date) return;
+      
+      const key = format(date, 'dd MMM');
+      dailyMap[key] = (dailyMap[key] || 0) + 1;
+      
+      let studentTotal = 0;
+      for (let i = 1; i <= 10; i++) {
+        studentTotal += parseFloat(String((d as any)[`payment${i}_amount`]).replace(/[^0-9.]/g, '')) || 0;
+      }
+      revenueMap[key] = (revenueMap[key] || 0) + studentTotal;
+    });
+
+    return Object.keys(dailyMap).map(key => ({
+      name: key,
+      admissions: dailyMap[key],
+      revenue: revenueMap[key]
+    })).slice(-15); // Show last 15 active days
+  }, [allSyncedData]);
+
   const stats = useMemo(() => {
-    const total = allSyncedData.length;
+    const total = filteredData.length;
     const genderMap: Record<string, number> = {};
     let revenue = 0;
-    allSyncedData.forEach(d => {
+    filteredData.forEach(d => {
       if (d.status === 'cancelled') return;
       const g = (d.gender || 'Other').trim().toLowerCase();
       genderMap[g] = (genderMap[g] || 0) + 1;
@@ -212,28 +285,45 @@ export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
       revenue += studentTotal;
     });
     return { total, genderMap, revenue };
-  }, [allSyncedData]);
+  }, [filteredData]);
 
   return (
     <div className="space-y-8 pb-10 transition-colors">
       {/* HEADER */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
             <h2 className="text-xl font-black text-slate-900 dark:text-slate-100 transition-colors">Cloud Insights</h2>
             <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest transition-colors">
               {error ? <span className="text-red-500">{error}</span> : "Synchronized Google Sheet Analytics"}
             </p>
         </div>
-        <button onClick={() => setLastRefreshed(Date.now())} disabled={isLoading} className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl text-slate-400 dark:text-slate-600 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all active:scale-95 disabled:opacity-50 shadow-sm dark:shadow-none">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={isLoading ? "animate-spin" : ""}><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
-        </button>
+        
+        <div className="flex items-center gap-2 bg-white dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm">
+          {(['day', 'week', 'month', 'year', 'lifetime'] as TimeRange[]).map((range) => (
+            <button
+              key={range}
+              onClick={() => setTimeRange(range)}
+              className={`px-3 py-1.5 text-[9px] font-black uppercase tracking-widest rounded-xl transition-all ${
+                timeRange === range 
+                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200 dark:shadow-none' 
+                : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
+              }`}
+            >
+              {range}
+            </button>
+          ))}
+          <div className="w-px h-4 bg-slate-100 dark:bg-slate-800 mx-1"></div>
+          <button onClick={() => setLastRefreshed(Date.now())} disabled={isLoading} className="p-1.5 text-slate-400 hover:text-indigo-600 transition-colors">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={isLoading ? "animate-spin" : ""}><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
+          </button>
+        </div>
       </div>
 
       {/* STAT CARDS */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-white dark:bg-slate-900 p-8 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm relative overflow-hidden group transition-colors">
           <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 dark:bg-indigo-900/10 rounded-full -mr-16 -mt-16 group-hover:scale-110 transition-transform"></div>
-          <h3 className="text-slate-400 dark:text-slate-500 text-[10px] font-black uppercase tracking-widest mb-1 relative transition-colors">Total Admissions</h3>
+          <h3 className="text-slate-400 dark:text-slate-500 text-[10px] font-black uppercase tracking-widest mb-1 relative transition-colors">Admissions</h3>
           <p className="text-4xl font-black text-slate-900 dark:text-slate-100 relative transition-colors">{stats.total}</p>
           <p className="mt-4 text-green-500 text-[10px] font-bold uppercase tracking-widest flex items-center gap-1 relative">
             <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span> {isLoading ? "Syncing..." : "Live Data"}
@@ -268,6 +358,56 @@ export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
             <div className="w-8 h-8 rounded-lg bg-green-50 dark:bg-green-900/20 flex items-center justify-center text-green-600">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* CHARTS SECTION */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-white dark:bg-slate-900 p-8 rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-sm transition-colors">
+          <div className="flex justify-between items-center mb-8">
+            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Admission Velocity</h3>
+            <span className="px-2 py-1 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-[8px] font-black uppercase rounded-md">Daily Trend</span>
+          </div>
+          <div className="h-[250px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={chartData}>
+                <defs>
+                  <linearGradient id="colorAdm" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.1}/>
+                    <stop offset="95%" stopColor="#4f46e5" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 9, fontWeight: 700, fill: '#94a3b8'}} dy={10} />
+                <YAxis axisLine={false} tickLine={false} tick={{fontSize: 9, fontWeight: 700, fill: '#94a3b8'}} />
+                <Tooltip 
+                  contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontSize: '10px', fontWeight: 'bold' }}
+                  cursor={{ stroke: '#4f46e5', strokeWidth: 1 }}
+                />
+                <Area type="monotone" dataKey="admissions" stroke="#4f46e5" strokeWidth={3} fillOpacity={1} fill="url(#colorAdm)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-slate-900 p-8 rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-sm transition-colors">
+          <div className="flex justify-between items-center mb-8">
+            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Revenue Growth</h3>
+            <span className="px-2 py-1 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 text-[8px] font-black uppercase rounded-md">Cash Flow</span>
+          </div>
+          <div className="h-[250px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 9, fontWeight: 700, fill: '#94a3b8'}} dy={10} />
+                <YAxis axisLine={false} tickLine={false} tick={{fontSize: 9, fontWeight: 700, fill: '#94a3b8'}} />
+                <Tooltip 
+                  contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontSize: '10px', fontWeight: 'bold' }}
+                />
+                <Bar dataKey="revenue" fill="#10b981" radius={[6, 6, 0, 0]} barSize={20} />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
         </div>
       </div>
