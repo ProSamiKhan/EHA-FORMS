@@ -1,16 +1,17 @@
 
-import React, { useMemo, useEffect, useState } from 'react';
+import React, { useMemo, useEffect, useState, useRef } from 'react';
 import { ProcessingRecord, RegistrationData } from '../types';
 import { fetchAllRegistrations } from '../services/sheetService';
+import html2canvas from 'html2canvas';
 
 interface DashboardProps {
   records: ProcessingRecord[];
 }
 
-const DetailRow = ({ label, value }: { label: string, value: string }) => (
-  <div className="flex justify-between py-3 border-b border-slate-50 dark:border-slate-800/50 last:border-0">
-    <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">{label}</span>
-    <span className="text-xs font-bold text-slate-700 dark:text-slate-200">{value || '—'}</span>
+const DetailRow = ({ label, value, fullWidth = false }: { label: string, value: string, fullWidth?: boolean }) => (
+  <div className={`flex flex-col py-3 border-b border-slate-50 dark:border-slate-800/50 last:border-0 ${fullWidth ? 'col-span-2' : ''}`}>
+    <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.15em] mb-1">{label}</span>
+    <span className="text-[13px] font-bold text-slate-800 dark:text-slate-100 leading-tight">{value || '—'}</span>
   </div>
 );
 
@@ -20,6 +21,83 @@ export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
   const [error, setError] = useState<string | null>(null);
   const [lastRefreshed, setLastRefreshed] = useState<number>(Date.now());
   const [viewingRecord, setViewingRecord] = useState<RegistrationData | null>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  const handleDownload = async () => {
+    if (!modalRef.current) return;
+    try {
+      // Temporarily remove max-height and overflow to capture full content
+      const originalStyle = modalRef.current.style.cssText;
+      modalRef.current.style.maxHeight = 'none';
+      modalRef.current.style.overflow = 'visible';
+      
+      const canvas = await html2canvas(modalRef.current, {
+        backgroundColor: '#ffffff',
+        scale: 3, // Higher scale for better quality
+        useCORS: true,
+        logging: false,
+        windowWidth: modalRef.current.scrollWidth,
+        windowHeight: modalRef.current.scrollHeight
+      });
+      
+      modalRef.current.style.cssText = originalStyle;
+
+      const link = document.createElement('a');
+      link.download = `EHA-Admission-${viewingRecord?.admission_id || 'record'}.png`;
+      link.href = canvas.toDataURL('image/png', 1.0);
+      link.click();
+    } catch (err) {
+      console.error('Download failed:', err);
+    }
+  };
+
+  const handlePrint = () => {
+    if (!modalRef.current) return;
+    
+    // Temporarily expand for printing
+    const originalStyle = modalRef.current.style.cssText;
+    modalRef.current.style.maxHeight = 'none';
+    modalRef.current.style.overflow = 'visible';
+    
+    const printContent = modalRef.current.innerHTML;
+    
+    modalRef.current.style.cssText = originalStyle;
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Admission Record - ${viewingRecord?.admission_id}</title>
+          <script src="https://cdn.tailwindcss.com"></script>
+          <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+          <style>
+            body { font-family: 'Inter', sans-serif; }
+            @media print {
+              body { padding: 0; margin: 0; }
+              .no-print { display: none; }
+              @page { margin: 1cm; }
+            }
+          </style>
+        </head>
+        <body class="bg-white">
+          <div class="p-8">
+            ${printContent}
+          </div>
+          <script>
+            window.onload = () => {
+              setTimeout(() => {
+                window.print();
+                window.close();
+              }, 500);
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
 
   const normalizeData = (rawItems: any[]): RegistrationData[] => {
     return rawItems.map(item => {
@@ -245,53 +323,146 @@ export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
 
       {/* DETAIL MODAL */}
       {viewingRecord && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/60 dark:bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-300">
-            <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-[40px] shadow-2xl dark:shadow-none overflow-hidden animate-in zoom-in-95 duration-300 border border-transparent dark:border-slate-800 transition-colors">
-                <div className="p-8 border-b border-slate-50 dark:border-slate-800/50 flex justify-between items-center bg-indigo-50/30 dark:bg-indigo-900/10 transition-colors">
-                    <div>
-                        <h2 className="text-xl font-black text-slate-900 dark:text-slate-100 transition-colors">{viewingRecord.name}</h2>
-                        <p className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold uppercase tracking-widest transition-colors">{viewingRecord.admission_id}</p>
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/80 dark:bg-black/90 backdrop-blur-md p-4 animate-in fade-in duration-300">
+            <div className="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-[40px] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 border border-slate-100 dark:border-slate-800">
+                {/* Header - Fixed */}
+                <div className="p-6 border-b border-slate-50 dark:border-slate-800/50 flex justify-between items-center bg-white dark:bg-slate-900 sticky top-0 z-10">
+                    <div className="flex items-center gap-4">
+                        <img 
+                          src="https://englishhouseacademy.in/wp-content/uploads/2022/03/187-X-43-px-EHA-LOGO-PNG.png" 
+                          alt="EHA Logo" 
+                          className="h-7 object-contain"
+                          referrerPolicy="no-referrer"
+                        />
+                        <div className="h-6 w-px bg-slate-200 dark:bg-slate-800"></div>
+                        <span className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-[0.2em]">Admission Record</span>
                     </div>
-                    <button onClick={() => setViewingRecord(null)} className="p-2 bg-white dark:bg-slate-800 rounded-full shadow-sm dark:shadow-none text-slate-400 dark:text-slate-600 hover:text-red-500 transition-colors">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    <button onClick={() => setViewingRecord(null)} className="p-2 bg-slate-50 dark:bg-slate-800 rounded-full text-slate-400 hover:text-red-500 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                     </button>
                 </div>
-                <div className="p-8 space-y-2 max-h-[60vh] overflow-y-auto custom-scrollbar transition-colors">
-                    <DetailRow label="Status" value={viewingRecord.status.toUpperCase()} />
-                    <DetailRow label="Date of Reg" value={viewingRecord.payment1_date} />
-                    <DetailRow label="Gender" value={viewingRecord.gender} />
-                    <DetailRow label="Age" value={viewingRecord.age} />
-                    <DetailRow label="Qualification" value={viewingRecord.qualification} />
-                    <DetailRow label="Medium" value={viewingRecord.medium} />
-                    <DetailRow label="Contact" value={viewingRecord.contact_no} />
-                    <DetailRow label="WhatsApp" value={viewingRecord.whatsapp_no} />
-                    <DetailRow label="City / Address" value={viewingRecord.address} />
-                    <DetailRow label="Received In" value={viewingRecord.received_ac} />
-                    <DetailRow label="Discount" value={`₹${viewingRecord.discount}`} />
-                    
-                    <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 space-y-3">
-                      <h4 className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Payment History</h4>
-                      <div className="space-y-2 max-h-[200px] overflow-y-auto pr-2 custom-scrollbar">
-                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => {
-                          const amt = (viewingRecord as any)[`payment${num}_amount`];
-                          if (!amt || amt === '0') return null;
-                          return (
-                            <div key={num} className="flex justify-between text-[10px] font-bold border-b border-slate-50 dark:border-slate-800/50 pb-1 last:border-0">
-                              <span className="text-slate-400">Pay {num}: ₹{amt}</span>
-                              <span className="text-slate-500">{(viewingRecord as any)[`payment${num}_date`]} | {(viewingRecord as any)[`payment${num}_utr`]}</span>
-                            </div>
-                          );
-                        })}
+                
+                {/* Scrollable Content Container */}
+                <div className="max-h-[75vh] overflow-y-auto custom-scrollbar bg-slate-50/30 dark:bg-slate-900/50">
+                  <div ref={modalRef} className="bg-white dark:bg-slate-900 p-10">
+                      {/* Branding for Export */}
+                      <div className="hidden print:block mb-10 text-center border-b border-slate-100 pb-8">
+                        <img 
+                          src="https://englishhouseacademy.in/wp-content/uploads/2022/03/187-X-43-px-EHA-LOGO-PNG.png" 
+                          alt="EHA Logo" 
+                          className="h-12 mx-auto object-contain mb-4"
+                          referrerPolicy="no-referrer"
+                        />
+                        <h1 className="text-2xl font-black uppercase tracking-[0.3em] text-slate-900">Official Admission Record</h1>
+                        <p className="text-xs text-slate-400 font-bold mt-2 uppercase tracking-widest">English House Academy</p>
                       </div>
-                    </div>
 
-                    <div className="flex justify-between py-4 mt-4 bg-indigo-600 dark:bg-indigo-700 px-6 rounded-2xl transition-colors">
-                        <span className="text-[10px] font-black text-indigo-100 uppercase tracking-widest">Pending Balance</span>
-                        <span className="text-lg font-black text-white">₹{viewingRecord.remaining_amount}</span>
-                    </div>
+                      {/* Top Section: Profile & ID */}
+                      <div className="flex flex-col md:flex-row justify-between items-start gap-8 mb-10">
+                        <div>
+                          <h2 className="text-3xl font-black text-slate-900 dark:text-white mb-1 tracking-tight">{viewingRecord.name}</h2>
+                          <div className="flex items-center gap-2">
+                            <span className="px-2 py-1 bg-indigo-600 text-white text-[10px] font-black rounded-md tracking-widest uppercase">{viewingRecord.admission_id}</span>
+                            <span className={`px-2 py-1 text-[10px] font-black rounded-md tracking-widest uppercase ${viewingRecord.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+                              {viewingRecord.status}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="text-right hidden md:block">
+                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Registration Date</p>
+                          <p className="text-lg font-bold text-slate-800 dark:text-slate-200">{viewingRecord.payment1_date}</p>
+                        </div>
+                      </div>
+
+                      {/* Grid Details */}
+                      <div className="grid grid-cols-2 gap-x-12 gap-y-2 mb-10">
+                        <DetailRow label="Gender" value={viewingRecord.gender} />
+                        <DetailRow label="Age" value={viewingRecord.age} />
+                        <DetailRow label="Qualification" value={viewingRecord.qualification} />
+                        <DetailRow label="Medium" value={viewingRecord.medium} />
+                        <DetailRow label="Contact Number" value={viewingRecord.contact_no} />
+                        <DetailRow label="WhatsApp Number" value={viewingRecord.whatsapp_no} />
+                        <DetailRow label="Address / City" value={viewingRecord.address} fullWidth />
+                        <DetailRow label="Account Received In" value={viewingRecord.received_ac} />
+                        <DetailRow label="Discount Applied" value={`₹${viewingRecord.discount}`} />
+                      </div>
+                      
+                      {/* Payment History Section */}
+                      <div className="mt-10 pt-8 border-t border-slate-100 dark:border-slate-800">
+                        <h4 className="text-[11px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-indigo-600"></span>
+                          Payment Installments
+                        </h4>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => {
+                            const amt = (viewingRecord as any)[`payment${num}_amount`];
+                            if (!amt || amt === '0') return null;
+                            return (
+                              <div key={num} className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800 flex justify-between items-center">
+                                <div>
+                                  <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Installment {num}</p>
+                                  <p className="text-sm font-black text-slate-900 dark:text-white">₹{amt}</p>
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-[9px] font-bold text-slate-500">{(viewingRecord as any)[`payment${num}_date`]}</p>
+                                  <p className="text-[8px] font-mono text-indigo-500 font-bold">{(viewingRecord as any)[`payment${num}_utr`]}</p>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Footer Summary */}
+                      <div className="mt-12 p-8 bg-slate-900 rounded-[32px] flex flex-col md:flex-row justify-between items-center gap-6">
+                          <div className="text-center md:text-left">
+                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1">Pending Balance</p>
+                            <p className="text-3xl font-black text-white tracking-tighter">₹{viewingRecord.remaining_amount}</p>
+                          </div>
+                          <div className="h-10 w-px bg-slate-800 hidden md:block"></div>
+                          <div className="text-center md:text-right">
+                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1">Total Course Fee</p>
+                            <p className="text-xl font-black text-indigo-400 tracking-tight">₹20,000</p>
+                          </div>
+                      </div>
+                      
+                      {/* Signature Area for Print */}
+                      <div className="hidden print:flex justify-between mt-20">
+                        <div className="text-center">
+                          <div className="w-40 border-b border-slate-300 mb-2"></div>
+                          <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Student Signature</p>
+                        </div>
+                        <div className="text-center">
+                          <div className="w-40 border-b border-slate-300 mb-2"></div>
+                          <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Authorized Signatory</p>
+                        </div>
+                      </div>
+                  </div>
                 </div>
-                <div className="p-8 pt-0 transition-colors">
-                    <button onClick={() => setViewingRecord(null)} className="w-full py-4 bg-slate-900 dark:bg-slate-700 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-800 dark:hover:bg-slate-600 transition-all transition-colors">Close Details</button>
+
+                {/* Actions Bar - Fixed Footer */}
+                <div className="p-6 bg-white dark:bg-slate-900 border-t border-slate-50 dark:border-slate-800 flex flex-col md:flex-row gap-3">
+                    <button 
+                      onClick={handlePrint}
+                      className="flex-1 flex items-center justify-center gap-3 py-4 bg-indigo-600 text-white rounded-2xl font-black text-[11px] uppercase tracking-[0.15em] hover:bg-indigo-700 shadow-lg shadow-indigo-200 dark:shadow-none transition-all active:scale-95"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                      Print Document
+                    </button>
+                    <button 
+                      onClick={handleDownload}
+                      className="flex-1 flex items-center justify-center gap-3 py-4 bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white rounded-2xl font-black text-[11px] uppercase tracking-[0.15em] hover:bg-slate-200 dark:hover:bg-slate-700 transition-all active:scale-95"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                      Download PNG
+                    </button>
+                    <button 
+                      onClick={() => setViewingRecord(null)}
+                      className="md:w-16 flex items-center justify-center py-4 bg-slate-900 dark:bg-slate-700 text-white rounded-2xl hover:bg-black transition-all"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
                 </div>
             </div>
         </div>
