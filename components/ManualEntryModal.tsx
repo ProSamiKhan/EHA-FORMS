@@ -49,6 +49,22 @@ const INDIAN_CITIES = [
   "Tiruchirappalli", "Bhubaneswar", "Salem", "Mira-Bhayandar", "Warangal", "Guntur"
 ];
 
+const toInputDate = (s: string) => {
+  if (!s) return '';
+  const parts = s.split('/');
+  if (parts.length !== 3) return '';
+  const [d, m, y] = parts;
+  return `${y}-${m}-${d}`;
+};
+
+const fromInputDate = (s: string) => {
+  if (!s) return '';
+  const parts = s.split('-');
+  if (parts.length !== 3) return '';
+  const [y, m, d] = parts;
+  return `${d}/${m}/${y}`;
+};
+
 export const ManualEntryModal: React.FC<ManualEntryModalProps> = ({ isOpen, onClose, onSubmit }) => {
   const [formData, setFormData] = useState<RegistrationData>(INITIAL_DATA);
   const [error, setError] = useState('');
@@ -201,10 +217,10 @@ export const ManualEntryModal: React.FC<ManualEntryModalProps> = ({ isOpen, onCl
                         className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 text-xs font-bold outline-none dark:text-slate-100" 
                       />
                       <input 
-                        type="text" 
+                        type="date" 
                         placeholder="Date" 
-                        value={(formData as any)[`payment${num}_date`]} 
-                        onChange={(e) => handleChange(`payment${num}_date` as any, e.target.value)} 
+                        value={toInputDate((formData as any)[`payment${num}_date`])} 
+                        onChange={(e) => handleChange(`payment${num}_date` as any, fromInputDate(e.target.value))} 
                         className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 text-xs font-bold outline-none dark:text-slate-100" 
                       />
                     </div>

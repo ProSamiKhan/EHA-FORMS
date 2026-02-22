@@ -8,11 +8,11 @@ import {
   LineChart, Line, Cell, PieChart, Pie, AreaChart, Area
 } from 'recharts';
 import { 
-  format, subDays, subMonths, subYears, isAfter, parse, isValid, 
+  format, subDays, subMonths, subYears, isAfter, parse, isValid, addDays,
   startOfDay, startOfWeek, startOfMonth, startOfYear 
 } from 'date-fns';
 
-type TimeRange = 'day' | 'week' | 'month' | 'year' | 'lifetime';
+type TimeRange = 'today' | 'yesterday' | 'week' | 'month' | 'year' | 'lifetime' | 'custom';
 
 interface DashboardProps {
   records: ProcessingRecord[];
@@ -207,6 +207,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
   }, [remoteData, records]);
 
   const [timeRange, setTimeRange] = useState<TimeRange>('lifetime');
+  const [customStart, setCustomStart] = useState<string>('');
+  const [customEnd, setCustomEnd] = useState<string>('');
+  const [admRange, setAdmRange] = useState<TimeRange>('lifetime');
+  const [revRange, setRevRange] = useState<TimeRange>('lifetime');
+  const [genRange, setGenRange] = useState<TimeRange>('lifetime');
+  const [chartRange, setChartRange] = useState<TimeRange>('lifetime');
+  const [revChartRange, setRevChartRange] = useState<TimeRange>('lifetime');
+
+  const [admCustom, setAdmCustom] = useState<{ start: string, end: string }>({ start: '', end: '' });
+  const [revCustom, setRevCustom] = useState<{ start: string, end: string }>({ start: '', end: '' });
+  const [genCustom, setGenCustom] = useState<{ start: string, end: string }>({ start: '', end: '' });
+  const [chartCustom, setChartCustom] = useState<{ start: string, end: string }>({ start: '', end: '' });
+  const [revChartCustom, setRevChartCustom] = useState<{ start: string, end: string }>({ start: '', end: '' });
 
   const parseDate = (s: string): Date | null => {
     if (!s) return null;
@@ -217,67 +230,82 @@ export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
     return isValid(date) ? date : null;
   };
 
-  const filteredData = useMemo(() => {
-    if (timeRange === 'lifetime') return allSyncedData;
-    
+  const getFilteredData = (range: TimeRange, custom?: { start: string, end: string }) => {
+    if (range === 'lifetime') return allSyncedData;
     const now = new Date();
+    const today = startOfDay(now);
+    const yesterday = startOfDay(subDays(now, 1));
     let startDate: Date;
-    
-    switch (timeRange) {
-      case 'day': startDate = startOfDay(now); break;
-      case 'week': startDate = startOfWeek(now); break;
+    let endDate: Date | null = null;
+    switch (range) {
+      case 'today': startDate = today; break;
+      case 'yesterday': startDate = yesterday; endDate = today; break;
+      case 'week': startDate = startOfWeek(now, { weekStartsOn: 1 }); break;
       case 'month': startDate = startOfMonth(now); break;
       case 'year': startDate = startOfYear(now); break;
+      case 'custom':
+        const start = custom?.start || customStart;
+        const end = custom?.end || customEnd;
+        if (!start) return allSyncedData;
+        startDate = startOfDay(new Date(start));
+        if (end) endDate = addDays(startOfDay(new Date(end)), 1);
+        break;
       default: startDate = new Date(0);
     }
-
     return allSyncedData.filter(d => {
       const date = parseDate(d.payment1_date);
-      return date && isAfter(date, startDate);
+      if (!date) return false;
+      const dTime = startOfDay(date).getTime();
+      if (endDate) return dTime >= startDate.getTime() && dTime < endDate.getTime();
+      return dTime >= startDate.getTime();
     });
-  }, [allSyncedData, timeRange]);
+  };
 
-  const chartData = useMemo(() => {
+  const filteredData = useMemo(() => getFilteredData(timeRange), [allSyncedData, timeRange, customStart, customEnd]);
+  const admData = useMemo(() => getFilteredData(admRange, admCustom), [allSyncedData, admRange, admCustom, customStart, customEnd]);
+  const revData = useMemo(() => getFilteredData(revRange, revCustom), [allSyncedData, revRange, revCustom, customStart, customEnd]);
+  const genData = useMemo(() => getFilteredData(genRange, genCustom), [allSyncedData, genRange, genCustom, customStart, customEnd]);
+  const chartFiltered = useMemo(() => getFilteredData(chartRange, chartCustom), [allSyncedData, chartRange, chartCustom, customStart, customEnd]);
+  const revChartFiltered = useMemo(() => getFilteredData(revChartRange, revChartCustom), [allSyncedData, revChartRange, revChartCustom, customStart, customEnd]);
+
+  const getChartData = (data: RegistrationData[], range: TimeRange) => {
     const dailyMap: Record<string, number> = {};
     const revenueMap: Record<string, number> = {};
-    
-    // Sort data by date to ensure chart flows correctly
-    const sorted = [...allSyncedData].sort((a, b) => {
+    const sorted = [...data].sort((a, b) => {
       const dateA = parseDate(a.payment1_date)?.getTime() || 0;
       const dateB = parseDate(b.payment1_date)?.getTime() || 0;
       return dateA - dateB;
     });
-
     sorted.forEach(d => {
       const date = parseDate(d.payment1_date);
       if (!date) return;
-      
       const key = format(date, 'dd MMM');
       dailyMap[key] = (dailyMap[key] || 0) + 1;
-      
       let studentTotal = 0;
       for (let i = 1; i <= 10; i++) {
         studentTotal += parseFloat(String((d as any)[`payment${i}_amount`]).replace(/[^0-9.]/g, '')) || 0;
       }
       revenueMap[key] = (revenueMap[key] || 0) + studentTotal;
     });
-
-    return Object.keys(dailyMap).map(key => ({
+    const result = Object.keys(dailyMap).map(key => ({
       name: key,
       admissions: dailyMap[key],
       revenue: revenueMap[key]
-    })).slice(-15); // Show last 15 active days
-  }, [allSyncedData]);
+    }));
+    return range === 'lifetime' ? result.slice(-30) : result;
+  };
 
-  const stats = useMemo(() => {
-    const total = filteredData.length;
+  const admChartData = useMemo(() => getChartData(chartFiltered, chartRange), [chartFiltered, chartRange]);
+  const revChartData = useMemo(() => getChartData(revChartFiltered, revChartRange), [revChartFiltered, revChartRange]);
+
+  const getStats = (data: RegistrationData[]) => {
+    const total = data.length;
     const genderMap: Record<string, number> = {};
     let revenue = 0;
-    filteredData.forEach(d => {
+    data.forEach(d => {
       if (d.status === 'cancelled') return;
       const g = (d.gender || 'Other').trim().toLowerCase();
       genderMap[g] = (genderMap[g] || 0) + 1;
-      
       let studentTotal = 0;
       for (let i = 1; i <= 10; i++) {
         studentTotal += parseFloat(String((d as any)[`payment${i}_amount`]).replace(/[^0-9.]/g, '')) || 0;
@@ -285,7 +313,52 @@ export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
       revenue += studentTotal;
     });
     return { total, genderMap, revenue };
-  }, [filteredData]);
+  };
+
+  const globalStats = useMemo(() => getStats(filteredData), [filteredData]);
+  const admStats = useMemo(() => getStats(admData), [admData]);
+  const revStats = useMemo(() => getStats(revData), [revData]);
+  const genStats = useMemo(() => getStats(genData), [genData]);
+
+  const MiniFilter = ({ current, onChange, custom, onCustomChange }: { 
+    current: TimeRange, 
+    onChange: (r: TimeRange) => void,
+    custom?: { start: string, end: string },
+    onCustomChange?: (c: { start: string, end: string }) => void
+  }) => (
+    <div className="space-y-2 mt-2">
+      <div className="flex flex-wrap gap-1">
+        {(['today', 'yesterday', 'week', 'month', 'year', 'lifetime', 'custom'] as TimeRange[]).map(r => (
+          <button
+            key={r}
+            onClick={() => onChange(r)}
+            className={`px-1.5 py-0.5 text-[7px] font-black uppercase tracking-tighter rounded-md transition-all ${
+              current === r ? 'bg-indigo-600 text-white' : 'bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-slate-600'
+            }`}
+          >
+            {r}
+          </button>
+        ))}
+      </div>
+      {current === 'custom' && onCustomChange && (
+        <div className="flex items-center gap-1 animate-in fade-in slide-in-from-top-1">
+          <input 
+            type="date" 
+            value={custom?.start || ''} 
+            onChange={(e) => onCustomChange({ ...custom!, start: e.target.value })}
+            className="text-[7px] bg-slate-50 dark:bg-slate-800 border-none rounded p-0.5 text-slate-600 dark:text-slate-300 outline-none"
+          />
+          <span className="text-[7px] text-slate-400 font-bold">to</span>
+          <input 
+            type="date" 
+            value={custom?.end || ''} 
+            onChange={(e) => onCustomChange({ ...custom!, end: e.target.value })}
+            className="text-[7px] bg-slate-50 dark:bg-slate-800 border-none rounded p-0.5 text-slate-600 dark:text-slate-300 outline-none"
+          />
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <div className="space-y-8 pb-10 transition-colors">
@@ -298,21 +371,40 @@ export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
             </p>
         </div>
         
-        <div className="flex items-center gap-2 bg-white dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm">
-          {(['day', 'week', 'month', 'year', 'lifetime'] as TimeRange[]).map((range) => (
-            <button
-              key={range}
-              onClick={() => setTimeRange(range)}
-              className={`px-3 py-1.5 text-[9px] font-black uppercase tracking-widest rounded-xl transition-all ${
-                timeRange === range 
-                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200 dark:shadow-none' 
-                : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
-              }`}
-            >
-              {range}
-            </button>
-          ))}
-          <div className="w-px h-4 bg-slate-100 dark:bg-slate-800 mx-1"></div>
+        <div className="flex flex-col md:flex-row items-end gap-2 bg-white dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm">
+          <div className="flex items-center gap-1">
+            {(['today', 'yesterday', 'week', 'month', 'year', 'lifetime', 'custom'] as TimeRange[]).map((range) => (
+              <button
+                key={range}
+                onClick={() => setTimeRange(range)}
+                className={`px-3 py-1.5 text-[9px] font-black uppercase tracking-widest rounded-xl transition-all ${
+                  timeRange === range 
+                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200 dark:shadow-none' 
+                  : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
+                }`}
+              >
+                {range}
+              </button>
+            ))}
+          </div>
+          {timeRange === 'custom' && (
+            <div className="flex items-center gap-2 px-2 animate-in fade-in slide-in-from-top-1">
+              <input 
+                type="date" 
+                value={customStart} 
+                onChange={(e) => setCustomStart(e.target.value)}
+                className="text-[9px] bg-slate-50 dark:bg-slate-800 border-none rounded-lg p-1 text-slate-600 dark:text-slate-300 outline-none"
+              />
+              <span className="text-[9px] text-slate-400 font-bold">to</span>
+              <input 
+                type="date" 
+                value={customEnd} 
+                onChange={(e) => setCustomEnd(e.target.value)}
+                className="text-[9px] bg-slate-50 dark:bg-slate-800 border-none rounded-lg p-1 text-slate-600 dark:text-slate-300 outline-none"
+              />
+            </div>
+          )}
+          <div className="w-px h-4 bg-slate-100 dark:bg-slate-800 mx-1 hidden md:block"></div>
           <button onClick={() => setLastRefreshed(Date.now())} disabled={isLoading} className="p-1.5 text-slate-400 hover:text-indigo-600 transition-colors">
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={isLoading ? "animate-spin" : ""}><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
           </button>
@@ -324,7 +416,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
         <div className="bg-white dark:bg-slate-900 p-8 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm relative overflow-hidden group transition-colors">
           <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 dark:bg-indigo-900/10 rounded-full -mr-16 -mt-16 group-hover:scale-110 transition-transform"></div>
           <h3 className="text-slate-400 dark:text-slate-500 text-[10px] font-black uppercase tracking-widest mb-1 relative transition-colors">Admissions</h3>
-          <p className="text-4xl font-black text-slate-900 dark:text-slate-100 relative transition-colors">{stats.total}</p>
+          <p className="text-4xl font-black text-slate-900 dark:text-slate-100 relative transition-colors">{admStats.total}</p>
+          <MiniFilter current={admRange} onChange={setAdmRange} custom={admCustom} onCustomChange={setAdmCustom} />
           <p className="mt-4 text-green-500 text-[10px] font-bold uppercase tracking-widest flex items-center gap-1 relative">
             <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span> {isLoading ? "Syncing..." : "Live Data"}
           </p>
@@ -333,8 +426,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
         <div className="bg-white dark:bg-slate-900 p-8 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm transition-colors">
           <h3 className="text-slate-400 dark:text-slate-500 text-[10px] font-black uppercase tracking-widest mb-4 transition-colors">Gender Distribution</h3>
           <div className="space-y-3">
-            {Object.entries(stats.genderMap).map(([gender, count]) => {
-                const perc = stats.total > 0 ? Math.round((Number(count) / stats.total) * 100) : 0;
+            {Object.entries(genStats.genderMap).map(([gender, count]) => {
+                const perc = genStats.total > 0 ? Math.round((Number(count) / genStats.total) * 100) : 0;
                 return (
                     <div key={gender} className="space-y-1">
                         <div className="flex justify-between text-[10px] font-black uppercase tracking-wider">
@@ -348,11 +441,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
                 )
             })}
           </div>
+          <MiniFilter current={genRange} onChange={setGenRange} custom={genCustom} onCustomChange={setGenCustom} />
         </div>
 
         <div className="bg-white dark:bg-slate-900 p-8 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm transition-colors">
           <h3 className="text-slate-400 dark:text-slate-500 text-[10px] font-black uppercase tracking-widest mb-1 transition-colors">Total Revenue</h3>
-          <p className="text-3xl font-black text-slate-900 dark:text-slate-100 tracking-tight transition-colors">₹{stats.revenue.toLocaleString()}</p>
+          <p className="text-3xl font-black text-slate-900 dark:text-slate-100 tracking-tight transition-colors">₹{revStats.revenue.toLocaleString()}</p>
+          <MiniFilter current={revRange} onChange={setRevRange} custom={revCustom} onCustomChange={setRevCustom} />
           <div className="mt-6 pt-6 border-t border-slate-50 dark:border-slate-800 flex items-center justify-between transition-colors">
             <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Growth Index</span>
             <div className="w-8 h-8 rounded-lg bg-green-50 dark:bg-green-900/20 flex items-center justify-center text-green-600">
@@ -365,13 +460,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
       {/* CHARTS SECTION */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white dark:bg-slate-900 p-8 rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-sm transition-colors">
-          <div className="flex justify-between items-center mb-8">
+          <div className="flex justify-between items-center mb-4">
             <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Admission Velocity</h3>
             <span className="px-2 py-1 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-[8px] font-black uppercase rounded-md">Daily Trend</span>
           </div>
-          <div className="h-[250px] w-full">
+          <MiniFilter current={chartRange} onChange={setChartRange} custom={chartCustom} onCustomChange={setChartCustom} />
+          <div className="h-[250px] w-full mt-6">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartData}>
+              <AreaChart data={admChartData}>
                 <defs>
                   <linearGradient id="colorAdm" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.1}/>
@@ -392,13 +488,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
         </div>
 
         <div className="bg-white dark:bg-slate-900 p-8 rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-sm transition-colors">
-          <div className="flex justify-between items-center mb-8">
+          <div className="flex justify-between items-center mb-4">
             <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Revenue Growth</h3>
             <span className="px-2 py-1 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 text-[8px] font-black uppercase rounded-md">Cash Flow</span>
           </div>
-          <div className="h-[250px] w-full">
+          <MiniFilter current={revChartRange} onChange={setRevChartRange} custom={revChartCustom} onCustomChange={setRevChartCustom} />
+          <div className="h-[250px] w-full mt-6">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData}>
+              <BarChart data={revChartData}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 9, fontWeight: 700, fill: '#94a3b8'}} dy={10} />
                 <YAxis axisLine={false} tickLine={false} tick={{fontSize: 9, fontWeight: 700, fill: '#94a3b8'}} />
