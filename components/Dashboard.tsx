@@ -20,7 +20,7 @@ interface DashboardProps {
 }
 
 const DetailRow = ({ label, value, fullWidth = false }: { label: string, value: string, fullWidth?: boolean }) => (
-  <div className={`flex flex-col py-3 border-b border-slate-50 dark:border-slate-800/50 last:border-0 ${fullWidth ? 'col-span-2' : ''}`}>
+  <div className={`flex flex-col py-3 border-b border-slate-50 dark:border-slate-800/50 last:border-0 ${fullWidth ? 'col-span-1 sm:col-span-2' : 'col-span-1'}`}>
     <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.15em] mb-1">{label}</span>
     <span className="text-[13px] font-bold text-slate-800 dark:text-slate-100 leading-tight">{value || '—'}</span>
   </div>
@@ -542,16 +542,38 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, onEdit }) => {
   return (
     <div className="space-y-8 pb-10 transition-colors">
       {/* HEADER */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-            <h2 className="text-xl font-black text-slate-900 dark:text-slate-100 transition-colors">Cloud Insights</h2>
-            <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest transition-colors">
-              {error ? <span className="text-red-500">{error}</span> : "Synchronized Google Sheet Analytics"}
-            </p>
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-10">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-200 dark:shadow-none">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9h18v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9Z"/><path d="M3 9V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4"/></svg>
+            </div>
+            <div>
+              <h1 className="text-xl md:text-2xl font-black text-slate-900 dark:text-white tracking-tight">EHA Dashboard</h1>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                System Operational
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 ml-auto sm:ml-0">
+            {isFiltered && (
+              <button 
+                onClick={clearAllFilters}
+                className="px-3 py-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-[9px] font-black uppercase tracking-widest rounded-xl hover:bg-red-100 dark:hover:bg-red-900/30 transition-all flex items-center gap-2"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                Clear
+              </button>
+            )}
+            <button onClick={() => setLastRefreshed(Date.now())} disabled={isLoading} className="p-2 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm text-slate-400 hover:text-indigo-600 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={isLoading ? "animate-spin" : ""}><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
+            </button>
+          </div>
         </div>
-        
-        <div className="flex flex-col lg:flex-row items-start lg:items-center gap-4 w-full">
-          <div className="flex flex-wrap items-center gap-1 bg-white dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm w-full lg:w-auto overflow-x-auto">
+
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full lg:w-auto">
+          <div className="flex items-center gap-1 bg-white dark:bg-slate-900 p-1 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm w-full sm:w-auto overflow-x-auto no-scrollbar">
             {(['today', 'yesterday', 'week', 'month', 'year', 'lifetime', 'custom'] as TimeRange[]).map((range) => (
               <button
                 key={range}
@@ -568,7 +590,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, onEdit }) => {
           </div>
           
           {timeRange === 'custom' && (
-            <div className="flex flex-wrap items-center gap-2 px-2 animate-in fade-in slide-in-from-top-1 bg-white dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm w-full lg:w-auto">
+            <div className="flex items-center gap-2 bg-white dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm w-full sm:w-auto overflow-x-auto">
               <input 
                 type="date" 
                 value={customStart} 
@@ -584,41 +606,26 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, onEdit }) => {
               />
             </div>
           )}
-          
-        <div className="flex items-center gap-2 ml-auto">
-            {isFiltered && (
-              <button 
-                onClick={clearAllFilters}
-                className="px-3 py-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-[9px] font-black uppercase tracking-widest rounded-xl hover:bg-red-100 dark:hover:bg-red-900/30 transition-all flex items-center gap-2"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-                Clear Filters
-              </button>
-            )}
-            <button onClick={() => setLastRefreshed(Date.now())} disabled={isLoading} className="p-2 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm text-slate-400 hover:text-indigo-600 transition-colors">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={isLoading ? "animate-spin" : ""}><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
-            </button>
-          </div>
         </div>
       </div>
 
       {/* STAT CARDS */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
         <div 
           onClick={() => { setFilterAdmissionStatus(null); setFilterPaymentStatus(null); setFilterGender(null); setFilterState(null); setFilterCity(null); setFilterDate(null); }}
-          className="bg-white dark:bg-slate-900 p-8 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm relative overflow-hidden group transition-colors cursor-pointer hover:border-indigo-500"
+          className="bg-white dark:bg-slate-900 p-6 md:p-8 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm relative overflow-hidden group transition-colors cursor-pointer hover:border-indigo-500"
         >
-          <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 dark:bg-indigo-900/10 rounded-full -mr-16 -mt-16 group-hover:scale-110 transition-transform"></div>
+          <div className="absolute top-0 right-0 w-24 md:w-32 h-24 md:h-32 bg-indigo-50 dark:bg-indigo-900/10 rounded-full -mr-12 md:-mr-16 -mt-12 md:-mt-16 group-hover:scale-110 transition-transform"></div>
           <h3 className="text-slate-400 dark:text-slate-500 text-[10px] font-black uppercase tracking-widest mb-1 relative transition-colors">Admissions</h3>
-          <p className="text-4xl font-black text-slate-900 dark:text-slate-100 relative transition-colors">{globalStats.total}</p>
+          <p className="text-3xl md:text-4xl font-black text-slate-900 dark:text-slate-100 relative transition-colors">{globalStats.total}</p>
           <p className="mt-4 text-green-500 text-[10px] font-bold uppercase tracking-widest flex items-center gap-1 relative">
             <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span> {isLoading ? "Syncing..." : "Live Data"}
           </p>
         </div>
 
-        <div className="bg-white dark:bg-slate-900 p-8 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm transition-colors">
+        <div className="bg-white dark:bg-slate-900 p-6 md:p-8 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm transition-colors">
           <h3 className="text-slate-400 dark:text-slate-500 text-[10px] font-black uppercase tracking-widest mb-1 transition-colors">Total Revenue</h3>
-          <p className="text-3xl font-black text-slate-900 dark:text-slate-100 tracking-tight transition-colors">₹{globalStats.revenue.toLocaleString()}</p>
+          <p className="text-2xl md:text-3xl font-black text-slate-900 dark:text-slate-100 tracking-tight transition-colors">₹{globalStats.revenue.toLocaleString()}</p>
           <div className="mt-6 pt-6 border-t border-slate-50 dark:border-slate-800 flex items-center justify-between transition-colors">
             <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Growth Index</span>
             <div className="w-8 h-8 rounded-lg bg-green-50 dark:bg-green-900/20 flex items-center justify-center text-green-600">
@@ -627,33 +634,33 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, onEdit }) => {
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-900 p-8 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm transition-colors">
+        <div className="bg-white dark:bg-slate-900 p-6 md:p-8 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm transition-colors">
           <h3 className="text-slate-400 dark:text-slate-500 text-[10px] font-black uppercase tracking-widest mb-4 transition-colors">Payment Status</h3>
           <div className="space-y-3">
             <div 
               onClick={() => setFilterPaymentStatus(filterPaymentStatus === 'fully_paid' ? null : 'fully_paid')}
-              className={`flex justify-between items-center cursor-pointer p-1 rounded-lg transition-all ${filterPaymentStatus === 'fully_paid' ? 'bg-indigo-50 dark:bg-indigo-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+              className={`flex justify-between items-center cursor-pointer p-1.5 rounded-lg transition-all ${filterPaymentStatus === 'fully_paid' ? 'bg-indigo-50 dark:bg-indigo-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
             >
               <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Fully Paid</span>
               <span className="text-[11px] font-black text-indigo-600 dark:text-indigo-400">{globalStats.fullyPaid}</span>
             </div>
             <div 
               onClick={() => setFilterPaymentStatus(filterPaymentStatus === 'partial' ? null : 'partial')}
-              className={`flex justify-between items-center cursor-pointer p-1 rounded-lg transition-all ${filterPaymentStatus === 'partial' ? 'bg-amber-50 dark:bg-amber-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+              className={`flex justify-between items-center cursor-pointer p-1.5 rounded-lg transition-all ${filterPaymentStatus === 'partial' ? 'bg-amber-50 dark:bg-amber-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
             >
               <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Partial</span>
               <span className="text-[11px] font-black text-amber-600 dark:text-amber-400">{globalStats.partialPaid}</span>
             </div>
             <div 
               onClick={() => setFilterPaymentStatus(filterPaymentStatus === 'discount' ? null : 'discount')}
-              className={`flex justify-between items-center cursor-pointer p-1 rounded-lg transition-all ${filterPaymentStatus === 'discount' ? 'bg-emerald-50 dark:bg-emerald-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+              className={`flex justify-between items-center cursor-pointer p-1.5 rounded-lg transition-all ${filterPaymentStatus === 'discount' ? 'bg-emerald-50 dark:bg-emerald-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
             >
               <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Discount</span>
               <span className="text-[11px] font-black text-emerald-600 dark:text-emerald-400">{globalStats.discountCount}</span>
             </div>
             <div 
               onClick={() => setFilterPaymentStatus(filterPaymentStatus === 'free' ? null : 'free')}
-              className={`flex justify-between items-center cursor-pointer p-1 rounded-lg transition-all ${filterPaymentStatus === 'free' ? 'bg-slate-100 dark:bg-slate-800' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+              className={`flex justify-between items-center cursor-pointer p-1.5 rounded-lg transition-all ${filterPaymentStatus === 'free' ? 'bg-slate-100 dark:bg-slate-800' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
             >
               <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Free</span>
               <span className="text-[11px] font-black text-slate-400">{globalStats.freeCount}</span>
@@ -661,33 +668,33 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, onEdit }) => {
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-900 p-8 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm transition-colors">
+        <div className="bg-white dark:bg-slate-900 p-6 md:p-8 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm transition-colors">
           <h3 className="text-slate-400 dark:text-slate-500 text-[10px] font-black uppercase tracking-widest mb-4 transition-colors">Admission Status</h3>
           <div className="space-y-3">
             <div 
               onClick={() => { setFilterAdmissionStatus(null); setFilterPaymentStatus(null); }}
-              className="flex justify-between items-center cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 p-1 rounded-lg transition-all"
+              className="flex justify-between items-center cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 p-1.5 rounded-lg transition-all"
             >
               <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Total</span>
               <span className="text-[11px] font-black text-slate-900 dark:text-slate-100">{globalStats.total}</span>
             </div>
             <div 
               onClick={() => setFilterAdmissionStatus(filterAdmissionStatus === 'cancelled' ? null : 'cancelled')}
-              className={`flex justify-between items-center cursor-pointer p-1 rounded-lg transition-all ${filterAdmissionStatus === 'cancelled' ? 'bg-red-50 dark:bg-red-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+              className={`flex justify-between items-center cursor-pointer p-1.5 rounded-lg transition-all ${filterAdmissionStatus === 'cancelled' ? 'bg-red-50 dark:bg-red-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
             >
               <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Cancelled</span>
               <span className="text-[11px] font-black text-red-500">{globalStats.cancelledCount}</span>
             </div>
             <div 
               onClick={() => setFilterAdmissionStatus(filterAdmissionStatus === 'pending' ? null : 'pending')}
-              className={`flex justify-between items-center cursor-pointer p-1 rounded-lg transition-all ${filterAdmissionStatus === 'pending' ? 'bg-amber-50 dark:bg-amber-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+              className={`flex justify-between items-center cursor-pointer p-1.5 rounded-lg transition-all ${filterAdmissionStatus === 'pending' ? 'bg-amber-50 dark:bg-amber-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
             >
               <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Pending</span>
               <span className="text-[11px] font-black text-amber-500">{globalStats.pendingCount}</span>
             </div>
             <div 
               onClick={() => setFilterAdmissionStatus(filterAdmissionStatus === 'confirm' ? null : 'confirm')}
-              className={`flex justify-between items-center pt-2 border-t border-slate-50 dark:border-slate-800 cursor-pointer p-1 rounded-lg transition-all ${filterAdmissionStatus === 'confirm' ? 'bg-indigo-50 dark:bg-indigo-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+              className={`flex justify-between items-center pt-2 border-t border-slate-50 dark:border-slate-800 cursor-pointer p-1.5 rounded-lg transition-all ${filterAdmissionStatus === 'confirm' ? 'bg-indigo-50 dark:bg-indigo-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
             >
               <span className="text-[9px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">Confirm</span>
               <span className="text-[11px] font-black text-indigo-600 dark:text-indigo-400">{globalStats.total - globalStats.cancelledCount - globalStats.pendingCount}</span>
@@ -696,8 +703,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, onEdit }) => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white dark:bg-slate-900 p-8 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm transition-colors flex flex-col md:col-span-1">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="bg-white dark:bg-slate-900 p-6 md:p-8 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm transition-colors flex flex-col lg:col-span-1">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-slate-400 dark:text-slate-500 text-[10px] font-black uppercase tracking-widest transition-colors">Gender Distribution</h3>
             {filterGender && (
@@ -750,7 +757,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, onEdit }) => {
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-900 p-8 rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-sm transition-colors md:col-span-2">
+        <div className="bg-white dark:bg-slate-900 p-6 md:p-8 rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-sm transition-colors lg:col-span-2">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Admission Velocity</h3>
             <div className="flex items-center gap-2">
@@ -784,7 +791,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, onEdit }) => {
       </div>
 
       {/* REGIONAL DISTRIBUTION - COMPACT */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
         <div className="bg-white dark:bg-slate-900 p-6 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm transition-colors">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">State Distribution</h3>
@@ -850,12 +857,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, onEdit }) => {
 
       {/* DATA TABLE */}
       <div className="bg-white dark:bg-slate-900 rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden flex flex-col min-h-[500px] transition-colors">
-          <div className="px-4 md:px-8 py-6 border-b border-slate-50 dark:border-slate-800/50 flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/20 transition-colors">
-              <div className="flex items-center gap-4">
+          <div className="px-4 md:px-8 py-6 border-b border-slate-50 dark:border-slate-800/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-50/50 dark:bg-slate-800/20 transition-colors">
+              <div className="flex items-center gap-4 w-full sm:w-auto">
                 <h3 className="text-[10px] font-black text-slate-900 dark:text-slate-100 uppercase tracking-widest transition-colors">Master Cloud Records</h3>
                 <button 
                   onClick={() => setIsMasterViewOpen(true)}
-                  className="flex items-center gap-2 bg-indigo-600 text-white px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-indigo-700 active:scale-95 transition-all shadow-sm"
+                  className="flex items-center gap-2 bg-indigo-600 text-white px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-indigo-700 active:scale-95 transition-all shadow-sm ml-auto sm:ml-0"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
                   Master View
@@ -891,7 +898,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, onEdit }) => {
                       </th>
                       <th 
                         onClick={() => requestSort('city')}
-                        className="px-4 md:px-8 py-4 text-[10px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-wider cursor-pointer hover:text-indigo-600 transition-colors"
+                        className="px-4 md:px-8 py-4 text-[10px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-wider cursor-pointer hover:text-indigo-600 transition-colors hidden sm:table-cell"
                       >
                         <div className="flex items-center gap-1">
                           City
@@ -928,7 +935,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, onEdit }) => {
                       <td className="px-4 md:px-8 py-4">
                           <span className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-tight transition-colors">{data.name}</span>
                       </td>
-                      <td className="px-4 md:px-8 py-4 text-[10px] font-bold text-slate-500 dark:text-slate-600 uppercase transition-colors">{data.city || '—'}</td>
+                      <td className="px-4 md:px-8 py-4 text-[10px] font-bold text-slate-500 dark:text-slate-600 uppercase transition-colors hidden sm:table-cell">{data.city || '—'}</td>
                       <td className="px-4 md:px-8 py-4">
                           <span className={`px-2 py-0.5 text-[8px] font-black uppercase rounded-md ${
                             data.status === 'cancelled' ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400' : 
@@ -983,7 +990,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, onEdit }) => {
                 
                 {/* Scrollable Content Container */}
                 <div className="max-h-[75vh] overflow-y-auto custom-scrollbar bg-slate-50/30 dark:bg-slate-900/50">
-                  <div ref={modalRef} className="bg-white dark:bg-slate-900 p-6 md:p-10">
+                  <div ref={modalRef} className="bg-white dark:bg-slate-900 p-4 md:p-10">
                       {/* Branding for Export */}
                       <div className="hidden print:block mb-10 text-center border-b border-slate-100 pb-8">
                         <img 
@@ -997,9 +1004,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, onEdit }) => {
                       </div>
 
                       {/* Top Section: Profile & ID */}
-                      <div className="flex flex-col md:flex-row justify-between items-start gap-8 mb-10">
+                      <div className="flex flex-col md:flex-row justify-between items-start gap-4 md:gap-8 mb-10">
                         <div>
-                          <h2 className="text-3xl font-black text-slate-900 dark:text-white mb-1 tracking-tight">{viewingRecord.name}</h2>
+                          <h2 className="text-xl md:text-3xl font-black text-slate-900 dark:text-white mb-1 tracking-tight">{viewingRecord.name}</h2>
                           <div className="flex items-center gap-2">
                             <span className="px-2 py-1 bg-indigo-600 text-white text-[10px] font-black rounded-md tracking-widest uppercase">{viewingRecord.admission_id}</span>
                             <span className={`px-2 py-1 text-[10px] font-black rounded-md tracking-widest uppercase ${
@@ -1011,14 +1018,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, onEdit }) => {
                             </span>
                           </div>
                         </div>
-                        <div className="text-right hidden md:block">
+                        <div className="text-left md:text-right">
                           <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Registration Date</p>
-                          <p className="text-lg font-bold text-slate-800 dark:text-slate-200">{viewingRecord.payment1_date}</p>
+                          <p className="text-base md:text-lg font-bold text-slate-800 dark:text-slate-200">{viewingRecord.payment1_date}</p>
                         </div>
                       </div>
 
                       {/* Grid Details */}
-                      <div className="grid grid-cols-2 gap-x-12 gap-y-2 mb-10">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-12 gap-y-2 mb-10">
                         <DetailRow label="Gender" value={viewingRecord.gender} />
                         <DetailRow label="Age" value={viewingRecord.age} />
                         <DetailRow label="Qualification" value={viewingRecord.qualification} />
@@ -1131,7 +1138,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, onEdit }) => {
             </div>
 
             {/* Content Area */}
-            <div className="flex-1 overflow-auto p-8 bg-white dark:bg-slate-950" ref={masterViewRef}>
+            <div className="flex-1 overflow-auto p-4 md:p-8 bg-white dark:bg-slate-950" ref={masterViewRef}>
               <table className="w-full border-collapse">
                 <thead>
                   <tr className="bg-slate-50 dark:bg-slate-900">
@@ -1175,7 +1182,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, onEdit }) => {
             </div>
 
             {/* Actions */}
-            <div className="p-6 bg-slate-50 dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 flex gap-4">
+            <div className="p-6 bg-slate-50 dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row gap-4">
               <button 
                 onClick={handleMasterPrint}
                 className="flex-1 flex items-center justify-center gap-3 py-4 bg-indigo-600 text-white rounded-2xl font-black text-[11px] uppercase tracking-[0.15em] hover:bg-indigo-700 shadow-lg shadow-indigo-200 dark:shadow-none transition-all active:scale-95"

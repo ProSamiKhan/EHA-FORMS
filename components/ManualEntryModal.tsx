@@ -138,7 +138,7 @@ export const ManualEntryModal: React.FC<ManualEntryModalProps> = ({ isOpen, onCl
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 dark:bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-300">
       <div className="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-[32px] shadow-2xl dark:shadow-none overflow-hidden flex flex-col max-h-[90vh] transition-colors border border-transparent dark:border-slate-800">
-        <div className="px-8 py-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-indigo-50/50 dark:bg-indigo-900/10 transition-colors">
+        <div className="px-4 md:px-8 py-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-indigo-50/50 dark:bg-indigo-900/10 transition-colors">
           <div>
             <h2 className="text-xl font-black text-slate-900 dark:text-slate-100">New Registration</h2>
             <p className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold uppercase tracking-widest">Base Fees: ₹{TOTAL_FEES.toLocaleString()}</p>
@@ -148,7 +148,7 @@ export const ManualEntryModal: React.FC<ManualEntryModalProps> = ({ isOpen, onCl
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-8 overflow-y-auto grow custom-scrollbar space-y-8 dark:bg-slate-900 transition-colors">
+        <form onSubmit={handleSubmit} className="p-4 md:p-8 overflow-y-auto grow custom-scrollbar space-y-8 dark:bg-slate-900 transition-colors">
           {error && (
             <div className="p-3 bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/20 rounded-xl text-red-600 dark:text-red-400 text-[10px] font-black uppercase tracking-wider animate-pulse flex items-center gap-2">
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
@@ -306,7 +306,7 @@ export const ManualEntryModal: React.FC<ManualEntryModalProps> = ({ isOpen, onCl
           </div>
         </form>
 
-        <div className="px-8 py-6 border-t border-slate-100 dark:border-slate-800 flex gap-4 bg-slate-50 dark:bg-slate-800/50 transition-colors">
+        <div className="px-4 md:px-8 py-6 border-t border-slate-100 dark:border-slate-800 flex gap-4 bg-slate-50 dark:bg-slate-800/50 transition-colors">
           <button type="button" onClick={onClose} className="px-6 py-3 text-sm font-bold text-slate-400 dark:text-slate-600 hover:text-slate-600 dark:hover:text-slate-400 transition-all transition-colors">Cancel</button>
           <button type="submit" onClick={handleSubmit} className="flex-1 py-4 bg-indigo-600 text-white rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl dark:shadow-none hover:bg-indigo-700 active:scale-95 transition-all transition-colors">Submit Entry</button>
         </div>
