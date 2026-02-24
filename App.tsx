@@ -202,7 +202,8 @@ const App: React.FC = () => {
         r.data?.name?.toLowerCase().includes(lower) || 
         r.data?.admission_id?.toLowerCase().includes(lower) ||
         r.fileName.toLowerCase().includes(lower) ||
-        r.data?.address?.toLowerCase().includes(lower)
+        r.data?.city?.toLowerCase().includes(lower) ||
+        r.data?.state?.toLowerCase().includes(lower)
     );
   }, [records, searchQuery]);
 

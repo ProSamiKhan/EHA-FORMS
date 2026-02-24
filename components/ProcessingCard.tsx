@@ -189,7 +189,8 @@ export const ProcessingCard: React.FC<ProcessingCardProps> = ({ record, onRemove
                 <div className="bg-slate-50/50 dark:bg-slate-800/40 p-4 rounded-2xl space-y-1 border border-transparent dark:border-slate-800/30">
                     <DataRow label="Primary No" value={isEditing ? tempData!.contact_no : record.data.contact_no} isEditing={isEditing} onChange={(v) => handleDataChange('contact_no', v)} />
                     <DataRow label="WhatsApp" value={isEditing ? tempData!.whatsapp_no : record.data.whatsapp_no} isEditing={isEditing} onChange={(v) => handleDataChange('whatsapp_no', v)} />
-                    <DataRow label="Address / City" value={isEditing ? tempData!.address : record.data.address} isEditing={isEditing} onChange={(v) => handleDataChange('address', v)} />
+                    <DataRow label="State / UT" value={isEditing ? tempData!.state : record.data.state} isEditing={isEditing} onChange={(v) => handleDataChange('state', v)} />
+                    <DataRow label="City" value={isEditing ? tempData!.city : record.data.city} isEditing={isEditing} onChange={(v) => handleDataChange('city', v)} />
                     <DataRow label="Received In A/C" value={isEditing ? tempData!.received_ac : record.data.received_ac} isEditing={isEditing} onChange={(v) => handleDataChange('received_ac', v)} />
                     <DataRow label="Discount" value={isEditing ? tempData!.discount : record.data.discount} isEditing={isEditing} onChange={(v) => handleDataChange('discount', v)} type="number" />
                     <DataRow label="Pending Amount" value={isEditing ? tempData!.remaining_amount : record.data.remaining_amount} isEditing={isEditing} onChange={(v) => handleDataChange('remaining_amount', v)} type="number" />
