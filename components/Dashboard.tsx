@@ -32,7 +32,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, onEdit }) => {
   const [error, setError] = useState<string | null>(null);
   const [lastRefreshed, setLastRefreshed] = useState<number>(Date.now());
   const [viewingRecord, setViewingRecord] = useState<RegistrationData | null>(null);
+  const [isMasterViewOpen, setIsMasterViewOpen] = useState(false);
   const modalRef = useRef<HTMLDivElement>(null);
+  const masterViewRef = useRef<HTMLDivElement>(null);
 
   const handleDownload = async () => {
     if (!modalRef.current) return;
@@ -94,6 +96,68 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, onEdit }) => {
         </head>
         <body class="bg-white">
           <div class="p-8">
+            ${printContent}
+          </div>
+          <script>
+            window.onload = () => {
+              setTimeout(() => {
+                window.print();
+                window.close();
+              }, 500);
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
+  const handleMasterDownload = async () => {
+    if (!masterViewRef.current) return;
+    try {
+      const canvas = await html2canvas(masterViewRef.current, {
+        backgroundColor: '#ffffff',
+        scale: 2,
+        useCORS: true,
+        logging: false,
+      });
+      const link = document.createElement('a');
+      link.download = `EHA-Master-Cloud-Records-${format(new Date(), 'dd-MM-yyyy')}.png`;
+      link.href = canvas.toDataURL('image/png', 1.0);
+      link.click();
+    } catch (err) {
+      console.error('Master download failed:', err);
+    }
+  };
+
+  const handleMasterPrint = () => {
+    if (!masterViewRef.current) return;
+    const printContent = masterViewRef.current.innerHTML;
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Master Cloud Records - ${format(new Date(), 'dd-MM-yyyy')}</title>
+          <script src="https://cdn.tailwindcss.com"></script>
+          <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+          <style>
+            body { font-family: 'Inter', sans-serif; }
+            @media print {
+              body { padding: 0; margin: 0; }
+              .no-print { display: none; }
+              @page { margin: 1cm; size: landscape; }
+              table { width: 100%; border-collapse: collapse; }
+              th, td { border: 1px solid #e2e8f0; padding: 8px; text-align: left; font-size: 10px; }
+              th { background-color: #f8fafc; }
+            }
+          </style>
+        </head>
+        <body class="bg-white">
+          <div class="p-8">
+            <h1 class="text-xl font-black uppercase tracking-widest mb-6">Master Cloud Records</h1>
+            <p class="text-[10px] font-bold text-slate-500 mb-8 uppercase tracking-widest">Generated on: ${format(new Date(), 'dd MMM yyyy, hh:mm a')}</p>
             ${printContent}
           </div>
           <script>
@@ -240,34 +304,42 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, onEdit }) => {
   };
 
   const getFilteredData = (range: TimeRange, custom?: { start: string, end: string }) => {
-    if (range === 'lifetime') return allSyncedData;
-    const now = new Date();
-    const today = startOfDay(now);
-    const yesterday = startOfDay(subDays(now, 1));
-    let startDate: Date;
-    let endDate: Date | null = null;
-    switch (range) {
-      case 'today': startDate = today; break;
-      case 'yesterday': startDate = yesterday; endDate = today; break;
-      case 'week': startDate = startOfWeek(now, { weekStartsOn: 1 }); break;
-      case 'month': startDate = startOfMonth(now); break;
-      case 'year': startDate = startOfYear(now); break;
-      case 'custom':
-        const start = custom?.start || customStart;
-        const end = custom?.end || customEnd;
-        if (!start) return allSyncedData;
-        startDate = startOfDay(new Date(start));
-        if (end) endDate = addDays(startOfDay(new Date(end)), 1);
-        break;
-      default: startDate = new Date(0);
+    let baseFiltered = allSyncedData;
+
+    if (range !== 'lifetime') {
+      const now = new Date();
+      const today = startOfDay(now);
+      const yesterday = startOfDay(subDays(now, 1));
+      let startDate: Date;
+      let endDate: Date | null = null;
+      
+      switch (range) {
+        case 'today': startDate = today; break;
+        case 'yesterday': startDate = yesterday; endDate = today; break;
+        case 'week': startDate = startOfWeek(now, { weekStartsOn: 1 }); break;
+        case 'month': startDate = startOfMonth(now); break;
+        case 'year': startDate = startOfYear(now); break;
+        case 'custom':
+          const start = custom?.start || customStart;
+          const end = custom?.end || customEnd;
+          if (!start) {
+            startDate = new Date(0);
+          } else {
+            startDate = startOfDay(new Date(start));
+            if (end) endDate = addDays(startOfDay(new Date(end)), 1);
+          }
+          break;
+        default: startDate = new Date(0);
+      }
+
+      baseFiltered = allSyncedData.filter(d => {
+        const date = parseDate(d.payment1_date);
+        if (!date) return false;
+        const dTime = startOfDay(date).getTime();
+        if (endDate) return dTime >= startDate.getTime() && dTime < endDate.getTime();
+        return dTime >= startDate.getTime();
+      });
     }
-    const baseFiltered = allSyncedData.filter(d => {
-      const date = parseDate(d.payment1_date);
-      if (!date) return false;
-      const dTime = startOfDay(date).getTime();
-      if (endDate) return dTime >= startDate.getTime() && dTime < endDate.getTime();
-      return dTime >= startDate.getTime();
-    });
 
     return baseFiltered.filter(d => {
       if (filterGender && (d.gender || 'Other').trim().toLowerCase() !== filterGender.toLowerCase()) return false;
@@ -644,7 +716,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, onEdit }) => {
                   paddingAngle={5}
                   dataKey="value"
                   label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
-                  onClick={(data) => data && data.name && setFilterGender(String(data.name))}
+                  onClick={(data) => {
+                    if (data && data.name) {
+                      const name = String(data.name);
+                      setFilterGender(filterGender === name ? null : name);
+                    }
+                  }}
                   cursor="pointer"
                 >
                   {genderPieData.map((entry, index) => (
@@ -719,7 +796,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, onEdit }) => {
             {stateDistribution.map((item, idx) => (
               <div 
                 key={item.name} 
-                onClick={() => setFilterState(item.name)}
+                onClick={() => setFilterState(filterState === item.name ? null : item.name)}
                 className={`flex items-center justify-between p-2 rounded-xl cursor-pointer transition-all ${filterState === item.name ? 'bg-indigo-50 dark:bg-indigo-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'}`}
               >
                 <div className="flex-1 mr-4">
@@ -750,7 +827,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, onEdit }) => {
             {cityDistribution.map((item, idx) => (
               <div 
                 key={item.name} 
-                onClick={() => setFilterCity(item.name)}
+                onClick={() => setFilterCity(filterCity === item.name ? null : item.name)}
                 className={`flex items-center justify-between p-2 rounded-xl cursor-pointer transition-all ${filterCity === item.name ? 'bg-emerald-50 dark:bg-emerald-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'}`}
               >
                 <div className="flex-1 mr-4">
@@ -774,8 +851,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, onEdit }) => {
       {/* DATA TABLE */}
       <div className="bg-white dark:bg-slate-900 rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden flex flex-col min-h-[500px] transition-colors">
           <div className="px-4 md:px-8 py-6 border-b border-slate-50 dark:border-slate-800/50 flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/20 transition-colors">
-              <h3 className="text-[10px] font-black text-slate-900 dark:text-slate-100 uppercase tracking-widest transition-colors">Master Cloud Records</h3>
-              <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 bg-white dark:bg-slate-800 px-3 py-1 rounded-full shadow-sm dark:shadow-none transition-colors">{allSyncedData.length} Total</span>
+              <div className="flex items-center gap-4">
+                <h3 className="text-[10px] font-black text-slate-900 dark:text-slate-100 uppercase tracking-widest transition-colors">Master Cloud Records</h3>
+                <button 
+                  onClick={() => setIsMasterViewOpen(true)}
+                  className="flex items-center gap-2 bg-indigo-600 text-white px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-indigo-700 active:scale-95 transition-all shadow-sm"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                  Master View
+                </button>
+              </div>
+              <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 bg-white dark:bg-slate-800 px-3 py-1 rounded-full shadow-sm dark:shadow-none transition-colors">{sortedMasterData.length} Records</span>
           </div>
           <div className="overflow-x-auto grow">
               <table className="w-full text-left">
