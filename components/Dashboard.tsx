@@ -218,25 +218,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, onEdit }) => {
   const [filterState, setFilterState] = useState<string | null>(null);
   const [filterCity, setFilterCity] = useState<string | null>(null);
   const [filterDate, setFilterDate] = useState<string | null>(null);
+  const [filterPaymentStatus, setFilterPaymentStatus] = useState<string | null>(null);
+  const [filterAdmissionStatus, setFilterAdmissionStatus] = useState<string | null>(null);
   const [sortConfig, setSortConfig] = useState<{ key: keyof RegistrationData; direction: 'asc' | 'desc' } | null>(null);
-
-  const sortedMasterData = useMemo(() => {
-    let sortableData = [...allSyncedData];
-    if (sortConfig !== null) {
-      sortableData.sort((a, b) => {
-        const aValue = String(a[sortConfig.key] || '').toLowerCase();
-        const bValue = String(b[sortConfig.key] || '').toLowerCase();
-        if (aValue < bValue) {
-          return sortConfig.direction === 'asc' ? -1 : 1;
-        }
-        if (aValue > bValue) {
-          return sortConfig.direction === 'asc' ? 1 : -1;
-        }
-        return 0;
-      });
-    }
-    return sortableData;
-  }, [allSyncedData, sortConfig]);
 
   const requestSort = (key: keyof RegistrationData) => {
     let direction: 'asc' | 'desc' = 'asc';
@@ -294,11 +278,59 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, onEdit }) => {
         if (!date) return false;
         if (format(date, 'dd MMM') !== filterDate) return false;
       }
+
+      if (filterAdmissionStatus) {
+        const status = (d.status || 'confirm').toLowerCase();
+        if (filterAdmissionStatus === 'confirm') {
+          if (status !== 'confirm' && status !== 'active') return false;
+        } else {
+          if (status !== filterAdmissionStatus) return false;
+        }
+      }
+
+      if (filterPaymentStatus) {
+        let studentTotal = 0;
+        for (let i = 1; i <= 10; i++) {
+          studentTotal += parseFloat(String((d as any)[`payment${i}_amount`]).replace(/[^0-9.]/g, '')) || 0;
+        }
+        const discount = parseFloat(String(d.discount || '0')) || 0;
+        const totalFees = 20000;
+        const target = totalFees - discount;
+
+        if (filterPaymentStatus === 'fully_paid') {
+          if (studentTotal < target || studentTotal === 0) return false;
+        } else if (filterPaymentStatus === 'partial') {
+          if (studentTotal >= target || studentTotal === 0) return false;
+        } else if (filterPaymentStatus === 'discount') {
+          if (discount === 0) return false;
+        } else if (filterPaymentStatus === 'free') {
+          if (studentTotal > 0) return false;
+        }
+      }
+
       return true;
     });
   };
 
-  const filteredData = useMemo(() => getFilteredData(timeRange), [allSyncedData, timeRange, customStart, customEnd, filterGender, filterState, filterCity, filterDate]);
+  const filteredData = useMemo(() => getFilteredData(timeRange), [allSyncedData, timeRange, customStart, customEnd, filterGender, filterState, filterCity, filterDate, filterPaymentStatus, filterAdmissionStatus]);
+
+  const sortedMasterData = useMemo(() => {
+    let sortableData = [...filteredData];
+    if (sortConfig !== null) {
+      sortableData.sort((a, b) => {
+        const aValue = String(a[sortConfig.key] || '').toLowerCase();
+        const bValue = String(b[sortConfig.key] || '').toLowerCase();
+        if (aValue < bValue) {
+          return sortConfig.direction === 'asc' ? -1 : 1;
+        }
+        if (aValue > bValue) {
+          return sortConfig.direction === 'asc' ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+    return sortableData;
+  }, [filteredData, sortConfig]);
 
   const getChartData = (data: RegistrationData[], range: TimeRange) => {
     const dailyMap: Record<string, number> = {};
@@ -429,9 +461,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, onEdit }) => {
     setFilterState(null);
     setFilterCity(null);
     setFilterDate(null);
+    setFilterPaymentStatus(null);
+    setFilterAdmissionStatus(null);
   };
 
-  const isFiltered = timeRange !== 'lifetime' || filterGender || filterState || filterCity || filterDate;
+  const isFiltered = timeRange !== 'lifetime' || filterGender || filterState || filterCity || filterDate || filterPaymentStatus || filterAdmissionStatus;
 
   return (
     <div className="space-y-8 pb-10 transition-colors">
@@ -498,7 +532,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, onEdit }) => {
 
       {/* STAT CARDS */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white dark:bg-slate-900 p-8 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm relative overflow-hidden group transition-colors">
+        <div 
+          onClick={() => { setFilterAdmissionStatus(null); setFilterPaymentStatus(null); setFilterGender(null); setFilterState(null); setFilterCity(null); setFilterDate(null); }}
+          className="bg-white dark:bg-slate-900 p-8 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm relative overflow-hidden group transition-colors cursor-pointer hover:border-indigo-500"
+        >
           <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 dark:bg-indigo-900/10 rounded-full -mr-16 -mt-16 group-hover:scale-110 transition-transform"></div>
           <h3 className="text-slate-400 dark:text-slate-500 text-[10px] font-black uppercase tracking-widest mb-1 relative transition-colors">Admissions</h3>
           <p className="text-4xl font-black text-slate-900 dark:text-slate-100 relative transition-colors">{globalStats.total}</p>
@@ -521,19 +558,31 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, onEdit }) => {
         <div className="bg-white dark:bg-slate-900 p-8 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm transition-colors">
           <h3 className="text-slate-400 dark:text-slate-500 text-[10px] font-black uppercase tracking-widest mb-4 transition-colors">Payment Status</h3>
           <div className="space-y-3">
-            <div className="flex justify-between items-center">
+            <div 
+              onClick={() => setFilterPaymentStatus(filterPaymentStatus === 'fully_paid' ? null : 'fully_paid')}
+              className={`flex justify-between items-center cursor-pointer p-1 rounded-lg transition-all ${filterPaymentStatus === 'fully_paid' ? 'bg-indigo-50 dark:bg-indigo-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+            >
               <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Fully Paid</span>
               <span className="text-[11px] font-black text-indigo-600 dark:text-indigo-400">{globalStats.fullyPaid}</span>
             </div>
-            <div className="flex justify-between items-center">
+            <div 
+              onClick={() => setFilterPaymentStatus(filterPaymentStatus === 'partial' ? null : 'partial')}
+              className={`flex justify-between items-center cursor-pointer p-1 rounded-lg transition-all ${filterPaymentStatus === 'partial' ? 'bg-amber-50 dark:bg-amber-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+            >
               <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Partial</span>
               <span className="text-[11px] font-black text-amber-600 dark:text-amber-400">{globalStats.partialPaid}</span>
             </div>
-            <div className="flex justify-between items-center">
+            <div 
+              onClick={() => setFilterPaymentStatus(filterPaymentStatus === 'discount' ? null : 'discount')}
+              className={`flex justify-between items-center cursor-pointer p-1 rounded-lg transition-all ${filterPaymentStatus === 'discount' ? 'bg-emerald-50 dark:bg-emerald-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+            >
               <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Discount</span>
               <span className="text-[11px] font-black text-emerald-600 dark:text-emerald-400">{globalStats.discountCount}</span>
             </div>
-            <div className="flex justify-between items-center">
+            <div 
+              onClick={() => setFilterPaymentStatus(filterPaymentStatus === 'free' ? null : 'free')}
+              className={`flex justify-between items-center cursor-pointer p-1 rounded-lg transition-all ${filterPaymentStatus === 'free' ? 'bg-slate-100 dark:bg-slate-800' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+            >
               <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Free</span>
               <span className="text-[11px] font-black text-slate-400">{globalStats.freeCount}</span>
             </div>
@@ -543,19 +592,31 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, onEdit }) => {
         <div className="bg-white dark:bg-slate-900 p-8 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm transition-colors">
           <h3 className="text-slate-400 dark:text-slate-500 text-[10px] font-black uppercase tracking-widest mb-4 transition-colors">Admission Status</h3>
           <div className="space-y-3">
-            <div className="flex justify-between items-center">
+            <div 
+              onClick={() => { setFilterAdmissionStatus(null); setFilterPaymentStatus(null); }}
+              className="flex justify-between items-center cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 p-1 rounded-lg transition-all"
+            >
               <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Total</span>
               <span className="text-[11px] font-black text-slate-900 dark:text-slate-100">{globalStats.total}</span>
             </div>
-            <div className="flex justify-between items-center">
+            <div 
+              onClick={() => setFilterAdmissionStatus(filterAdmissionStatus === 'cancelled' ? null : 'cancelled')}
+              className={`flex justify-between items-center cursor-pointer p-1 rounded-lg transition-all ${filterAdmissionStatus === 'cancelled' ? 'bg-red-50 dark:bg-red-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+            >
               <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Cancelled</span>
               <span className="text-[11px] font-black text-red-500">{globalStats.cancelledCount}</span>
             </div>
-            <div className="flex justify-between items-center">
+            <div 
+              onClick={() => setFilterAdmissionStatus(filterAdmissionStatus === 'pending' ? null : 'pending')}
+              className={`flex justify-between items-center cursor-pointer p-1 rounded-lg transition-all ${filterAdmissionStatus === 'pending' ? 'bg-amber-50 dark:bg-amber-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+            >
               <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Pending</span>
               <span className="text-[11px] font-black text-amber-500">{globalStats.pendingCount}</span>
             </div>
-            <div className="flex justify-between items-center pt-2 border-t border-slate-50 dark:border-slate-800">
+            <div 
+              onClick={() => setFilterAdmissionStatus(filterAdmissionStatus === 'confirm' ? null : 'confirm')}
+              className={`flex justify-between items-center pt-2 border-t border-slate-50 dark:border-slate-800 cursor-pointer p-1 rounded-lg transition-all ${filterAdmissionStatus === 'confirm' ? 'bg-indigo-50 dark:bg-indigo-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+            >
               <span className="text-[9px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">Confirm</span>
               <span className="text-[11px] font-black text-indigo-600 dark:text-indigo-400">{globalStats.total - globalStats.cancelledCount - globalStats.pendingCount}</span>
             </div>
