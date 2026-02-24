@@ -187,6 +187,11 @@ export const ManualEntryModal: React.FC<ManualEntryModalProps> = ({ isOpen, onCl
               </div>
 
               <div className="space-y-1">
+                <label className="text-[9px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest ml-1 transition-colors">Full Name</label>
+                <input type="text" value={formData.name} onChange={(e) => handleChange('name', e.target.value)} placeholder="Student Name" className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-bold focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-600 outline-none dark:text-slate-100 transition-colors placeholder:text-slate-300 dark:placeholder:text-slate-700" />
+              </div>
+
+              <div className="space-y-1">
                 <label className="text-[9px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest ml-1 transition-colors">Qualification</label>
                 <input type="text" value={formData.qualification} onChange={(e) => handleChange('qualification', e.target.value)} placeholder="e.g. 10th, Graduate" className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-600 dark:text-slate-100 transition-colors" />
               </div>
@@ -224,6 +229,7 @@ export const ManualEntryModal: React.FC<ManualEntryModalProps> = ({ isOpen, onCl
                   <select value={formData.medium} onChange={(e) => handleChange('medium', e.target.value)} className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-bold outline-none dark:text-slate-100 transition-colors">
                     <option value="English">English</option>
                     <option value="Hindi">Hindi</option>
+                    <option value="Urdu">Urdu</option>
                   </select>
                 </div>
               </div>
