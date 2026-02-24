@@ -79,11 +79,19 @@ const fromInputDate = (s: string) => {
 export const ManualEntryModal: React.FC<ManualEntryModalProps> = ({ isOpen, onClose, onSubmit, initialData }) => {
   const [formData, setFormData] = useState<RegistrationData>(INITIAL_DATA);
 
+  const [country, setCountry] = useState<'India' | 'Other'>('India');
+
   useEffect(() => {
     if (initialData) {
       setFormData(initialData);
+      // Heuristic: if contact starts with something other than 10 digits or has non-numeric chars, it might be 'Other'
+      // But let's just default to India unless we see a reason not to.
+      // Actually, let's check if the contact number is exactly 10 digits.
+      const isIndian = /^\d{10}$/.test(initialData.contact_no || '') || initialData.contact_no === '';
+      setCountry(isIndian ? 'India' : 'Other');
     } else {
       setFormData(INITIAL_DATA);
+      setCountry('India');
     }
   }, [initialData, isOpen]);
   const [error, setError] = useState('');
@@ -119,12 +127,25 @@ export const ManualEntryModal: React.FC<ManualEntryModalProps> = ({ isOpen, onCl
       setFormData(prev => ({ ...prev, [key]: numeric }));
       return;
     }
+    
+    if (country === 'India' && (key === 'contact_no' || key === 'whatsapp_no')) {
+      const numeric = val.replace(/[^0-9]/g, '').slice(0, 10);
+      setFormData(prev => ({ ...prev, [key]: numeric }));
+      return;
+    }
+
     setFormData(prev => ({ ...prev, [key]: val }));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name) return setError("Student Name is required");
+    
+    if (country === 'India') {
+      if (formData.contact_no && formData.contact_no.length !== 10) return setError("Contact Number must be 10 digits");
+      if (formData.whatsapp_no && formData.whatsapp_no.length !== 10) return setError("WhatsApp Number must be 10 digits");
+    }
+
     for (let i = 1; i <= 10; i++) {
       const utr = (formData as any)[`payment${i}_utr`];
       if (utr && utr.length !== 12) return setError(`Payment ${i} UTR must be 12 digits`);
@@ -166,8 +187,8 @@ export const ManualEntryModal: React.FC<ManualEntryModalProps> = ({ isOpen, onCl
               </div>
 
               <div className="space-y-1">
-                <label className="text-[9px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest ml-1 transition-colors">Full Name</label>
-                <input type="text" value={formData.name} onChange={(e) => handleChange('name', e.target.value)} placeholder="Student Name" className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-bold focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-600 outline-none dark:text-slate-100 transition-colors placeholder:text-slate-300 dark:placeholder:text-slate-700" />
+                <label className="text-[9px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest ml-1 transition-colors">Qualification</label>
+                <input type="text" value={formData.qualification} onChange={(e) => handleChange('qualification', e.target.value)} placeholder="e.g. 10th, Graduate" className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-600 dark:text-slate-100 transition-colors" />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -188,8 +209,15 @@ export const ManualEntryModal: React.FC<ManualEntryModalProps> = ({ isOpen, onCl
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-[9px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest ml-1 transition-colors">Qualification</label>
-                  <input type="text" value={formData.qualification} onChange={(e) => handleChange('qualification', e.target.value)} placeholder="e.g. 10th, Graduate" className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-600 dark:text-slate-100 transition-colors" />
+                  <label className="text-[9px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest ml-1 transition-colors">Country</label>
+                  <select 
+                    value={country} 
+                    onChange={(e) => setCountry(e.target.value as any)} 
+                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-bold outline-none dark:text-slate-100 transition-colors"
+                  >
+                    <option value="India">India (+91)</option>
+                    <option value="Other">Other</option>
+                  </select>
                 </div>
                 <div className="space-y-1">
                   <label className="text-[9px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest ml-1 transition-colors">Medium</label>
@@ -203,21 +231,45 @@ export const ManualEntryModal: React.FC<ManualEntryModalProps> = ({ isOpen, onCl
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-[9px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest ml-1 transition-colors">Contact No</label>
-                  <input type="tel" value={formData.contact_no} onChange={(e) => handleChange('contact_no', e.target.value)} className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-bold outline-none dark:text-slate-100 transition-colors" />
+                  <div className="relative flex items-center">
+                    {country === 'India' && (
+                      <span className="absolute left-4 text-xs font-bold text-slate-400">+91</span>
+                    )}
+                    <input 
+                      type="tel" 
+                      value={formData.contact_no} 
+                      onChange={(e) => handleChange('contact_no', e.target.value)} 
+                      className={`w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-2.5 text-sm font-bold outline-none dark:text-slate-100 transition-colors ${country === 'India' ? 'pl-12 pr-4' : 'px-4'}`} 
+                    />
+                  </div>
                 </div>
                 <div className="space-y-1">
                   <label className="text-[9px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest ml-1 transition-colors">WhatsApp No</label>
-                  <input type="tel" value={formData.whatsapp_no} onChange={(e) => handleChange('whatsapp_no', e.target.value)} className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-bold outline-none dark:text-slate-100 transition-colors" />
+                  <div className="relative flex items-center">
+                    {country === 'India' && (
+                      <span className="absolute left-4 text-xs font-bold text-slate-400">+91</span>
+                    )}
+                    <input 
+                      type="tel" 
+                      value={formData.whatsapp_no} 
+                      onChange={(e) => handleChange('whatsapp_no', e.target.value)} 
+                      className={`w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-2.5 text-sm font-bold outline-none dark:text-slate-100 transition-colors ${country === 'India' ? 'pl-12 pr-4' : 'px-4'}`} 
+                    />
+                  </div>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-[9px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest ml-1 transition-colors">State / UT</label>
-                  <input list="states" value={formData.state} onChange={(e) => handleChange('state', e.target.value)} placeholder="Select State" className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-bold outline-none dark:text-slate-100 transition-colors" />
-                  <datalist id="states">
-                    {INDIAN_STATES_AND_UTS.map(s => <option key={s} value={s} />)}
-                  </datalist>
+                  <select 
+                    value={formData.state} 
+                    onChange={(e) => handleChange('state', e.target.value)} 
+                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-bold outline-none dark:text-slate-100 transition-colors"
+                  >
+                    <option value="">Select State</option>
+                    {INDIAN_STATES_AND_UTS.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
                 </div>
                 <div className="space-y-1">
                   <label className="text-[9px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest ml-1 transition-colors">City</label>
