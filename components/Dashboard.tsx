@@ -970,9 +970,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, onEdit }) => {
       {/* DETAIL MODAL */}
       {viewingRecord && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/80 dark:bg-black/90 backdrop-blur-md p-4 animate-in fade-in duration-300">
-            <div className="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-[40px] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 border border-slate-100 dark:border-slate-800">
+            <div className="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-[32px] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 border border-slate-100 dark:border-slate-800 flex flex-col max-h-[90vh]">
                 {/* Header - Fixed */}
-                <div className="p-6 border-b border-slate-50 dark:border-slate-800/50 flex justify-between items-center bg-white dark:bg-slate-900 sticky top-0 z-10">
+                <div className="p-4 md:p-6 border-b border-slate-50 dark:border-slate-800/50 flex justify-between items-center bg-white dark:bg-slate-900 transition-colors">
                     <div className="flex items-center gap-4">
                         <img 
                           src="https://englishhouseacademy.in/wp-content/uploads/2022/03/187-X-43-px-EHA-LOGO-PNG.png" 
@@ -989,7 +989,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, onEdit }) => {
                 </div>
                 
                 {/* Scrollable Content Container */}
-                <div className="max-h-[75vh] overflow-y-auto custom-scrollbar bg-slate-50/30 dark:bg-slate-900/50">
+                <div className="overflow-y-auto grow custom-scrollbar bg-slate-50/30 dark:bg-slate-900/50">
                   <div ref={modalRef} className="bg-white dark:bg-slate-900 p-4 md:p-10">
                       {/* Branding for Export */}
                       <div className="hidden print:block mb-10 text-center border-b border-slate-100 pb-8">
