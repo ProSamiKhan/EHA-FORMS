@@ -1133,27 +1133,33 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, onEdit }) => {
                   <tr className="bg-slate-50 dark:bg-slate-900">
                     <th className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-black uppercase tracking-widest text-slate-500">ID</th>
                     <th className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-black uppercase tracking-widest text-slate-500">Name</th>
-                    <th className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-black uppercase tracking-widest text-slate-500">City</th>
                     <th className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-black uppercase tracking-widest text-slate-500">State</th>
                     <th className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-black uppercase tracking-widest text-slate-500">Contact</th>
                     <th className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-black uppercase tracking-widest text-slate-500">Status</th>
+                    <th className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-black uppercase tracking-widest text-slate-500">Paid</th>
                     <th className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-black uppercase tracking-widest text-slate-500">Remaining</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {sortedMasterData.map((data, idx) => (
-                    <tr key={data.admission_id || idx} className="hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors">
-                      <td className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-bold text-slate-700 dark:text-slate-300">{data.admission_id}</td>
-                      <td className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-black uppercase text-slate-900 dark:text-slate-100">{data.name}</td>
-                      <td className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase">{data.city}</td>
-                      <td className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase">{data.state}</td>
-                      <td className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-mono font-bold text-slate-500">{data.contact_no}</td>
-                      <td className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-black uppercase">
-                        <span className={data.status === 'cancelled' ? 'text-red-500' : 'text-green-500'}>{data.status}</span>
-                      </td>
-                      <td className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-black text-right text-slate-900 dark:text-white">₹{data.remaining_amount}</td>
-                    </tr>
-                  ))}
+                  {sortedMasterData.map((data, idx) => {
+                    let studentTotal = 0;
+                    for (let i = 1; i <= 10; i++) {
+                      studentTotal += parseFloat(String((data as any)[`payment${i}_amount`]).replace(/[^0-9.]/g, '')) || 0;
+                    }
+                    return (
+                      <tr key={data.admission_id || idx} className="hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors">
+                        <td className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-bold text-slate-700 dark:text-slate-300">{data.admission_id}</td>
+                        <td className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-black uppercase text-slate-900 dark:text-slate-100">{data.name}</td>
+                        <td className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase">{data.state}</td>
+                        <td className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-mono font-bold text-slate-500">{data.contact_no}</td>
+                        <td className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-black uppercase">
+                          <span className={data.status === 'cancelled' ? 'text-red-500' : 'text-green-500'}>{data.status}</span>
+                        </td>
+                        <td className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-black text-right text-emerald-600 dark:text-emerald-400">₹{studentTotal.toLocaleString()}</td>
+                        <td className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-black text-right text-slate-900 dark:text-white">₹{data.remaining_amount}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
