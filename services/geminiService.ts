@@ -19,7 +19,8 @@ The user is uploading images of a specific registration form. You must identify 
    - medium
    - contact_no
    - whatsapp_no
-   - address
+   - city
+   - state
    - payment1_amount (Initial payment)
    - payment1_date (Format: DD/MM/YYYY)
    - payment1_utr (Transaction ID)
@@ -35,7 +36,7 @@ The user is uploading images of a specific registration form. You must identify 
    - received_ac (Account details)
    - discount
    - remaining_amount
-   - status (Default to "active" unless "cancelled" is mentioned)
+   - status (Default to "confirm" unless "cancelled" is mentioned)
 
 2. BLANK FIELDS: If a field is empty in the image, return an empty string "".
 3. UNCERTAINTY: If the handwriting is completely illegible, return "CHECK_MANUALLY".
@@ -77,7 +78,8 @@ export const processRegistrationForm = async (base64Image: string): Promise<Regi
             medium: { type: Type.STRING },
             contact_no: { type: Type.STRING },
             whatsapp_no: { type: Type.STRING },
-            address: { type: Type.STRING },
+            city: { type: Type.STRING },
+            state: { type: Type.STRING },
             payment1_amount: { type: Type.STRING },
             payment1_date: { type: Type.STRING },
             payment1_utr: { type: Type.STRING },
@@ -111,11 +113,11 @@ export const processRegistrationForm = async (base64Image: string): Promise<Regi
             received_ac: { type: Type.STRING },
             discount: { type: Type.STRING },
             remaining_amount: { type: Type.STRING },
-            status: { type: Type.STRING, description: "active or cancelled" },
+            status: { type: Type.STRING, description: "confirm or cancelled" },
           },
           required: [
             "admission_id", "name", "gender", "age", "qualification", "medium", 
-            "contact_no", "whatsapp_no", "address", "payment1_amount", "payment1_date", 
+            "contact_no", "whatsapp_no", "city", "state", "payment1_amount", "payment1_date", 
             "payment1_utr", "received_ac", "discount", "remaining_amount", "status"
           ]
         },

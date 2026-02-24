@@ -169,7 +169,7 @@ export const ProcessingCard: React.FC<ProcessingCardProps> = ({ record, onRemove
                           onChange={(e) => handleDataChange('status', e.target.value as any)}
                           className="text-xs font-bold text-indigo-700 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-900/30 rounded-md px-2 py-1 w-full focus:outline-none"
                         >
-                          <option value="active">Active</option>
+                          <option value="confirm">Confirm</option>
                           <option value="cancelled">Cancelled</option>
                         </select>
                       ) : (

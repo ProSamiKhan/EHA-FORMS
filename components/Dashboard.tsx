@@ -160,7 +160,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
         received_ac: String(row['received ac'] || row['received_ac'] || ''),
         discount: String(row['discount'] || '0'),
         remaining_amount: String(row['remaining amount'] || row['remaining_amount'] || '0'),
-        status: (row['status'] || 'active').toLowerCase() as 'active' | 'cancelled' | 'pending'
+        status: (row['status'] || 'confirm').toLowerCase() as 'confirm' | 'cancelled' | 'pending'
       };
     });
   };
@@ -210,6 +210,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
   const [timeRange, setTimeRange] = useState<TimeRange>('lifetime');
   const [customStart, setCustomStart] = useState<string>('');
   const [customEnd, setCustomEnd] = useState<string>('');
+  const [filterGender, setFilterGender] = useState<string | null>(null);
+  const [filterState, setFilterState] = useState<string | null>(null);
+  const [filterCity, setFilterCity] = useState<string | null>(null);
+  const [filterDate, setFilterDate] = useState<string | null>(null);
 
   const parseDate = (s: string): Date | null => {
     if (!s) return null;
@@ -242,16 +246,28 @@ export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
         break;
       default: startDate = new Date(0);
     }
-    return allSyncedData.filter(d => {
+    const baseFiltered = allSyncedData.filter(d => {
       const date = parseDate(d.payment1_date);
       if (!date) return false;
       const dTime = startOfDay(date).getTime();
       if (endDate) return dTime >= startDate.getTime() && dTime < endDate.getTime();
       return dTime >= startDate.getTime();
     });
+
+    return baseFiltered.filter(d => {
+      if (filterGender && (d.gender || 'Other').trim().toLowerCase() !== filterGender.toLowerCase()) return false;
+      if (filterState && (d.state || 'Unknown').trim().toLowerCase() !== filterState.toLowerCase()) return false;
+      if (filterCity && (d.city || 'Unknown').trim().toLowerCase() !== filterCity.toLowerCase()) return false;
+      if (filterDate) {
+        const date = parseDate(d.payment1_date);
+        if (!date) return false;
+        if (format(date, 'dd MMM') !== filterDate) return false;
+      }
+      return true;
+    });
   };
 
-  const filteredData = useMemo(() => getFilteredData(timeRange), [allSyncedData, timeRange, customStart, customEnd]);
+  const filteredData = useMemo(() => getFilteredData(timeRange), [allSyncedData, timeRange, customStart, customEnd, filterGender, filterState, filterCity, filterDate]);
 
   const getChartData = (data: RegistrationData[], range: TimeRange) => {
     const dailyMap: Record<string, number> = {};
@@ -295,7 +311,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
     let freeCount = 0;
 
     data.forEach(d => {
-      const status = (d.status || 'active').toLowerCase();
+      const status = (d.status || 'confirm').toLowerCase();
       if (status === 'cancelled') {
         cancelledCount++;
         return;
@@ -374,6 +390,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
     }
   };
 
+  const clearAllFilters = () => {
+    setTimeRange('lifetime');
+    setCustomStart('');
+    setCustomEnd('');
+    setFilterGender(null);
+    setFilterState(null);
+    setFilterCity(null);
+    setFilterDate(null);
+  };
+
+  const isFiltered = timeRange !== 'lifetime' || filterGender || filterState || filterCity || filterDate;
+
   return (
     <div className="space-y-8 pb-10 transition-colors">
       {/* HEADER */}
@@ -420,7 +448,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
             </div>
           )}
           
-          <div className="flex items-center gap-2 ml-auto">
+        <div className="flex items-center gap-2 ml-auto">
+            {isFiltered && (
+              <button 
+                onClick={clearAllFilters}
+                className="px-3 py-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-[9px] font-black uppercase tracking-widest rounded-xl hover:bg-red-100 dark:hover:bg-red-900/30 transition-all flex items-center gap-2"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                Clear Filters
+              </button>
+            )}
             <button onClick={() => setLastRefreshed(Date.now())} disabled={isLoading} className="p-2 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm text-slate-400 hover:text-indigo-600 transition-colors">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={isLoading ? "animate-spin" : ""}><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
             </button>
@@ -493,7 +530,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-white dark:bg-slate-900 p-8 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm transition-colors flex flex-col md:col-span-1">
-          <h3 className="text-slate-400 dark:text-slate-500 text-[10px] font-black uppercase tracking-widest mb-4 transition-colors">Gender Distribution</h3>
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-slate-400 dark:text-slate-500 text-[10px] font-black uppercase tracking-widest transition-colors">Gender Distribution</h3>
+            {filterGender && (
+              <button onClick={() => setFilterGender(null)} className="text-[8px] font-black text-indigo-600 uppercase tracking-widest hover:underline">Reset</button>
+            )}
+          </div>
           <div className="flex-1 flex items-center justify-center min-h-[150px]">
             <ResponsiveContainer width="100%" height={180}>
               <PieChart>
@@ -506,9 +548,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
                   paddingAngle={5}
                   dataKey="value"
                   label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
+                  onClick={(data) => data && data.name && setFilterGender(String(data.name))}
+                  cursor="pointer"
                 >
                   {genderPieData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    <Cell 
+                      key={`cell-${index}`} 
+                      fill={COLORS[index % COLORS.length]} 
+                      stroke={filterGender === entry.name ? '#000' : 'none'}
+                      strokeWidth={2}
+                      opacity={filterGender && filterGender !== entry.name ? 0.3 : 1}
+                    />
                   ))}
                 </Pie>
                 <Tooltip 
@@ -530,11 +580,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
         <div className="bg-white dark:bg-slate-900 p-8 rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-sm transition-colors md:col-span-2">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Admission Velocity</h3>
-            <span className="px-2 py-1 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-[8px] font-black uppercase rounded-md">Daily Trend</span>
+            <div className="flex items-center gap-2">
+              {filterDate && (
+                <button onClick={() => setFilterDate(null)} className="text-[8px] font-black text-indigo-600 uppercase tracking-widest hover:underline">Reset</button>
+              )}
+              <span className="px-2 py-1 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-[8px] font-black uppercase rounded-md">Daily Trend</span>
+            </div>
           </div>
           <div className="h-[250px] w-full mt-6">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={admChartData}>
+              <AreaChart data={admChartData} onClick={(data) => data && data.activeLabel && setFilterDate(String(data.activeLabel))}>
                 <defs>
                   <linearGradient id="colorAdm" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.1}/>
@@ -559,29 +614,46 @@ export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
       <div className="bg-white dark:bg-slate-900 p-8 rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-sm transition-colors">
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Revenue Growth</h3>
-          <span className="px-2 py-1 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 text-[8px] font-black uppercase rounded-md">Cash Flow</span>
+          <div className="flex items-center gap-2">
+            {filterDate && (
+              <button onClick={() => setFilterDate(null)} className="text-[8px] font-black text-indigo-600 uppercase tracking-widest hover:underline">Reset</button>
+            )}
+            <span className="px-2 py-1 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 text-[8px] font-black uppercase rounded-md">Cash Flow</span>
+          </div>
         </div>
         <div className="h-[250px] w-full mt-6">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={revChartData}>
+            <BarChart data={revChartData} onClick={(data) => data && data.activeLabel && setFilterDate(String(data.activeLabel))}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
               <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 9, fontWeight: 700, fill: '#94a3b8'}} dy={10} />
               <YAxis axisLine={false} tickLine={false} tick={{fontSize: 9, fontWeight: 700, fill: '#94a3b8'}} />
               <Tooltip 
                 contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontSize: '10px', fontWeight: 'bold' }}
               />
-              <Bar dataKey="revenue" fill="#10b981" radius={[6, 6, 0, 0]} barSize={20} />
+              <Bar dataKey="revenue" fill="#10b981" radius={[6, 6, 0, 0]} barSize={20}>
+                {revChartData.map((entry, index) => (
+                  <Cell 
+                    key={`cell-${index}`} 
+                    fill={filterDate === entry.name ? '#059669' : '#10b981'}
+                    opacity={filterDate && filterDate !== entry.name ? 0.3 : 1}
+                  />
+                ))}
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>
       </div>
 
-      {/* REGIONAL DISTRIBUTION */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white dark:bg-slate-900 p-8 rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-sm transition-colors">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">State Distribution</h3>
-            <span className="px-2 py-1 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-[8px] font-black uppercase rounded-md">Top 10 States</span>
+            <div className="flex items-center gap-2">
+              {filterState && (
+                <button onClick={() => setFilterState(null)} className="text-[8px] font-black text-indigo-600 uppercase tracking-widest hover:underline">Reset</button>
+              )}
+              <span className="px-2 py-1 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-[8px] font-black uppercase rounded-md">Top 10 States</span>
+            </div>
           </div>
           <div className="h-[300px] w-full mt-6">
             <ResponsiveContainer width="100%" height="100%">
@@ -591,8 +663,24 @@ export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
                 <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{fontSize: 9, fontWeight: 700, fill: '#94a3b8'}} width={100} />
                 <Tooltip 
                   contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontSize: '10px', fontWeight: 'bold' }}
+                  cursor={{ fill: 'transparent' }}
                 />
-                <Bar dataKey="count" fill="#6366f1" radius={[0, 4, 4, 0]} barSize={20} />
+                <Bar 
+                  dataKey="count" 
+                  fill="#6366f1" 
+                  radius={[0, 4, 4, 0]} 
+                  barSize={20} 
+                  onClick={(data) => data && data.name && setFilterState(String(data.name))}
+                  cursor="pointer"
+                >
+                  {stateDistribution.map((entry, index) => (
+                    <Cell 
+                      key={`cell-${index}`} 
+                      fill={filterState === entry.name ? '#4338ca' : '#6366f1'}
+                      opacity={filterState && filterState !== entry.name ? 0.3 : 1}
+                    />
+                  ))}
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -601,7 +689,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
         <div className="bg-white dark:bg-slate-900 p-8 rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-sm transition-colors">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">City Distribution</h3>
-            <span className="px-2 py-1 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 text-[8px] font-black uppercase rounded-md">Top 10 Cities</span>
+            <div className="flex items-center gap-2">
+              {filterCity && (
+                <button onClick={() => setFilterCity(null)} className="text-[8px] font-black text-indigo-600 uppercase tracking-widest hover:underline">Reset</button>
+              )}
+              <span className="px-2 py-1 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 text-[8px] font-black uppercase rounded-md">Top 10 Cities</span>
+            </div>
           </div>
           <div className="h-[300px] w-full mt-6">
             <ResponsiveContainer width="100%" height="100%">
@@ -611,8 +704,24 @@ export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
                 <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{fontSize: 9, fontWeight: 700, fill: '#94a3b8'}} width={100} />
                 <Tooltip 
                   contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontSize: '10px', fontWeight: 'bold' }}
+                  cursor={{ fill: 'transparent' }}
                 />
-                <Bar dataKey="count" fill="#10b981" radius={[0, 4, 4, 0]} barSize={20} />
+                <Bar 
+                  dataKey="count" 
+                  fill="#10b981" 
+                  radius={[0, 4, 4, 0]} 
+                  barSize={20} 
+                  onClick={(data) => data && data.name && setFilterCity(String(data.name))}
+                  cursor="pointer"
+                >
+                  {cityDistribution.map((entry, index) => (
+                    <Cell 
+                      key={`cell-${index}`} 
+                      fill={filterCity === entry.name ? '#059669' : '#10b981'}
+                      opacity={filterCity && filterCity !== entry.name ? 0.3 : 1}
+                    />
+                  ))}
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -714,7 +823,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
                           <h2 className="text-3xl font-black text-slate-900 dark:text-white mb-1 tracking-tight">{viewingRecord.name}</h2>
                           <div className="flex items-center gap-2">
                             <span className="px-2 py-1 bg-indigo-600 text-white text-[10px] font-black rounded-md tracking-widest uppercase">{viewingRecord.admission_id}</span>
-                            <span className={`px-2 py-1 text-[10px] font-black rounded-md tracking-widest uppercase ${viewingRecord.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+                            <span className={`px-2 py-1 text-[10px] font-black rounded-md tracking-widest uppercase ${viewingRecord.status === 'confirm' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
                               {viewingRecord.status}
                             </span>
                           </div>

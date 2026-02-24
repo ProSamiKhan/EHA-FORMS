@@ -36,7 +36,7 @@ const INITIAL_DATA: RegistrationData = {
   received_ac: 'EHA Account',
   discount: '0',
   remaining_amount: '20000',
-  status: 'active'
+  status: 'confirm'
 };
 
 const INDIAN_STATES_AND_UTS = [
@@ -177,9 +177,18 @@ export const ManualEntryModal: React.FC<ManualEntryModalProps> = ({ isOpen, onCl
                 </div>
               </div>
 
-              <div className="space-y-1">
-                <label className="text-[9px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest ml-1 transition-colors">Qualification</label>
-                <input type="text" value={formData.qualification} onChange={(e) => handleChange('qualification', e.target.value)} placeholder="e.g. 10th, Graduate" className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-600 dark:text-slate-100 transition-colors" />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest ml-1 transition-colors">Qualification</label>
+                  <input type="text" value={formData.qualification} onChange={(e) => handleChange('qualification', e.target.value)} placeholder="e.g. 10th, Graduate" className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-600 dark:text-slate-100 transition-colors" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest ml-1 transition-colors">Medium</label>
+                  <select value={formData.medium} onChange={(e) => handleChange('medium', e.target.value)} className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-bold outline-none dark:text-slate-100 transition-colors">
+                    <option value="English">English</option>
+                    <option value="Hindi">Hindi</option>
+                  </select>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -212,7 +221,7 @@ export const ManualEntryModal: React.FC<ManualEntryModalProps> = ({ isOpen, onCl
               <div className="space-y-1">
                 <label className="text-[9px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest ml-1 transition-colors">Registration Status</label>
                 <select value={formData.status} onChange={(e) => handleChange('status', e.target.value)} className={`w-full border rounded-xl px-4 py-2.5 text-sm font-black outline-none transition-colors ${formData.status === 'cancelled' ? 'bg-red-50 border-red-200 text-red-600 dark:bg-red-900/20 dark:border-red-900/30 dark:text-red-400' : 'bg-slate-50 border-slate-200 text-slate-900 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100'}`}>
-                  <option value="active">Active</option>
+                  <option value="confirm">Confirm</option>
                   <option value="cancelled">Cancelled</option>
                 </select>
               </div>

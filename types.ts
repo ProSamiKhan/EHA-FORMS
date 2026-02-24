@@ -59,7 +59,7 @@ export interface RegistrationData {
   received_ac: string;
   discount: string;
   remaining_amount: string;
-  status: 'active' | 'cancelled' | 'pending';
+  status: 'confirm' | 'cancelled' | 'pending';
 }
 
 export interface ProcessingRecord {
