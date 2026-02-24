@@ -16,6 +16,7 @@ type TimeRange = 'today' | 'yesterday' | 'week' | 'month' | 'year' | 'lifetime' 
 
 interface DashboardProps {
   records: ProcessingRecord[];
+  onEdit?: (record: RegistrationData) => void;
 }
 
 const DetailRow = ({ label, value, fullWidth = false }: { label: string, value: string, fullWidth?: boolean }) => (
@@ -25,7 +26,7 @@ const DetailRow = ({ label, value, fullWidth = false }: { label: string, value: 
   </div>
 );
 
-export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ records, onEdit }) => {
   const [remoteData, setRemoteData] = useState<RegistrationData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -160,7 +161,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
         received_ac: String(row['received ac'] || row['received_ac'] || ''),
         discount: String(row['discount'] || '0'),
         remaining_amount: String(row['remaining amount'] || row['remaining_amount'] || '0'),
-        status: (row['status'] || 'confirm').toLowerCase() as 'confirm' | 'cancelled' | 'pending'
+        status: (() => {
+          const s = (row['status'] || 'confirm').toLowerCase();
+          return s === 'active' ? 'confirm' : s as 'confirm' | 'cancelled' | 'pending';
+        })()
       };
     });
   };
@@ -214,6 +218,33 @@ export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
   const [filterState, setFilterState] = useState<string | null>(null);
   const [filterCity, setFilterCity] = useState<string | null>(null);
   const [filterDate, setFilterDate] = useState<string | null>(null);
+  const [sortConfig, setSortConfig] = useState<{ key: keyof RegistrationData; direction: 'asc' | 'desc' } | null>(null);
+
+  const sortedMasterData = useMemo(() => {
+    let sortableData = [...allSyncedData];
+    if (sortConfig !== null) {
+      sortableData.sort((a, b) => {
+        const aValue = String(a[sortConfig.key] || '').toLowerCase();
+        const bValue = String(b[sortConfig.key] || '').toLowerCase();
+        if (aValue < bValue) {
+          return sortConfig.direction === 'asc' ? -1 : 1;
+        }
+        if (aValue > bValue) {
+          return sortConfig.direction === 'asc' ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+    return sortableData;
+  }, [allSyncedData, sortConfig]);
+
+  const requestSort = (key: keyof RegistrationData) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
 
   const parseDate = (s: string): Date | null => {
     if (!s) return null;
@@ -524,6 +555,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
               <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Pending</span>
               <span className="text-[11px] font-black text-amber-500">{globalStats.pendingCount}</span>
             </div>
+            <div className="flex justify-between items-center pt-2 border-t border-slate-50 dark:border-slate-800">
+              <span className="text-[9px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">Confirm</span>
+              <span className="text-[11px] font-black text-indigo-600 dark:text-indigo-400">{globalStats.total - globalStats.cancelledCount - globalStats.pendingCount}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -610,120 +645,67 @@ export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
         </div>
       </div>
 
-      {/* REVENUE CHART */}
-      <div className="bg-white dark:bg-slate-900 p-8 rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-sm transition-colors">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Revenue Growth</h3>
-          <div className="flex items-center gap-2">
-            {filterDate && (
-              <button onClick={() => setFilterDate(null)} className="text-[8px] font-black text-indigo-600 uppercase tracking-widest hover:underline">Reset</button>
-            )}
-            <span className="px-2 py-1 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 text-[8px] font-black uppercase rounded-md">Cash Flow</span>
-          </div>
-        </div>
-        <div className="h-[250px] w-full mt-6">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={revChartData} onClick={(data) => data && data.activeLabel && setFilterDate(String(data.activeLabel))}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 9, fontWeight: 700, fill: '#94a3b8'}} dy={10} />
-              <YAxis axisLine={false} tickLine={false} tick={{fontSize: 9, fontWeight: 700, fill: '#94a3b8'}} />
-              <Tooltip 
-                contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontSize: '10px', fontWeight: 'bold' }}
-              />
-              <Bar dataKey="revenue" fill="#10b981" radius={[6, 6, 0, 0]} barSize={20}>
-                {revChartData.map((entry, index) => (
-                  <Cell 
-                    key={`cell-${index}`} 
-                    fill={filterDate === entry.name ? '#059669' : '#10b981'}
-                    opacity={filterDate && filterDate !== entry.name ? 0.3 : 1}
-                  />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white dark:bg-slate-900 p-8 rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-sm transition-colors">
+      {/* REGIONAL DISTRIBUTION - COMPACT */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="bg-white dark:bg-slate-900 p-6 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm transition-colors">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">State Distribution</h3>
-            <div className="flex items-center gap-2">
-              {filterState && (
-                <button onClick={() => setFilterState(null)} className="text-[8px] font-black text-indigo-600 uppercase tracking-widest hover:underline">Reset</button>
-              )}
-              <span className="px-2 py-1 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-[8px] font-black uppercase rounded-md">Top 10 States</span>
-            </div>
+            {filterState && (
+              <button onClick={() => setFilterState(null)} className="text-[8px] font-black text-indigo-600 uppercase tracking-widest hover:underline">Reset</button>
+            )}
           </div>
-          <div className="h-[300px] w-full mt-6">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={stateDistribution} layout="vertical" margin={{ left: 20, right: 20 }}>
-                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
-                <XAxis type="number" axisLine={false} tickLine={false} tick={{fontSize: 9, fontWeight: 700, fill: '#94a3b8'}} />
-                <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{fontSize: 9, fontWeight: 700, fill: '#94a3b8'}} width={100} />
-                <Tooltip 
-                  contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontSize: '10px', fontWeight: 'bold' }}
-                  cursor={{ fill: 'transparent' }}
-                />
-                <Bar 
-                  dataKey="count" 
-                  fill="#6366f1" 
-                  radius={[0, 4, 4, 0]} 
-                  barSize={20} 
-                  onClick={(data) => data && data.name && setFilterState(String(data.name))}
-                  cursor="pointer"
-                >
-                  {stateDistribution.map((entry, index) => (
-                    <Cell 
-                      key={`cell-${index}`} 
-                      fill={filterState === entry.name ? '#4338ca' : '#6366f1'}
-                      opacity={filterState && filterState !== entry.name ? 0.3 : 1}
-                    />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+          <div className="space-y-2 max-h-[200px] overflow-y-auto pr-2 custom-scrollbar">
+            {stateDistribution.map((item, idx) => (
+              <div 
+                key={item.name} 
+                onClick={() => setFilterState(item.name)}
+                className={`flex items-center justify-between p-2 rounded-xl cursor-pointer transition-all ${filterState === item.name ? 'bg-indigo-50 dark:bg-indigo-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'}`}
+              >
+                <div className="flex-1 mr-4">
+                  <div className="flex justify-between text-[10px] font-black uppercase tracking-wider mb-1">
+                    <span className="text-slate-700 dark:text-slate-300">{item.name}</span>
+                    <span className="text-indigo-600 dark:text-indigo-400">{item.count}</span>
+                  </div>
+                  <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-indigo-500 rounded-full transition-all duration-500" 
+                      style={{ width: `${(item.count / (stateDistribution[0]?.count || 1)) * 100}%` }}
+                    ></div>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-900 p-8 rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-sm transition-colors">
+        <div className="bg-white dark:bg-slate-900 p-6 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm transition-colors">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">City Distribution</h3>
-            <div className="flex items-center gap-2">
-              {filterCity && (
-                <button onClick={() => setFilterCity(null)} className="text-[8px] font-black text-indigo-600 uppercase tracking-widest hover:underline">Reset</button>
-              )}
-              <span className="px-2 py-1 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 text-[8px] font-black uppercase rounded-md">Top 10 Cities</span>
-            </div>
+            {filterCity && (
+              <button onClick={() => setFilterCity(null)} className="text-[8px] font-black text-indigo-600 uppercase tracking-widest hover:underline">Reset</button>
+            )}
           </div>
-          <div className="h-[300px] w-full mt-6">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={cityDistribution} layout="vertical" margin={{ left: 20, right: 20 }}>
-                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
-                <XAxis type="number" axisLine={false} tickLine={false} tick={{fontSize: 9, fontWeight: 700, fill: '#94a3b8'}} />
-                <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{fontSize: 9, fontWeight: 700, fill: '#94a3b8'}} width={100} />
-                <Tooltip 
-                  contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontSize: '10px', fontWeight: 'bold' }}
-                  cursor={{ fill: 'transparent' }}
-                />
-                <Bar 
-                  dataKey="count" 
-                  fill="#10b981" 
-                  radius={[0, 4, 4, 0]} 
-                  barSize={20} 
-                  onClick={(data) => data && data.name && setFilterCity(String(data.name))}
-                  cursor="pointer"
-                >
-                  {cityDistribution.map((entry, index) => (
-                    <Cell 
-                      key={`cell-${index}`} 
-                      fill={filterCity === entry.name ? '#059669' : '#10b981'}
-                      opacity={filterCity && filterCity !== entry.name ? 0.3 : 1}
-                    />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+          <div className="space-y-2 max-h-[200px] overflow-y-auto pr-2 custom-scrollbar">
+            {cityDistribution.map((item, idx) => (
+              <div 
+                key={item.name} 
+                onClick={() => setFilterCity(item.name)}
+                className={`flex items-center justify-between p-2 rounded-xl cursor-pointer transition-all ${filterCity === item.name ? 'bg-emerald-50 dark:bg-emerald-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'}`}
+              >
+                <div className="flex-1 mr-4">
+                  <div className="flex justify-between text-[10px] font-black uppercase tracking-wider mb-1">
+                    <span className="text-slate-700 dark:text-slate-300">{item.name}</span>
+                    <span className="text-emerald-600 dark:text-emerald-400">{item.count}</span>
+                  </div>
+                  <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-emerald-500 rounded-full transition-all duration-500" 
+                      style={{ width: `${(item.count / (cityDistribution[0]?.count || 1)) * 100}%` }}
+                    ></div>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </div>
@@ -738,15 +720,55 @@ export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
               <table className="w-full text-left">
                   <thead>
                   <tr className="border-b border-slate-50 dark:border-slate-800/50">
-                      <th className="px-4 md:px-8 py-4 text-[10px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-wider">Admission ID</th>
-                      <th className="px-4 md:px-8 py-4 text-[10px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-wider">Student Name</th>
-                      <th className="px-4 md:px-8 py-4 text-[10px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-wider">City</th>
-                      <th className="px-4 md:px-8 py-4 text-[10px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-wider">Status</th>
+                      <th 
+                        onClick={() => requestSort('admission_id')}
+                        className="px-4 md:px-8 py-4 text-[10px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-wider cursor-pointer hover:text-indigo-600 transition-colors"
+                      >
+                        <div className="flex items-center gap-1">
+                          Admission ID
+                          {sortConfig?.key === 'admission_id' && (
+                            <span className="text-indigo-500">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+                          )}
+                        </div>
+                      </th>
+                      <th 
+                        onClick={() => requestSort('name')}
+                        className="px-4 md:px-8 py-4 text-[10px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-wider cursor-pointer hover:text-indigo-600 transition-colors"
+                      >
+                        <div className="flex items-center gap-1">
+                          Student Name
+                          {sortConfig?.key === 'name' && (
+                            <span className="text-indigo-500">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+                          )}
+                        </div>
+                      </th>
+                      <th 
+                        onClick={() => requestSort('city')}
+                        className="px-4 md:px-8 py-4 text-[10px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-wider cursor-pointer hover:text-indigo-600 transition-colors"
+                      >
+                        <div className="flex items-center gap-1">
+                          City
+                          {sortConfig?.key === 'city' && (
+                            <span className="text-indigo-500">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+                          )}
+                        </div>
+                      </th>
+                      <th 
+                        onClick={() => requestSort('status')}
+                        className="px-4 md:px-8 py-4 text-[10px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-wider cursor-pointer hover:text-indigo-600 transition-colors"
+                      >
+                        <div className="flex items-center gap-1">
+                          Status
+                          {sortConfig?.key === 'status' && (
+                            <span className="text-indigo-500">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+                          )}
+                        </div>
+                      </th>
                       <th className="px-4 md:px-8 py-4 text-[10px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-wider text-right">Action</th>
                   </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50 dark:divide-slate-800/50">
-                  {allSyncedData.map((data, idx) => (
+                  {sortedMasterData.map((data, idx) => (
                       <tr key={data.admission_id || idx} className="hover:bg-slate-50/30 dark:hover:bg-slate-800/30 transition-colors group">
                       <td className="px-4 md:px-8 py-4">
                           <button 
@@ -770,9 +792,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ records }) => {
                           </span>
                       </td>
                       <td className="px-4 md:px-8 py-4 text-right">
-                          <button onClick={() => setViewingRecord(data)} className="p-2 bg-slate-50 dark:bg-slate-800 text-slate-400 dark:text-slate-600 rounded-xl hover:bg-indigo-600 dark:hover:bg-indigo-500 hover:text-white transition-all active:scale-90 group-hover:bg-indigo-50 dark:group-hover:bg-indigo-900/30 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 shadow-sm dark:shadow-none transition-colors">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0z"/><circle cx="12" cy="12" r="3"/></svg>
-                          </button>
+                          <div className="flex items-center justify-end gap-2">
+                            {onEdit && (
+                              <button 
+                                onClick={() => onEdit(data)}
+                                className="p-2 bg-white dark:bg-slate-800 text-slate-400 dark:text-slate-600 rounded-xl hover:bg-indigo-600 dark:hover:bg-indigo-500 hover:text-white transition-all active:scale-90 shadow-sm dark:shadow-none border border-slate-100 dark:border-slate-800"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                              </button>
+                            )}
+                            <button onClick={() => setViewingRecord(data)} className="p-2 bg-slate-50 dark:bg-slate-800 text-slate-400 dark:text-slate-600 rounded-xl hover:bg-indigo-600 dark:hover:bg-indigo-500 hover:text-white transition-all active:scale-90 group-hover:bg-indigo-50 dark:group-hover:bg-indigo-900/30 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 shadow-sm dark:shadow-none transition-colors">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0z"/><circle cx="12" cy="12" r="3"/></svg>
+                            </button>
+                          </div>
                       </td>
                       </tr>
                   ))}

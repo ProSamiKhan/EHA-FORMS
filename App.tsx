@@ -18,6 +18,7 @@ const App: React.FC = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
+  const [editingRecord, setEditingRecord] = useState<RegistrationData | null>(null);
   const [isDarkMode, setIsDarkMode] = useState(() => {
     return localStorage.getItem('eha_theme') === 'dark';
   });
@@ -32,7 +33,14 @@ const App: React.FC = () => {
     const savedRecords = localStorage.getItem('eha_ocr_records');
     if (savedRecords) {
       try {
-        setRecords(JSON.parse(savedRecords));
+        const parsed = JSON.parse(savedRecords);
+        const normalized = parsed.map((r: any) => {
+          if (r.data && r.data.status === 'active') {
+            return { ...r, data: { ...r.data, status: 'confirm' } };
+          }
+          return r;
+        });
+        setRecords(normalized);
       } catch (e) {
         console.error("Failed to parse saved records");
       }
@@ -156,20 +164,37 @@ const App: React.FC = () => {
     setRecords(prev => prev.map(r => r.id === id ? { ...r, syncStatus: success ? 'synced' : 'failed', syncedAt: success ? Date.now() : undefined } : r));
   };
 
-  const addManualRecord = (data: RegistrationData) => {
-    const id = uuidv4();
-    const newRecord: ProcessingRecord = {
-      id,
-      timestamp: Date.now(),
-      fileName: `Manual Entry - ${data.name || 'Student'}`,
-      imageUrl: '',
-      data: data,
-      status: 'completed',
-      source: 'manual',
-      syncStatus: 'idle',
-    };
-    setRecords(prev => [newRecord, ...prev]);
-    setActiveTab('processing');
+  const handleManualSubmit = async (data: RegistrationData) => {
+    if (editingRecord) {
+      const existingRecord = records.find(r => r.data?.admission_id === data.admission_id);
+      if (existingRecord) {
+        updateRecordData(existingRecord.id, data);
+      } else {
+        // Remote record update
+        const success = await syncToGoogleSheets(data);
+        if (success) {
+          alert("Remote record updated successfully.");
+        } else {
+          alert("Failed to update remote record.");
+        }
+      }
+      setEditingRecord(null);
+    } else {
+      const id = uuidv4();
+      const newRecord: ProcessingRecord = {
+        id,
+        timestamp: Date.now(),
+        fileName: `Manual Entry - ${data.name || 'Student'}`,
+        imageUrl: '',
+        data: data,
+        status: 'completed',
+        source: 'manual',
+        syncStatus: 'idle',
+      };
+      setRecords(prev => [newRecord, ...prev]);
+      setActiveTab('processing');
+    }
+    setIsManualModalOpen(false);
   };
 
   const updateRecordData = (id: string, newData: RegistrationData) => {
@@ -339,7 +364,13 @@ const App: React.FC = () => {
 
       <main className="max-w-7xl mx-auto px-4 lg:px-8 mt-6 lg:mt-10">
         {activeTab === 'dashboard' ? (
-          <Dashboard records={records} />
+          <Dashboard 
+            records={records} 
+            onEdit={(data) => {
+              setEditingRecord(data);
+              setIsManualModalOpen(true);
+            }}
+          />
         ) : activeTab === 'settings' && userRole === 'super_admin' ? (
           <Settings config={config} onUpdate={updateAppConfig} />
         ) : (
@@ -420,8 +451,12 @@ const App: React.FC = () => {
 
       <ManualEntryModal 
         isOpen={isManualModalOpen} 
-        onClose={() => setIsManualModalOpen(false)}
-        onSubmit={addManualRecord}
+        onClose={() => {
+          setIsManualModalOpen(false);
+          setEditingRecord(null);
+        }}
+        onSubmit={handleManualSubmit}
+        initialData={editingRecord}
       />
 
       <input type="file" className="hidden" ref={fileInputRef} onChange={handleFileUpload} accept="image/*" multiple />

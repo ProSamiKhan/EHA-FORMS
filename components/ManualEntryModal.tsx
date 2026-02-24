@@ -6,6 +6,7 @@ interface ManualEntryModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (data: RegistrationData) => void;
+  initialData?: RegistrationData | null;
 }
 
 const TOTAL_FEES = 20000;
@@ -75,8 +76,16 @@ const fromInputDate = (s: string) => {
   return `${d}/${m}/${y}`;
 };
 
-export const ManualEntryModal: React.FC<ManualEntryModalProps> = ({ isOpen, onClose, onSubmit }) => {
+export const ManualEntryModal: React.FC<ManualEntryModalProps> = ({ isOpen, onClose, onSubmit, initialData }) => {
   const [formData, setFormData] = useState<RegistrationData>(INITIAL_DATA);
+
+  useEffect(() => {
+    if (initialData) {
+      setFormData(initialData);
+    } else {
+      setFormData(INITIAL_DATA);
+    }
+  }, [initialData, isOpen]);
   const [error, setError] = useState('');
 
   useEffect(() => {
