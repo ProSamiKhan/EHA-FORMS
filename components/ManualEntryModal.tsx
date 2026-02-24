@@ -229,8 +229,19 @@ export const ManualEntryModal: React.FC<ManualEntryModalProps> = ({ isOpen, onCl
               </div>
               <div className="space-y-1">
                 <label className="text-[9px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest ml-1 transition-colors">Registration Status</label>
-                <select value={formData.status} onChange={(e) => handleChange('status', e.target.value)} className={`w-full border rounded-xl px-4 py-2.5 text-sm font-black outline-none transition-colors ${formData.status === 'cancelled' ? 'bg-red-50 border-red-200 text-red-600 dark:bg-red-900/20 dark:border-red-900/30 dark:text-red-400' : 'bg-slate-50 border-slate-200 text-slate-900 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100'}`}>
+                <select 
+                  value={formData.status} 
+                  onChange={(e) => handleChange('status', e.target.value)} 
+                  className={`w-full border rounded-xl px-4 py-2.5 text-sm font-black outline-none transition-colors ${
+                    formData.status === 'cancelled' 
+                      ? 'bg-red-50 border-red-200 text-red-600 dark:bg-red-900/20 dark:border-red-900/30 dark:text-red-400' 
+                      : formData.status === 'pending'
+                        ? 'bg-amber-50 border-amber-200 text-amber-600 dark:bg-amber-900/20 dark:border-amber-900/30 dark:text-amber-400'
+                        : 'bg-slate-50 border-slate-200 text-slate-900 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100'
+                  }`}
+                >
                   <option value="confirm">Confirm</option>
+                  <option value="pending">Pending</option>
                   <option value="cancelled">Cancelled</option>
                 </select>
               </div>

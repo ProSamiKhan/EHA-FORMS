@@ -1002,7 +1002,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, onEdit }) => {
                           <h2 className="text-3xl font-black text-slate-900 dark:text-white mb-1 tracking-tight">{viewingRecord.name}</h2>
                           <div className="flex items-center gap-2">
                             <span className="px-2 py-1 bg-indigo-600 text-white text-[10px] font-black rounded-md tracking-widest uppercase">{viewingRecord.admission_id}</span>
-                            <span className={`px-2 py-1 text-[10px] font-black rounded-md tracking-widest uppercase ${viewingRecord.status === 'confirm' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+                            <span className={`px-2 py-1 text-[10px] font-black rounded-md tracking-widest uppercase ${
+                              viewingRecord.status === 'confirm' ? 'bg-emerald-100 text-emerald-700' : 
+                              viewingRecord.status === 'pending' ? 'bg-amber-100 text-amber-700' : 
+                              'bg-red-100 text-red-700'
+                            }`}>
                               {viewingRecord.status}
                             </span>
                           </div>
@@ -1153,7 +1157,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, onEdit }) => {
                         <td className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase">{data.state}</td>
                         <td className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-mono font-bold text-slate-500">{data.contact_no}</td>
                         <td className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-black uppercase">
-                          <span className={data.status === 'cancelled' ? 'text-red-500' : 'text-green-500'}>{data.status}</span>
+                          <span className={
+                            data.status === 'cancelled' ? 'text-red-500' : 
+                            data.status === 'pending' ? 'text-amber-500' : 
+                            'text-green-500'
+                          }>
+                            {data.status}
+                          </span>
                         </td>
                         <td className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-black text-right text-emerald-600 dark:text-emerald-400">₹{studentTotal.toLocaleString()}</td>
                         <td className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-black text-right text-slate-900 dark:text-white">₹{data.remaining_amount}</td>
