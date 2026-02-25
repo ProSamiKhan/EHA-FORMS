@@ -12,6 +12,11 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [error, setError] = useState('');
   const [showForgotModal, setShowForgotModal] = useState(false);
   const [recoveryEmail, setRecoveryEmail] = useState('');
+  const [recoveryCode, setRecoveryCode] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [step, setStep] = useState<'email' | 'code' | 'reset'>('email');
+  const [loading, setLoading] = useState(false);
   const [recoveryStatus, setRecoveryStatus] = useState<{type: 'success' | 'error', message: string} | null>(null);
 
   const [isDarkMode, setIsDarkMode] = useState(() => {
@@ -74,33 +79,97 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
     }
   };
 
-  const handleForgotPassword = (e: React.FormEvent) => {
+  const handleSendCode = async (e: React.FormEvent) => {
     e.preventDefault();
     setRecoveryStatus(null);
+    setLoading(true);
 
-    if (recoveryEmail.toLowerCase() === (config.adminEmail || '4tvsami@gmail.com').toLowerCase()) {
-      // Reset superadmin password to default
-      const savedUsers = localStorage.getItem('eha_users');
-      let users: UserAccount[] = savedUsers ? JSON.parse(savedUsers) : [];
-      
-      const adminIndex = users.findIndex(u => u.username === 'superadmin');
-      if (adminIndex > -1) {
-        users[adminIndex].password = 'superadmin';
-      } else {
-        users.push({ username: 'superadmin', password: 'superadmin', role: 'super_admin' });
-      }
-      
-      localStorage.setItem('eha_users', JSON.stringify(users));
-      setRecoveryStatus({
-        type: 'success',
-        message: 'Password for "superadmin" has been reset to "superadmin". Please login and change it immediately.'
-      });
-    } else {
-      setRecoveryStatus({
-        type: 'error',
-        message: 'Recovery email not recognized. Please contact system owner.'
-      });
+    if (recoveryEmail.toLowerCase() !== (config.adminEmail || '4tvsami@gmail.com').toLowerCase()) {
+      setRecoveryStatus({ type: 'error', message: 'Recovery email not recognized.' });
+      setLoading(false);
+      return;
     }
+
+    try {
+      const res = await fetch('/api/auth/send-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: recoveryEmail })
+      });
+      const data = await res.json();
+      
+      if (data.success) {
+        setStep('code');
+        setRecoveryStatus({ type: 'success', message: data.message });
+      } else {
+        setRecoveryStatus({ type: 'error', message: data.message });
+      }
+    } catch (err) {
+      setRecoveryStatus({ type: 'error', message: 'Failed to connect to server.' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setRecoveryStatus(null);
+    setLoading(true);
+
+    try {
+      const res = await fetch('/api/auth/verify-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: recoveryEmail, code: recoveryCode })
+      });
+      const data = await res.json();
+      
+      if (data.success) {
+        setStep('reset');
+        setRecoveryStatus({ type: 'success', message: 'Code verified. Please set your new password.' });
+      } else {
+        setRecoveryStatus({ type: 'error', message: data.message });
+      }
+    } catch (err) {
+      setRecoveryStatus({ type: 'error', message: 'Verification failed.' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetPassword = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword !== confirmNewPassword) {
+      setRecoveryStatus({ type: 'error', message: 'Passwords do not match.' });
+      return;
+    }
+    if (newPassword.length < 4) {
+      setRecoveryStatus({ type: 'error', message: 'Password must be at least 4 characters.' });
+      return;
+    }
+
+    const savedUsers = localStorage.getItem('eha_users');
+    let users: UserAccount[] = savedUsers ? JSON.parse(savedUsers) : [];
+    
+    const adminIndex = users.findIndex(u => u.username === 'superadmin');
+    if (adminIndex > -1) {
+      users[adminIndex].password = newPassword;
+    } else {
+      users.push({ username: 'superadmin', password: newPassword, role: 'super_admin' });
+    }
+    
+    localStorage.setItem('eha_users', JSON.stringify(users));
+    setRecoveryStatus({ type: 'success', message: 'Password reset successfully! You can now login.' });
+    
+    setTimeout(() => {
+      setShowForgotModal(false);
+      setStep('email');
+      setRecoveryEmail('');
+      setRecoveryCode('');
+      setNewPassword('');
+      setConfirmNewPassword('');
+      setRecoveryStatus(null);
+    }, 3000);
   };
 
   return (
@@ -191,41 +260,130 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
           <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-[32px] p-8 shadow-2xl border border-slate-100 dark:border-slate-800 animate-in zoom-in-95 duration-200">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-lg font-black text-slate-900 dark:text-slate-100">Reset Access</h2>
-              <button onClick={() => { setShowForgotModal(false); setRecoveryStatus(null); }} className="text-slate-400 hover:text-red-500 transition-colors">
+              <button 
+                onClick={() => { 
+                  setShowForgotModal(false); 
+                  setRecoveryStatus(null); 
+                  setStep('email');
+                }} 
+                className="text-slate-400 hover:text-red-500 transition-colors"
+              >
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
             </div>
 
-            <p className="text-xs text-slate-500 dark:text-slate-400 mb-6 font-medium leading-relaxed">
-              Enter the recovery email associated with the administrator account to reset the "superadmin" password.
-            </p>
-
-            <form onSubmit={handleForgotPassword} className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-[9px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest ml-1">Recovery Email</label>
-                <input
-                  type="email"
-                  value={recoveryEmail}
-                  onChange={(e) => setRecoveryEmail(e.target.value)}
-                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500 dark:text-slate-100"
-                  placeholder="name@example.com"
-                  required
-                />
-              </div>
-
-              {recoveryStatus && (
-                <div className={`p-3 rounded-xl text-[10px] font-bold ${recoveryStatus.type === 'success' ? 'bg-green-50 text-green-600 border border-green-100' : 'bg-red-50 text-red-600 border border-red-100'}`}>
-                  {recoveryStatus.message}
+            {step === 'email' && (
+              <form onSubmit={handleSendCode} className="space-y-4">
+                <p className="text-xs text-slate-500 dark:text-slate-400 mb-6 font-medium leading-relaxed">
+                  Enter your recovery email. We will send a 6-digit verification code to reset your password.
+                </p>
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest ml-1">Recovery Email</label>
+                  <input
+                    type="email"
+                    value={recoveryEmail}
+                    onChange={(e) => setRecoveryEmail(e.target.value)}
+                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500 dark:text-slate-100"
+                    placeholder="name@example.com"
+                    required
+                  />
                 </div>
-              )}
+                {recoveryStatus && (
+                  <div className={`p-3 rounded-xl text-[10px] font-bold ${recoveryStatus.type === 'success' ? 'bg-green-50 text-green-600 border border-green-100' : 'bg-red-50 text-red-600 border border-red-100'}`}>
+                    {recoveryStatus.message}
+                  </div>
+                )}
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full py-3 bg-slate-900 dark:bg-indigo-600 text-white rounded-xl font-bold text-xs hover:bg-slate-800 transition-all disabled:opacity-50"
+                >
+                  {loading ? 'Sending...' : 'Send Verification Code'}
+                </button>
+              </form>
+            )}
 
-              <button
-                type="submit"
-                className="w-full py-3 bg-slate-900 dark:bg-indigo-600 text-white rounded-xl font-bold text-xs hover:bg-slate-800 transition-all"
-              >
-                Verify & Reset
-              </button>
-            </form>
+            {step === 'code' && (
+              <form onSubmit={handleVerifyCode} className="space-y-4">
+                <p className="text-xs text-slate-500 dark:text-slate-400 mb-6 font-medium leading-relaxed">
+                  We've sent a code to <span className="font-bold text-slate-900 dark:text-slate-100">{recoveryEmail}</span>. Enter it below to continue.
+                </p>
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest ml-1">6-Digit Code</label>
+                  <input
+                    type="text"
+                    maxLength={6}
+                    value={recoveryCode}
+                    onChange={(e) => setRecoveryCode(e.target.value.replace(/\D/g, ''))}
+                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-center text-xl font-black tracking-[0.5em] outline-none focus:ring-2 focus:ring-indigo-500 dark:text-slate-100"
+                    placeholder="000000"
+                    required
+                  />
+                </div>
+                {recoveryStatus && (
+                  <div className={`p-3 rounded-xl text-[10px] font-bold ${recoveryStatus.type === 'success' ? 'bg-green-50 text-green-600 border border-green-100' : 'bg-red-50 text-red-600 border border-red-100'}`}>
+                    {recoveryStatus.message}
+                  </div>
+                )}
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold text-xs hover:bg-indigo-700 transition-all disabled:opacity-50"
+                >
+                  {loading ? 'Verifying...' : 'Verify Code'}
+                </button>
+                <button 
+                  type="button"
+                  onClick={() => setStep('email')}
+                  className="w-full text-[9px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-600"
+                >
+                  Back to Email
+                </button>
+              </form>
+            )}
+
+            {step === 'reset' && (
+              <form onSubmit={handleResetPassword} className="space-y-4">
+                <p className="text-xs text-slate-500 dark:text-slate-400 mb-6 font-medium leading-relaxed">
+                  Verification successful. Please set a new secure password for your account.
+                </p>
+                <div className="space-y-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest ml-1">New Password</label>
+                    <input
+                      type="password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500 dark:text-slate-100"
+                      placeholder="••••••••"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest ml-1">Confirm Password</label>
+                    <input
+                      type="password"
+                      value={confirmNewPassword}
+                      onChange={(e) => setConfirmNewPassword(e.target.value)}
+                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500 dark:text-slate-100"
+                      placeholder="••••••••"
+                      required
+                    />
+                  </div>
+                </div>
+                {recoveryStatus && (
+                  <div className={`p-3 rounded-xl text-[10px] font-bold ${recoveryStatus.type === 'success' ? 'bg-green-50 text-green-600 border border-green-100' : 'bg-red-50 text-red-600 border border-red-100'}`}>
+                    {recoveryStatus.message}
+                  </div>
+                )}
+                <button
+                  type="submit"
+                  className="w-full py-3 bg-green-600 text-white rounded-xl font-bold text-xs hover:bg-green-700 transition-all"
+                >
+                  Reset Password & Login
+                </button>
+              </form>
+            )}
           </div>
         </div>
       )}
