@@ -10,9 +10,6 @@ import { Dashboard } from './components/Dashboard';
 import { Settings } from './components/Settings';
 import { Login } from './components/Login';
 
-import { auth } from './services/firebase';
-import { signOut } from 'firebase/auth';
-
 const App: React.FC = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userRole, setUserRole] = useState<UserRole | null>(null);
@@ -89,12 +86,7 @@ const App: React.FC = () => {
     localStorage.setItem('eha_app_config', JSON.stringify(newConfig));
   };
 
-  const handleLogout = async () => {
-    try {
-      await signOut(auth);
-    } catch (err) {
-      console.error("Firebase signout error:", err);
-    }
+  const handleLogout = () => {
     setIsLoggedIn(false);
     setUserRole(null);
     sessionStorage.removeItem('eha_session_v2');
