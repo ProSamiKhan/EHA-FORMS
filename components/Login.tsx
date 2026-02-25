@@ -1,21 +1,24 @@
 
 import React, { useState, useEffect } from 'react';
 import { UserRole, AppConfig, UserAccount } from '../types';
+import { auth } from '../services/firebase';
+import { 
+  signInWithEmailAndPassword, 
+  sendPasswordResetEmail,
+  onAuthStateChanged,
+  signOut
+} from 'firebase/auth';
 
 interface LoginProps {
   onLogin: (role: UserRole, username: string) => void;
 }
 
 export const Login: React.FC<LoginProps> = ({ onLogin }) => {
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [showForgotModal, setShowForgotModal] = useState(false);
   const [recoveryEmail, setRecoveryEmail] = useState('');
-  const [recoveryCode, setRecoveryCode] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmNewPassword, setConfirmNewPassword] = useState('');
-  const [step, setStep] = useState<'email' | 'code' | 'reset'>('email');
   const [loading, setLoading] = useState(false);
   const [recoveryStatus, setRecoveryStatus] = useState<{type: 'success' | 'error', message: string} | null>(null);
 
@@ -45,131 +48,53 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
     }
   }, [isDarkMode]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    const savedUsers = localStorage.getItem('eha_users');
-    let users: UserAccount[] = [];
-    
-    if (savedUsers) {
-      users = JSON.parse(savedUsers);
-    }
-
-    // Check for custom superadmin password first
-    const customSuperAdmin = users.find(u => u.username === 'superadmin');
-    if (customSuperAdmin) {
-      if (username === 'superadmin' && password === customSuperAdmin.password) {
-        onLogin('super_admin', 'superadmin');
-        return;
-      }
-    } else {
-      // Fallback superadmin
-      if (username === 'superadmin' && password === 'superadmin') {
-        onLogin('super_admin', 'superadmin');
-        return;
-      }
-    }
-
-    const foundUser = users.find(u => u.username === username && u.password === password);
-    
-    if (foundUser) {
-      onLogin(foundUser.role, foundUser.username);
-    } else {
-      setError('Invalid credentials. Please try again or contact administrator.');
-    }
-  };
-
-  const handleSendCode = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setRecoveryStatus(null);
+    setError('');
     setLoading(true);
-
-    if (recoveryEmail.toLowerCase() !== (config.adminEmail || '4tvsami@gmail.com').toLowerCase()) {
-      setRecoveryStatus({ type: 'error', message: 'Recovery email not recognized.' });
-      setLoading(false);
-      return;
-    }
-
+    
     try {
-      const res = await fetch('/api/auth/send-otp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: recoveryEmail })
-      });
-      const data = await res.json();
+      // Use Firebase to sign in
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
       
-      if (data.success) {
-        setStep('code');
-        setRecoveryStatus({ type: 'success', message: data.message });
+      // Determine role (for this simple app, we'll check if it's the admin email)
+      const isAdmin = email.toLowerCase() === (config.adminEmail || '4tvsami@gmail.com').toLowerCase();
+      onLogin(isAdmin ? 'super_admin' : 'staff', email);
+    } catch (err: any) {
+      console.error("Login error:", err);
+      if (err.code === 'auth/invalid-credential') {
+        setError('Invalid email or password.');
+      } else if (err.code === 'auth/user-not-found') {
+        setError('No account found with this email.');
       } else {
-        setRecoveryStatus({ type: 'error', message: data.message });
+        setError('Login failed. Please check your credentials or Firebase configuration.');
       }
-    } catch (err) {
-      setRecoveryStatus({ type: 'error', message: 'Failed to connect to server.' });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleVerifyCode = async (e: React.FormEvent) => {
+  const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setRecoveryStatus(null);
     setLoading(true);
 
     try {
-      const res = await fetch('/api/auth/verify-otp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: recoveryEmail, code: recoveryCode })
+      await sendPasswordResetEmail(auth, recoveryEmail);
+      setRecoveryStatus({
+        type: 'success',
+        message: 'A password reset link has been sent to your email. Please check your inbox.'
       });
-      const data = await res.json();
-      
-      if (data.success) {
-        setStep('reset');
-        setRecoveryStatus({ type: 'success', message: 'Code verified. Please set your new password.' });
-      } else {
-        setRecoveryStatus({ type: 'error', message: data.message });
-      }
-    } catch (err) {
-      setRecoveryStatus({ type: 'error', message: 'Verification failed.' });
+    } catch (err: any) {
+      console.error("Reset error:", err);
+      setRecoveryStatus({
+        type: 'error',
+        message: err.message || 'Failed to send reset email.'
+      });
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleResetPassword = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (newPassword !== confirmNewPassword) {
-      setRecoveryStatus({ type: 'error', message: 'Passwords do not match.' });
-      return;
-    }
-    if (newPassword.length < 4) {
-      setRecoveryStatus({ type: 'error', message: 'Password must be at least 4 characters.' });
-      return;
-    }
-
-    const savedUsers = localStorage.getItem('eha_users');
-    let users: UserAccount[] = savedUsers ? JSON.parse(savedUsers) : [];
-    
-    const adminIndex = users.findIndex(u => u.username === 'superadmin');
-    if (adminIndex > -1) {
-      users[adminIndex].password = newPassword;
-    } else {
-      users.push({ username: 'superadmin', password: newPassword, role: 'super_admin' });
-    }
-    
-    localStorage.setItem('eha_users', JSON.stringify(users));
-    setRecoveryStatus({ type: 'success', message: 'Password reset successfully! You can now login.' });
-    
-    setTimeout(() => {
-      setShowForgotModal(false);
-      setStep('email');
-      setRecoveryEmail('');
-      setRecoveryCode('');
-      setNewPassword('');
-      setConfirmNewPassword('');
-      setRecoveryStatus(null);
-    }, 3000);
   };
 
   return (
@@ -206,13 +131,13 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest ml-1 transition-colors">Account ID</label>
+            <label className="text-[10px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest ml-1 transition-colors">Email Address</label>
             <input
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-600 outline-none transition-all font-medium dark:text-slate-100"
-              placeholder="Enter username"
+              placeholder="Enter your email"
               required
             />
           </div>
@@ -241,9 +166,10 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
           <button
             type="submit"
-            className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold shadow-lg shadow-indigo-100 dark:shadow-none hover:bg-indigo-700 transition-all hover:-translate-y-0.5 active:translate-y-0 mt-4 transition-colors"
+            disabled={loading}
+            className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold shadow-lg shadow-indigo-100 dark:shadow-none hover:bg-indigo-700 transition-all hover:-translate-y-0.5 active:translate-y-0 mt-4 transition-colors disabled:opacity-50"
           >
-            Sign In to Portal
+            {loading ? 'Authenticating...' : 'Sign In to Portal'}
           </button>
         </form>
 
@@ -264,7 +190,6 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 onClick={() => { 
                   setShowForgotModal(false); 
                   setRecoveryStatus(null); 
-                  setStep('email');
                 }} 
                 className="text-slate-400 hover:text-red-500 transition-colors"
               >
@@ -272,118 +197,34 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
               </button>
             </div>
 
-            {step === 'email' && (
-              <form onSubmit={handleSendCode} className="space-y-4">
-                <p className="text-xs text-slate-500 dark:text-slate-400 mb-6 font-medium leading-relaxed">
-                  Enter your recovery email. We will send a 6-digit verification code to reset your password.
-                </p>
-                <div className="space-y-1.5">
-                  <label className="text-[9px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest ml-1">Recovery Email</label>
-                  <input
-                    type="email"
-                    value={recoveryEmail}
-                    onChange={(e) => setRecoveryEmail(e.target.value)}
-                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500 dark:text-slate-100"
-                    placeholder="name@example.com"
-                    required
-                  />
+            <form onSubmit={handleForgotPassword} className="space-y-4">
+              <p className="text-xs text-slate-500 dark:text-slate-400 mb-6 font-medium leading-relaxed">
+                Enter your email address. We will send a secure password reset link to your inbox.
+              </p>
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest ml-1">Email Address</label>
+                <input
+                  type="email"
+                  value={recoveryEmail}
+                  onChange={(e) => setRecoveryEmail(e.target.value)}
+                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500 dark:text-slate-100"
+                  placeholder="name@example.com"
+                  required
+                />
+              </div>
+              {recoveryStatus && (
+                <div className={`p-3 rounded-xl text-[10px] font-bold ${recoveryStatus.type === 'success' ? 'bg-green-50 text-green-600 border border-green-100' : 'bg-red-50 text-red-600 border border-red-100'}`}>
+                  {recoveryStatus.message}
                 </div>
-                {recoveryStatus && (
-                  <div className={`p-3 rounded-xl text-[10px] font-bold ${recoveryStatus.type === 'success' ? 'bg-green-50 text-green-600 border border-green-100' : 'bg-red-50 text-red-600 border border-red-100'}`}>
-                    {recoveryStatus.message}
-                  </div>
-                )}
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full py-3 bg-slate-900 dark:bg-indigo-600 text-white rounded-xl font-bold text-xs hover:bg-slate-800 transition-all disabled:opacity-50"
-                >
-                  {loading ? 'Sending...' : 'Send Verification Code'}
-                </button>
-              </form>
-            )}
-
-            {step === 'code' && (
-              <form onSubmit={handleVerifyCode} className="space-y-4">
-                <p className="text-xs text-slate-500 dark:text-slate-400 mb-6 font-medium leading-relaxed">
-                  We've sent a code to <span className="font-bold text-slate-900 dark:text-slate-100">{recoveryEmail}</span>. Enter it below to continue.
-                </p>
-                <div className="space-y-1.5">
-                  <label className="text-[9px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest ml-1">6-Digit Code</label>
-                  <input
-                    type="text"
-                    maxLength={6}
-                    value={recoveryCode}
-                    onChange={(e) => setRecoveryCode(e.target.value.replace(/\D/g, ''))}
-                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-center text-xl font-black tracking-[0.5em] outline-none focus:ring-2 focus:ring-indigo-500 dark:text-slate-100"
-                    placeholder="000000"
-                    required
-                  />
-                </div>
-                {recoveryStatus && (
-                  <div className={`p-3 rounded-xl text-[10px] font-bold ${recoveryStatus.type === 'success' ? 'bg-green-50 text-green-600 border border-green-100' : 'bg-red-50 text-red-600 border border-red-100'}`}>
-                    {recoveryStatus.message}
-                  </div>
-                )}
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold text-xs hover:bg-indigo-700 transition-all disabled:opacity-50"
-                >
-                  {loading ? 'Verifying...' : 'Verify Code'}
-                </button>
-                <button 
-                  type="button"
-                  onClick={() => setStep('email')}
-                  className="w-full text-[9px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-600"
-                >
-                  Back to Email
-                </button>
-              </form>
-            )}
-
-            {step === 'reset' && (
-              <form onSubmit={handleResetPassword} className="space-y-4">
-                <p className="text-xs text-slate-500 dark:text-slate-400 mb-6 font-medium leading-relaxed">
-                  Verification successful. Please set a new secure password for your account.
-                </p>
-                <div className="space-y-4">
-                  <div className="space-y-1.5">
-                    <label className="text-[9px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest ml-1">New Password</label>
-                    <input
-                      type="password"
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500 dark:text-slate-100"
-                      placeholder="••••••••"
-                      required
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[9px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest ml-1">Confirm Password</label>
-                    <input
-                      type="password"
-                      value={confirmNewPassword}
-                      onChange={(e) => setConfirmNewPassword(e.target.value)}
-                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500 dark:text-slate-100"
-                      placeholder="••••••••"
-                      required
-                    />
-                  </div>
-                </div>
-                {recoveryStatus && (
-                  <div className={`p-3 rounded-xl text-[10px] font-bold ${recoveryStatus.type === 'success' ? 'bg-green-50 text-green-600 border border-green-100' : 'bg-red-50 text-red-600 border border-red-100'}`}>
-                    {recoveryStatus.message}
-                  </div>
-                )}
-                <button
-                  type="submit"
-                  className="w-full py-3 bg-green-600 text-white rounded-xl font-bold text-xs hover:bg-green-700 transition-all"
-                >
-                  Reset Password & Login
-                </button>
-              </form>
-            )}
+              )}
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-3 bg-slate-900 dark:bg-indigo-600 text-white rounded-xl font-bold text-xs hover:bg-slate-800 transition-all disabled:opacity-50"
+              >
+                {loading ? 'Sending...' : 'Send Reset Link'}
+              </button>
+            </form>
           </div>
         </div>
       )}
