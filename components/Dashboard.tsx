@@ -549,6 +549,20 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, onEdit }) => {
 
   const isFiltered = timeRange !== 'lifetime' || filterGender || filterState || filterCity || filterDate || filterPaymentStatus || filterAdmissionStatus;
 
+  const formatDateClean = (dateStr: string) => {
+    if (!dateStr) return '—';
+    // If it looks like an ISO date or has T
+    if (dateStr.includes('T')) {
+      try {
+        const d = new Date(dateStr);
+        if (!isNaN(d.getTime())) {
+          return format(d, 'dd/MM/yyyy');
+        }
+      } catch (e) {}
+    }
+    return dateStr;
+  };
+
   return (
     <div className="space-y-8 pb-10 transition-colors">
       {/* HEADER */}
@@ -1080,7 +1094,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, onEdit }) => {
                                   <p className="text-sm font-black text-slate-900 dark:text-white">₹{amt}</p>
                                 </div>
                                 <div className="text-right">
-                                  <p className="text-[9px] font-bold text-slate-500">{formatDateClean((viewingRecord as any)[`payment${num}_date` text-slate-500])}</p>
+                                  <p className="text-[9px] font-bold text-slate-500">{formatDateClean((viewingRecord as any)[`payment${num}_date`] || '')}</p>
                                   <p className="text-[8px] font-mono text-indigo-500 font-bold">{(viewingRecord as any)[`payment${num}_utr`]}</p>
                                 </div>
                               </div>

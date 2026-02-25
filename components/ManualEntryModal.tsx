@@ -62,6 +62,14 @@ const INDIAN_CITIES = [
 
 const toInputDate = (s: string) => {
   if (!s) return '';
+  if (s.includes('T')) {
+    try {
+      const d = new Date(s);
+      if (!isNaN(d.getTime())) {
+        return d.toISOString().split('T')[0];
+      }
+    } catch (e) {}
+  }
   const parts = s.split('/');
   if (parts.length !== 3) return '';
   const [d, m, y] = parts;
