@@ -22,17 +22,15 @@ const INITIAL_DATA: RegistrationData = {
   whatsapp_no: '',
   city: '',
   state: '',
-  payment1_amount: '',
-  payment1_date: new Date().toLocaleDateString('en-GB'),
-  payment1_utr: '',
-  payment2_amount: '', payment2_date: '', payment2_utr: '',
-  payment3_amount: '', payment3_date: '', payment3_utr: '',
-  payment4_amount: '', payment4_date: '', payment4_utr: '',
-  payment5_amount: '', payment5_date: '', payment5_utr: '',
-  payment6_amount: '', payment6_date: '', payment6_utr: '',
-  payment7_amount: '', payment7_date: '', payment7_utr: '',
-  payment8_amount: '', payment8_date: '', payment8_utr: '',
-  payment9_amount: '', payment9_date: '', payment9_utr: '',
+  payment1_amount: '', payment1_date: new Date().toLocaleDateString('en-GB'), payment1_utr: '', payment1_method: 'account',
+  payment2_amount: '', payment2_date: '', payment2_utr: '', payment2_method: 'account',
+  payment3_amount: '', payment3_date: '', payment3_utr: '', payment3_method: 'account',
+  payment4_amount: '', payment4_date: '', payment4_utr: '', payment4_method: 'account',
+  payment5_amount: '', payment5_date: '', payment5_utr: '', payment5_method: 'account',
+  payment6_amount: '', payment6_date: '', payment6_utr: '', payment6_method: 'account',
+  payment7_amount: '', payment7_date: '', payment7_utr: '', payment7_method: 'account',
+  payment8_amount: '', payment8_date: '', payment8_utr: '', payment8_method: 'account',
+  payment9_amount: '', payment9_date: '', payment9_utr: '', payment9_method: 'account',
   payment10_amount: '', payment10_date: '', payment10_utr: '', payment10_method: 'account',
   received_ac: 'EHA Account',
   discount: '0',
@@ -91,7 +89,7 @@ export const ManualEntryModal: React.FC<ManualEntryModalProps> = ({ isOpen, onCl
 
   useEffect(() => {
     if (initialData) {
-      setFormData(initialData);
+      setFormData({ ...INITIAL_DATA, ...initialData });
       // Heuristic: if contact starts with something other than 10 digits or has non-numeric chars, it might be 'Other'
       // But let's just default to India unless we see a reason not to.
       // Actually, let's check if the contact number is exactly 10 digits.
@@ -395,14 +393,6 @@ export const ManualEntryModal: React.FC<ManualEntryModalProps> = ({ isOpen, onCl
                 <div className="bg-indigo-600 dark:bg-indigo-700 p-4 rounded-2xl flex justify-between items-center shadow-lg dark:shadow-none transition-colors">
                   <span className="text-[10px] font-black text-indigo-100 uppercase tracking-widest">Balance Due</span>
                   <span className="text-xl font-black text-white">₹{parseFloat(formData.remaining_amount).toLocaleString()}</span>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[9px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest ml-1 transition-colors">Received Account</label>
-                  <select value={formData.received_ac} onChange={(e) => handleChange('received_ac', e.target.value)} className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-bold outline-none dark:text-slate-100 transition-colors">
-                    <option value="EHA Account">EHA Account</option>
-                    <option value="Cash">Cash</option>
-                  </select>
                 </div>
               </div>
             </div>
