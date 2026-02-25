@@ -13,7 +13,7 @@ import { Login } from './components/Login';
 const App: React.FC = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userRole, setUserRole] = useState<UserRole | null>(null);
-  const [activeTab, setActiveTab] = useState<'processing' | 'dashboard' | 'settings'>('processing');
+  const [activeTab, setActiveTab] = useState<'processing' | 'dashboard' | 'settings'>('dashboard');
   const [records, setRecords] = useState<ProcessingRecord[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');

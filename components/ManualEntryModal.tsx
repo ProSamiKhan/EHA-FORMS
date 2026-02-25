@@ -33,7 +33,7 @@ const INITIAL_DATA: RegistrationData = {
   payment7_amount: '', payment7_date: '', payment7_utr: '',
   payment8_amount: '', payment8_date: '', payment8_utr: '',
   payment9_amount: '', payment9_date: '', payment9_utr: '',
-  payment10_amount: '', payment10_date: '', payment10_utr: '',
+  payment10_amount: '', payment10_date: '', payment10_utr: '', payment10_method: 'account',
   received_ac: 'EHA Account',
   discount: '0',
   remaining_amount: '20000',
@@ -131,8 +131,16 @@ export const ManualEntryModal: React.FC<ManualEntryModalProps> = ({ isOpen, onCl
   const handleChange = (key: keyof RegistrationData, val: string) => {
     setError('');
     if (key.toString().includes('utr')) {
-      const numeric = val.replace(/[^0-9]/g, '').slice(0, 12);
-      setFormData(prev => ({ ...prev, [key]: numeric }));
+      const methodKey = key.toString().replace('utr', 'method') as keyof RegistrationData;
+      const method = (formData as any)[methodKey] || 'account';
+      
+      if (method === 'account') {
+        const numeric = val.replace(/[^0-9]/g, '').slice(0, 12);
+        setFormData(prev => ({ ...prev, [key]: numeric }));
+      } else {
+        // For cash, it's "Received By" - allow text
+        setFormData(prev => ({ ...prev, [key]: val }));
+      }
       return;
     }
     
@@ -156,7 +164,17 @@ export const ManualEntryModal: React.FC<ManualEntryModalProps> = ({ isOpen, onCl
 
     for (let i = 1; i <= 10; i++) {
       const utr = (formData as any)[`payment${i}_utr`];
-      if (utr && utr.length !== 12) return setError(`Payment ${i} UTR must be 12 digits`);
+      const method = (formData as any)[`payment${i}_method`] || 'account';
+      const amt = (formData as any)[`payment${i}_amount`];
+      
+      if (amt && amt !== '0') {
+        if (method === 'account' && utr && utr.length !== 12) {
+          return setError(`Payment ${i} UTR must be 12 digits`);
+        }
+        if (method === 'cash' && !utr) {
+          return setError(`Payment ${i} Received By name is required for cash`);
+        }
+      }
     }
     
     onSubmit(formData);
@@ -317,36 +335,55 @@ export const ManualEntryModal: React.FC<ManualEntryModalProps> = ({ isOpen, onCl
               <h3 className="text-[10px] font-black text-indigo-400 uppercase tracking-widest border-b border-indigo-50 dark:border-indigo-900/20 pb-2 transition-colors">Payment Schedule</h3>
               
               <div className="space-y-4">
-                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
-                  <div key={num} className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-3">
-                    <div className="flex justify-between items-center">
-                      <span className="text-[9px] font-black text-indigo-500 uppercase tracking-widest">Payment {num} {num === 1 ? '(Initial)' : ''}</span>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => {
+                  const method = (formData as any)[`payment${num}_method`] || 'account';
+                  return (
+                    <div key={num} className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="text-[9px] font-black text-indigo-500 uppercase tracking-widest">Payment {num} {num === 1 ? '(Initial)' : ''}</span>
+                        <div className="flex bg-white dark:bg-slate-900 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700">
+                          <button 
+                            type="button"
+                            onClick={() => handleChange(`payment${num}_method` as any, 'account')}
+                            className={`px-2 py-1 text-[8px] font-black uppercase rounded-md transition-all ${method === 'account' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                          >
+                            Account
+                          </button>
+                          <button 
+                            type="button"
+                            onClick={() => handleChange(`payment${num}_method` as any, 'cash')}
+                            className={`px-2 py-1 text-[8px] font-black uppercase rounded-md transition-all ${method === 'cash' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                          >
+                            Cash
+                          </button>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <input 
+                          type="number" 
+                          placeholder="Amount" 
+                          value={(formData as any)[`payment${num}_amount`]} 
+                          onChange={(e) => handleChange(`payment${num}_amount` as any, e.target.value)} 
+                          className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 text-xs font-bold outline-none dark:text-slate-100" 
+                        />
+                        <input 
+                          type="date" 
+                          placeholder="Date" 
+                          value={toInputDate((formData as any)[`payment${num}_date`])} 
+                          onChange={(e) => handleChange(`payment${num}_date` as any, fromInputDate(e.target.value))} 
+                          className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 text-xs font-bold outline-none dark:text-slate-100" 
+                        />
+                      </div>
                       <input 
-                        type="number" 
-                        placeholder="Amount" 
-                        value={(formData as any)[`payment${num}_amount`]} 
-                        onChange={(e) => handleChange(`payment${num}_amount` as any, e.target.value)} 
-                        className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 text-xs font-bold outline-none dark:text-slate-100" 
-                      />
-                      <input 
-                        type="date" 
-                        placeholder="Date" 
-                        value={toInputDate((formData as any)[`payment${num}_date`])} 
-                        onChange={(e) => handleChange(`payment${num}_date` as any, fromInputDate(e.target.value))} 
-                        className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 text-xs font-bold outline-none dark:text-slate-100" 
+                        type="text" 
+                        placeholder={method === 'account' ? "UTR (12 Digits)" : "Received By (Name)"} 
+                        value={(formData as any)[`payment${num}_utr`]} 
+                        onChange={(e) => handleChange(`payment${num}_utr` as any, e.target.value)} 
+                        className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 text-xs font-mono font-bold outline-none dark:text-slate-100" 
                       />
                     </div>
-                    <input 
-                      type="text" 
-                      placeholder="UTR (12 Digits)" 
-                      value={(formData as any)[`payment${num}_utr`]} 
-                      onChange={(e) => handleChange(`payment${num}_utr` as any, e.target.value)} 
-                      className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 text-xs font-mono font-bold outline-none dark:text-slate-100" 
-                    />
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               <div className="space-y-4">

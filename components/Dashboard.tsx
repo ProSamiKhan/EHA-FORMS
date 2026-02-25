@@ -38,6 +38,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, onEdit 
   const masterViewRef = useRef<HTMLDivElement>(null);
 
   const [genderViewType, setGenderViewType] = useState<'confirm' | 'total'>('confirm');
+  const [dashboardSearchQuery, setDashboardSearchQuery] = useState('');
+  const [masterViewSearchQuery, setMasterViewSearchQuery] = useState('');
 
   const handleDownload = async () => {
     if (!modalRef.current) return;
@@ -286,6 +288,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, onEdit 
   const [filterCity, setFilterCity] = useState<string | null>(null);
   const [filterDate, setFilterDate] = useState<string | null>(null);
   const [filterPaymentStatus, setFilterPaymentStatus] = useState<string | null>(null);
+  const [filterPaymentMethod, setFilterPaymentMethod] = useState<'cash' | 'account' | null>(null);
   const [filterAdmissionStatus, setFilterAdmissionStatus] = useState<string | null>(null);
   const [sortConfig, setSortConfig] = useState<{ key: keyof RegistrationData; direction: 'asc' | 'desc' } | null>(null);
 
@@ -363,6 +366,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, onEdit 
         }
       }
 
+      if (dashboardSearchQuery) {
+        const query = dashboardSearchQuery.toLowerCase();
+        const nameMatch = (d.name || '').toLowerCase().includes(query);
+        const idMatch = (d.admission_id || '').toLowerCase().includes(query);
+        const cityMatch = (d.city || '').toLowerCase().includes(query);
+        const contactMatch = (d.contact_no || '').toLowerCase().includes(query);
+        if (!nameMatch && !idMatch && !cityMatch && !contactMatch) return false;
+      }
+
       if (filterPaymentStatus) {
         let studentTotal = 0;
         for (let i = 1; i <= 10; i++) {
@@ -383,14 +395,39 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, onEdit 
         }
       }
 
+      if (filterPaymentMethod) {
+        let hasMethod = false;
+        for (let i = 1; i <= 10; i++) {
+          const amt = parseFloat(String((d as any)[`payment${i}_amount`]).replace(/[^0-9.]/g, '')) || 0;
+          const method = (d as any)[`payment${i}_method`] || 'account';
+          if (amt > 0 && method === filterPaymentMethod) {
+            hasMethod = true;
+            break;
+          }
+        }
+        if (!hasMethod) return false;
+      }
+
       return true;
     });
   };
 
-  const filteredData = useMemo(() => getFilteredData(timeRange), [allSyncedData, timeRange, customStart, customEnd, filterGender, filterState, filterCity, filterDate, filterPaymentStatus, filterAdmissionStatus]);
+  const filteredData = useMemo(() => getFilteredData(timeRange), [allSyncedData, timeRange, customStart, customEnd, filterGender, filterState, filterCity, filterDate, filterPaymentStatus, filterAdmissionStatus, dashboardSearchQuery, filterPaymentMethod]);
 
   const sortedMasterData = useMemo(() => {
     let sortableData = [...filteredData];
+    
+    // Apply Master View Search if open
+    if (isMasterViewOpen && masterViewSearchQuery) {
+      const query = masterViewSearchQuery.toLowerCase();
+      sortableData = sortableData.filter(d => 
+        (d.name || '').toLowerCase().includes(query) ||
+        (d.admission_id || '').toLowerCase().includes(query) ||
+        (d.city || '').toLowerCase().includes(query) ||
+        (d.contact_no || '').toLowerCase().includes(query)
+      );
+    }
+
     if (sortConfig !== null) {
       sortableData.sort((a, b) => {
         const aValue = String(a[sortConfig.key] || '').toLowerCase();
@@ -405,7 +442,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, onEdit 
       });
     }
     return sortableData;
-  }, [filteredData, sortConfig]);
+  }, [filteredData, sortConfig, isMasterViewOpen, masterViewSearchQuery]);
 
   const getChartData = (data: RegistrationData[], range: TimeRange) => {
     const dailyMap: Record<string, number> = {};
@@ -442,6 +479,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, onEdit 
     const genderMapConfirm: Record<string, number> = {};
     const genderMapTotal: Record<string, number> = {};
     let revenue = 0;
+    let cashRevenue = 0;
+    let accountRevenue = 0;
     let cancelledCount = 0;
     let pendingCount = 0;
     let fullyPaid = 0;
@@ -470,7 +509,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, onEdit 
       
       let studentTotal = 0;
       for (let i = 1; i <= 10; i++) {
-        studentTotal += parseFloat(String((d as any)[`payment${i}_amount`]).replace(/[^0-9.]/g, '')) || 0;
+        const amt = parseFloat(String((d as any)[`payment${i}_amount`]).replace(/[^0-9.]/g, '')) || 0;
+        const method = (d as any)[`payment${i}_method`] || 'account';
+        studentTotal += amt;
+        if (method === 'cash') {
+          cashRevenue += amt;
+        } else {
+          accountRevenue += amt;
+        }
       }
       revenue += studentTotal;
 
@@ -484,7 +530,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, onEdit 
       else if (studentTotal >= target) fullyPaid++;
       else if (studentTotal > 0) partialPaid++;
     });
-    return { total, genderMapConfirm, genderMapTotal, revenue, cancelledCount, pendingCount, fullyPaid, partialPaid, discountCount, freeCount };
+    return { total, genderMapConfirm, genderMapTotal, revenue, cashRevenue, accountRevenue, cancelledCount, pendingCount, fullyPaid, partialPaid, discountCount, freeCount };
   };
 
   const globalStats = useMemo(() => getStats(filteredData), [filteredData]);
@@ -545,10 +591,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, onEdit 
     setFilterCity(null);
     setFilterDate(null);
     setFilterPaymentStatus(null);
+    setFilterPaymentMethod(null);
     setFilterAdmissionStatus(null);
   };
 
-  const isFiltered = timeRange !== 'lifetime' || filterGender || filterState || filterCity || filterDate || filterPaymentStatus || filterAdmissionStatus;
+  const isFiltered = timeRange !== 'lifetime' || filterGender || filterState || filterCity || filterDate || filterPaymentStatus || filterAdmissionStatus || filterPaymentMethod;
 
   const formatDateClean = (dateStr: string) => {
     if (!dateStr) return '—';
@@ -582,6 +629,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, onEdit 
             </div>
           </div>
           <div className="flex items-center gap-2 ml-auto sm:ml-0">
+            <div className="relative group">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <svg className="h-3 w-3 text-slate-400 group-focus-within:text-indigo-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+              </div>
+              <input 
+                type="text" 
+                placeholder="Search Analytics..."
+                value={dashboardSearchQuery}
+                onChange={(e) => setDashboardSearchQuery(e.target.value)}
+                className="block w-full sm:w-48 pl-8 pr-3 py-2 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl text-[10px] font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-sm dark:text-slate-100 dark:placeholder-slate-600"
+              />
+            </div>
             {isFiltered && (
               <button 
                 onClick={clearAllFilters}
@@ -652,6 +711,24 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, onEdit 
           <div className="bg-white dark:bg-slate-900 p-6 md:p-8 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm transition-colors">
             <h3 className="text-slate-400 dark:text-slate-500 text-[10px] font-black uppercase tracking-widest mb-1 transition-colors">Total Revenue</h3>
             <p className="text-2xl md:text-3xl font-black text-slate-900 dark:text-slate-100 tracking-tight transition-colors">₹{globalStats.revenue.toLocaleString()}</p>
+            
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <div 
+                onClick={() => setFilterPaymentMethod(filterPaymentMethod === 'cash' ? null : 'cash')}
+                className={`p-2 rounded-xl border cursor-pointer transition-all ${filterPaymentMethod === 'cash' ? 'bg-emerald-600 border-emerald-500' : 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-100 dark:border-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/20'}`}
+              >
+                <p className={`text-[8px] font-black uppercase tracking-widest mb-0.5 ${filterPaymentMethod === 'cash' ? 'text-emerald-100' : 'text-emerald-600 dark:text-emerald-400'}`}>Cash</p>
+                <p className={`text-xs font-black ${filterPaymentMethod === 'cash' ? 'text-white' : 'text-emerald-700 dark:text-emerald-300'}`}>₹{globalStats.cashRevenue.toLocaleString()}</p>
+              </div>
+              <div 
+                onClick={() => setFilterPaymentMethod(filterPaymentMethod === 'account' ? null : 'account')}
+                className={`p-2 rounded-xl border cursor-pointer transition-all ${filterPaymentMethod === 'account' ? 'bg-indigo-600 border-indigo-500' : 'bg-indigo-50 dark:bg-indigo-900/10 border-indigo-100 dark:border-indigo-900/20 hover:bg-indigo-100 dark:hover:bg-indigo-900/20'}`}
+              >
+                <p className={`text-[8px] font-black uppercase tracking-widest mb-0.5 ${filterPaymentMethod === 'account' ? 'text-indigo-100' : 'text-indigo-600 dark:text-indigo-400'}`}>EHA Account</p>
+                <p className={`text-xs font-black ${filterPaymentMethod === 'account' ? 'text-white' : 'text-indigo-700 dark:text-indigo-300'}`}>₹{globalStats.accountRevenue.toLocaleString()}</p>
+              </div>
+            </div>
+
             <div className="mt-6 pt-6 border-t border-slate-50 dark:border-slate-800 flex items-center justify-between transition-colors">
               <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Growth Index</span>
               <div className="w-8 h-8 rounded-lg bg-green-50 dark:bg-green-900/20 flex items-center justify-center text-green-600">
@@ -901,11 +978,23 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, onEdit 
       {/* DATA TABLE */}
       <div className="bg-white dark:bg-slate-900 rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden flex flex-col min-h-[500px] transition-colors">
           <div className="px-4 md:px-8 py-6 border-b border-slate-50 dark:border-slate-800/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-50/50 dark:bg-slate-800/20 transition-colors">
-              <div className="flex items-center gap-4 w-full sm:w-auto">
-                <h3 className="text-[10px] font-black text-slate-900 dark:text-slate-100 uppercase tracking-widest transition-colors">Master Cloud Records</h3>
+              <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
+                <h3 className="text-[10px] font-black text-slate-900 dark:text-white uppercase tracking-widest transition-colors">Master Cloud Records</h3>
+                <div className="relative group w-full sm:w-64">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <svg className="h-3 w-3 text-slate-400 group-focus-within:text-indigo-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                  </div>
+                  <input 
+                    type="text" 
+                    placeholder="Search records..."
+                    value={dashboardSearchQuery}
+                    onChange={(e) => setDashboardSearchQuery(e.target.value)}
+                    className="block w-full pl-8 pr-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-[10px] font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-sm dark:text-slate-100 dark:placeholder-slate-600"
+                  />
+                </div>
                 <button 
                   onClick={() => setIsMasterViewOpen(true)}
-                  className="flex items-center gap-2 bg-indigo-600 text-white px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-indigo-700 active:scale-95 transition-all shadow-sm ml-auto sm:ml-0"
+                  className="flex items-center gap-2 bg-indigo-600 text-white px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-indigo-700 active:scale-95 transition-all shadow-sm"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
                   Master View
@@ -1091,16 +1180,25 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, onEdit 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => {
                             const amt = (viewingRecord as any)[`payment${num}_amount`];
+                            const method = (viewingRecord as any)[`payment${num}_method`] || 'account';
                             if (!amt || amt === '0') return null;
                             return (
                               <div key={num} className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800 flex justify-between items-center">
                                 <div>
-                                  <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Installment {num}</p>
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Installment {num}</p>
+                                    <span className={`px-1.5 py-0.5 text-[7px] font-black uppercase rounded ${method === 'cash' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400'}`}>
+                                      {method}
+                                    </span>
+                                  </div>
                                   <p className="text-sm font-black text-slate-900 dark:text-white">₹{amt}</p>
                                 </div>
                                 <div className="text-right">
                                   <p className="text-[9px] font-bold text-slate-500">{formatDateClean((viewingRecord as any)[`payment${num}_date`] || '')}</p>
-                                  <p className="text-[8px] font-mono text-indigo-500 font-bold">{(viewingRecord as any)[`payment${num}_utr`]}</p>
+                                  <p className="text-[8px] font-mono text-indigo-500 font-bold">
+                                    <span className="text-slate-400 mr-1">{method === 'cash' ? 'BY:' : 'UTR:'}</span>
+                                    {(viewingRecord as any)[`payment${num}_utr`]}
+                                  </p>
                                 </div>
                               </div>
                             );
@@ -1167,17 +1265,32 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, onEdit 
         <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 md:p-8 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
           <div className="bg-white dark:bg-slate-900 w-full max-w-6xl h-full max-h-[90vh] rounded-[40px] shadow-2xl flex flex-col overflow-hidden border border-white/20">
             {/* Header */}
-            <div className="p-6 border-b border-slate-50 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/20">
+            <div className="p-6 border-b border-slate-50 dark:border-slate-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-50/50 dark:bg-slate-800/20">
               <div>
                 <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest">Master View</h3>
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Filtered Records: {sortedMasterData.length}</p>
               </div>
-              <button 
-                onClick={() => setIsMasterViewOpen(false)}
-                className="w-10 h-10 rounded-full bg-white dark:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-red-500 transition-colors shadow-sm"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-              </button>
+              
+              <div className="flex items-center gap-3 w-full sm:w-auto">
+                <div className="relative group flex-1 sm:flex-none">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <svg className="h-3 w-3 text-slate-400 group-focus-within:text-indigo-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                  </div>
+                  <input 
+                    type="text" 
+                    placeholder="Search in Master View..."
+                    value={masterViewSearchQuery}
+                    onChange={(e) => setMasterViewSearchQuery(e.target.value)}
+                    className="block w-full sm:w-64 pl-8 pr-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-[10px] font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-sm dark:text-slate-100 dark:placeholder-slate-600"
+                  />
+                </div>
+                <button 
+                  onClick={() => setIsMasterViewOpen(false)}
+                  className="w-10 h-10 rounded-full bg-white dark:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-red-500 transition-colors shadow-sm shrink-0"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </button>
+              </div>
             </div>
 
             {/* Content Area */}

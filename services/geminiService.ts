@@ -23,16 +23,17 @@ The user is uploading images of a specific registration form. You must identify 
    - state
    - payment1_amount (Initial payment)
    - payment1_date (Format: DD/MM/YYYY)
-   - payment1_utr (Transaction ID)
-   - payment2_amount, payment2_date, payment2_utr
-   - payment3_amount, payment3_date, payment3_utr
-   - payment4_amount, payment4_date, payment4_utr
-   - payment5_amount, payment5_date, payment5_utr
-   - payment6_amount, payment6_date, payment6_utr
-   - payment7_amount, payment7_date, payment7_utr
-   - payment8_amount, payment8_date, payment8_utr
-   - payment9_amount, payment9_date, payment9_utr
-   - payment10_amount, payment10_date, payment10_utr
+   - payment1_utr (Transaction ID or "Received By" name if cash)
+   - payment1_method ("cash" or "account")
+   - payment2_amount, payment2_date, payment2_utr, payment2_method
+   - payment3_amount, payment3_date, payment3_utr, payment3_method
+   - payment4_amount, payment4_date, payment4_utr, payment4_method
+   - payment5_amount, payment5_date, payment5_utr, payment5_method
+   - payment6_amount, payment6_date, payment6_utr, payment6_method
+   - payment7_amount, payment7_date, payment7_utr, payment7_method
+   - payment8_amount, payment8_date, payment8_utr, payment8_method
+   - payment9_amount, payment9_date, payment9_utr, payment9_method
+   - payment10_amount, payment10_date, payment10_utr, payment10_method
    - received_ac (Account details)
    - discount
    - remaining_amount
@@ -83,33 +84,43 @@ export const processRegistrationForm = async (base64Image: string): Promise<Regi
             payment1_amount: { type: Type.STRING },
             payment1_date: { type: Type.STRING },
             payment1_utr: { type: Type.STRING },
+            payment1_method: { type: Type.STRING, description: "cash or account" },
             payment2_amount: { type: Type.STRING },
             payment2_date: { type: Type.STRING },
             payment2_utr: { type: Type.STRING },
+            payment2_method: { type: Type.STRING, description: "cash or account" },
             payment3_amount: { type: Type.STRING },
             payment3_date: { type: Type.STRING },
             payment3_utr: { type: Type.STRING },
+            payment3_method: { type: Type.STRING, description: "cash or account" },
             payment4_amount: { type: Type.STRING },
             payment4_date: { type: Type.STRING },
             payment4_utr: { type: Type.STRING },
+            payment4_method: { type: Type.STRING, description: "cash or account" },
             payment5_amount: { type: Type.STRING },
             payment5_date: { type: Type.STRING },
             payment5_utr: { type: Type.STRING },
+            payment5_method: { type: Type.STRING, description: "cash or account" },
             payment6_amount: { type: Type.STRING },
             payment6_date: { type: Type.STRING },
             payment6_utr: { type: Type.STRING },
+            payment6_method: { type: Type.STRING, description: "cash or account" },
             payment7_amount: { type: Type.STRING },
             payment7_date: { type: Type.STRING },
             payment7_utr: { type: Type.STRING },
+            payment7_method: { type: Type.STRING, description: "cash or account" },
             payment8_amount: { type: Type.STRING },
             payment8_date: { type: Type.STRING },
             payment8_utr: { type: Type.STRING },
+            payment8_method: { type: Type.STRING, description: "cash or account" },
             payment9_amount: { type: Type.STRING },
             payment9_date: { type: Type.STRING },
             payment9_utr: { type: Type.STRING },
+            payment9_method: { type: Type.STRING, description: "cash or account" },
             payment10_amount: { type: Type.STRING },
             payment10_date: { type: Type.STRING },
             payment10_utr: { type: Type.STRING },
+            payment10_method: { type: Type.STRING, description: "cash or account" },
             received_ac: { type: Type.STRING },
             discount: { type: Type.STRING },
             remaining_amount: { type: Type.STRING },
