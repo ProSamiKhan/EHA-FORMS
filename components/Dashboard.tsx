@@ -1,6 +1,6 @@
 
 import React, { useMemo, useEffect, useState, useRef } from 'react';
-import { ProcessingRecord, RegistrationData } from '../types';
+import { ProcessingRecord, RegistrationData, UserRole } from '../types';
 import { fetchAllRegistrations } from '../services/sheetService';
 import html2canvas from 'html2canvas';
 import { 
@@ -16,6 +16,7 @@ type TimeRange = 'today' | 'yesterday' | 'week' | 'month' | 'year' | 'lifetime' 
 
 interface DashboardProps {
   records: ProcessingRecord[];
+  userRole: UserRole | null;
   onEdit?: (record: RegistrationData) => void;
 }
 
@@ -26,7 +27,7 @@ const DetailRow = ({ label, value, fullWidth = false }: { label: string, value: 
   </div>
 );
 
-export const Dashboard: React.FC<DashboardProps> = ({ records, onEdit }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, onEdit }) => {
   const [remoteData, setRemoteData] = useState<RegistrationData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -647,16 +648,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, onEdit }) => {
           </p>
         </div>
 
-        <div className="bg-white dark:bg-slate-900 p-6 md:p-8 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm transition-colors">
-          <h3 className="text-slate-400 dark:text-slate-500 text-[10px] font-black uppercase tracking-widest mb-1 transition-colors">Total Revenue</h3>
-          <p className="text-2xl md:text-3xl font-black text-slate-900 dark:text-slate-100 tracking-tight transition-colors">₹{globalStats.revenue.toLocaleString()}</p>
-          <div className="mt-6 pt-6 border-t border-slate-50 dark:border-slate-800 flex items-center justify-between transition-colors">
-            <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Growth Index</span>
-            <div className="w-8 h-8 rounded-lg bg-green-50 dark:bg-green-900/20 flex items-center justify-center text-green-600">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+        {userRole === 'super_admin' && (
+          <div className="bg-white dark:bg-slate-900 p-6 md:p-8 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm transition-colors">
+            <h3 className="text-slate-400 dark:text-slate-500 text-[10px] font-black uppercase tracking-widest mb-1 transition-colors">Total Revenue</h3>
+            <p className="text-2xl md:text-3xl font-black text-slate-900 dark:text-slate-100 tracking-tight transition-colors">₹{globalStats.revenue.toLocaleString()}</p>
+            <div className="mt-6 pt-6 border-t border-slate-50 dark:border-slate-800 flex items-center justify-between transition-colors">
+              <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Growth Index</span>
+              <div className="w-8 h-8 rounded-lg bg-green-50 dark:bg-green-900/20 flex items-center justify-center text-green-600">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         <div className="bg-white dark:bg-slate-900 p-6 md:p-8 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm transition-colors">
           <h3 className="text-slate-400 dark:text-slate-500 text-[10px] font-black uppercase tracking-widest mb-4 transition-colors">Payment Status</h3>
@@ -730,7 +733,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, onEdit }) => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="bg-white dark:bg-slate-900 p-6 md:p-8 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm transition-colors flex flex-col lg:col-span-1">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-slate-400 dark:text-slate-500 text-[10px] font-black uppercase tracking-widest transition-colors">Gender Distribution</h3>
+            <h3 className="text-slate-400 dark:text-slate-500 text-[10px] font-black uppercase tracking-widest transition-colors">Gender Comparison</h3>
             <div className="flex items-center gap-1 bg-slate-50 dark:bg-slate-800 p-1 rounded-lg">
               <button 
                 onClick={() => setGenderViewType('confirm')}
@@ -745,51 +748,53 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, onEdit }) => {
                 Total
               </button>
             </div>
-            {filterGender && (
-              <button onClick={() => setFilterGender(null)} className="text-[8px] font-black text-indigo-600 uppercase tracking-widest hover:underline ml-2">Reset</button>
-            )}
           </div>
-          <div className="flex-1 flex items-center justify-center min-h-[150px]">
-            <ResponsiveContainer width="100%" height={180}>
-              <PieChart>
-                <Pie
-                  data={genderPieData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={50}
-                  outerRadius={70}
-                  paddingAngle={5}
-                  dataKey="value"
-                  label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
+          <div className="flex-1 flex items-center justify-center min-h-[180px]">
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={genderPieData} layout="vertical" margin={{ left: 0, right: 30, top: 10, bottom: 10 }}>
+                <XAxis type="number" hide />
+                <YAxis 
+                  dataKey="name" 
+                  type="category" 
+                  axisLine={false} 
+                  tickLine={false} 
+                  width={60}
+                  tick={{ fontSize: 10, fontWeight: 800, fill: '#64748b' }}
+                />
+                <Tooltip 
+                  cursor={{ fill: 'transparent' }}
+                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontSize: '10px', fontWeight: 'bold' }}
+                />
+                <Bar 
+                  dataKey="value" 
+                  radius={[0, 10, 10, 0]} 
+                  barSize={24}
                   onClick={(data) => {
                     if (data && data.name) {
                       const name = String(data.name);
                       setFilterGender(filterGender === name ? null : name);
                     }
                   }}
-                  cursor="pointer"
                 >
                   {genderPieData.map((entry, index) => (
                     <Cell 
                       key={`cell-${index}`} 
-                      fill={COLORS[index % COLORS.length]} 
-                      stroke={filterGender === entry.name ? '#000' : 'none'}
-                      strokeWidth={2}
+                      fill={entry.name.toLowerCase() === 'male' ? '#4f46e5' : entry.name.toLowerCase() === 'female' ? '#ec4899' : '#94a3b8'} 
                       opacity={filterGender && filterGender !== entry.name ? 0.3 : 1}
                     />
                   ))}
-                </Pie>
-                <Tooltip 
-                  contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontSize: '10px', fontWeight: 'bold' }}
-                />
-              </PieChart>
+                </Bar>
+              </BarChart>
             </ResponsiveContainer>
           </div>
-          <div className="mt-4 grid grid-cols-2 gap-2">
+          <div className="mt-4 space-y-2">
             {genderPieData.map((entry, index) => (
-              <div key={entry.name} className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }}></div>
-                <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">{entry.name}: {entry.value}</span>
+              <div key={entry.name} className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.name.toLowerCase() === 'male' ? '#4f46e5' : entry.name.toLowerCase() === 'female' ? '#ec4899' : '#94a3b8' }}></div>
+                  <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">{entry.name}</span>
+                </div>
+                <span className="text-[10px] font-black text-slate-800 dark:text-slate-200">{entry.value}</span>
               </div>
             ))}
           </div>

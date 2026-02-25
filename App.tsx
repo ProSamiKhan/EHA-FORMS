@@ -367,6 +367,7 @@ const App: React.FC = () => {
         {activeTab === 'dashboard' ? (
           <Dashboard 
             records={records} 
+            userRole={userRole}
             onEdit={(data) => {
               setEditingRecord(data);
               setIsManualModalOpen(true);
