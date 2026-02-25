@@ -36,6 +36,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, onEdit }) => {
   const modalRef = useRef<HTMLDivElement>(null);
   const masterViewRef = useRef<HTMLDivElement>(null);
 
+  const [genderViewType, setGenderViewType] = useState<'confirm' | 'total'>('confirm');
+
   const handleDownload = async () => {
     if (!modalRef.current) return;
     try {
@@ -436,7 +438,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, onEdit }) => {
 
   const getStats = (data: RegistrationData[]) => {
     const total = data.length;
-    const genderMap: Record<string, number> = {};
+    const genderMapConfirm: Record<string, number> = {};
+    const genderMapTotal: Record<string, number> = {};
     let revenue = 0;
     let cancelledCount = 0;
     let pendingCount = 0;
@@ -447,6 +450,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, onEdit }) => {
 
     data.forEach(d => {
       const status = (d.status || 'confirm').toLowerCase();
+      const g = (d.gender || 'Other').trim().toLowerCase();
+      
+      // Always add to total map
+      genderMapTotal[g] = (genderMapTotal[g] || 0) + 1;
+
       if (status === 'cancelled') {
         cancelledCount++;
         return;
@@ -456,8 +464,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, onEdit }) => {
         return;
       }
       
-      const g = (d.gender || 'Other').trim().toLowerCase();
-      genderMap[g] = (genderMap[g] || 0) + 1;
+      // Only add to confirm map if not cancelled/pending
+      genderMapConfirm[g] = (genderMapConfirm[g] || 0) + 1;
+      
       let studentTotal = 0;
       for (let i = 1; i <= 10; i++) {
         studentTotal += parseFloat(String((d as any)[`payment${i}_amount`]).replace(/[^0-9.]/g, '')) || 0;
@@ -474,18 +483,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, onEdit }) => {
       else if (studentTotal >= target) fullyPaid++;
       else if (studentTotal > 0) partialPaid++;
     });
-    return { total, genderMap, revenue, cancelledCount, pendingCount, fullyPaid, partialPaid, discountCount, freeCount };
+    return { total, genderMapConfirm, genderMapTotal, revenue, cancelledCount, pendingCount, fullyPaid, partialPaid, discountCount, freeCount };
   };
 
   const globalStats = useMemo(() => getStats(filteredData), [filteredData]);
   const lifetimeStats = useMemo(() => getStats(allSyncedData), [allSyncedData]);
 
   const genderPieData = useMemo(() => {
-    return Object.entries(globalStats.genderMap).map(([name, value]) => ({
+    const map = genderViewType === 'confirm' ? globalStats.genderMapConfirm : globalStats.genderMapTotal;
+    return Object.entries(map).map(([name, value]) => ({
       name: name.charAt(0).toUpperCase() + name.slice(1),
       value
     }));
-  }, [globalStats]);
+  }, [globalStats, genderViewType]);
 
   const stateDistribution = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -707,8 +717,22 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, onEdit }) => {
         <div className="bg-white dark:bg-slate-900 p-6 md:p-8 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm transition-colors flex flex-col lg:col-span-1">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-slate-400 dark:text-slate-500 text-[10px] font-black uppercase tracking-widest transition-colors">Gender Distribution</h3>
+            <div className="flex items-center gap-1 bg-slate-50 dark:bg-slate-800 p-1 rounded-lg">
+              <button 
+                onClick={() => setGenderViewType('confirm')}
+                className={`px-2 py-1 text-[8px] font-black uppercase rounded-md transition-all ${genderViewType === 'confirm' ? 'bg-white dark:bg-slate-700 text-indigo-600 shadow-sm' : 'text-slate-400'}`}
+              >
+                Confirm
+              </button>
+              <button 
+                onClick={() => setGenderViewType('total')}
+                className={`px-2 py-1 text-[8px] font-black uppercase rounded-md transition-all ${genderViewType === 'total' ? 'bg-white dark:bg-slate-700 text-indigo-600 shadow-sm' : 'text-slate-400'}`}
+              >
+                Total
+              </button>
+            </div>
             {filterGender && (
-              <button onClick={() => setFilterGender(null)} className="text-[8px] font-black text-indigo-600 uppercase tracking-widest hover:underline">Reset</button>
+              <button onClick={() => setFilterGender(null)} className="text-[8px] font-black text-indigo-600 uppercase tracking-widest hover:underline ml-2">Reset</button>
             )}
           </div>
           <div className="flex-1 flex items-center justify-center min-h-[150px]">
@@ -1020,7 +1044,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, onEdit }) => {
                         </div>
                         <div className="text-left md:text-right">
                           <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Registration Date</p>
-                          <p className="text-base md:text-lg font-bold text-slate-800 dark:text-slate-200">{viewingRecord.payment1_date}</p>
+                          <p className="text-base md:text-lg font-bold text-slate-800 dark:text-slate-200">{formatDateClean(viewingRecord.payment1_date)}</p>
                         </div>
                       </div>
 
@@ -1056,7 +1080,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, onEdit }) => {
                                   <p className="text-sm font-black text-slate-900 dark:text-white">₹{amt}</p>
                                 </div>
                                 <div className="text-right">
-                                  <p className="text-[9px] font-bold text-slate-500">{(viewingRecord as any)[`payment${num}_date`]}</p>
+                                  <p className="text-[9px] font-bold text-slate-500">{formatDateClean((viewingRecord as any)[`payment${num}_date` text-slate-500])}</p>
                                   <p className="text-[8px] font-mono text-indigo-500 font-bold">{(viewingRecord as any)[`payment${num}_utr`]}</p>
                                 </div>
                               </div>
