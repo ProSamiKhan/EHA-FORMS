@@ -5,12 +5,14 @@ export interface AppConfig {
   appName: string;
   appSubtitle: string;
   logoUrl: string;
+  adminEmail?: string;
 }
 
 export interface UserAccount {
   username: string;
   password: string;
   role: UserRole;
+  email?: string;
 }
 
 export interface RegistrationData {

@@ -25,7 +25,8 @@ const App: React.FC = () => {
   const [config, setConfig] = useState<AppConfig>({
     appName: 'English House Academy',
     appSubtitle: 'Premium Registration Portal',
-    logoUrl: 'https://englishhouseacademy.in/wp-content/uploads/2022/03/187-X-43-px-EHA-LOGO-PNG.png' 
+    logoUrl: 'https://englishhouseacademy.in/wp-content/uploads/2022/03/187-X-43-px-EHA-LOGO-PNG.png',
+    adminEmail: '4tvsami@gmail.com'
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -74,10 +75,10 @@ const App: React.FC = () => {
     }
   }, [isDarkMode]);
 
-  const handleLogin = (role: UserRole) => {
+  const handleLogin = (role: UserRole, username: string) => {
     setUserRole(role);
     setIsLoggedIn(true);
-    sessionStorage.setItem('eha_session_v2', JSON.stringify({ role }));
+    sessionStorage.setItem('eha_session_v2', JSON.stringify({ role, username }));
   };
 
   const updateAppConfig = (newConfig: AppConfig) => {
@@ -372,7 +373,11 @@ const App: React.FC = () => {
             }}
           />
         ) : activeTab === 'settings' && userRole === 'super_admin' ? (
-          <Settings config={config} onUpdate={updateAppConfig} />
+          <Settings 
+            config={config} 
+            onUpdate={updateAppConfig} 
+            currentUsername={sessionStorage.getItem('eha_session_v2') ? JSON.parse(sessionStorage.getItem('eha_session_v2')!).username : 'superadmin'}
+          />
         ) : (
           <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
             {/* SIDEBAR */}

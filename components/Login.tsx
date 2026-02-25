@@ -3,20 +3,25 @@ import React, { useState, useEffect } from 'react';
 import { UserRole, AppConfig, UserAccount } from '../types';
 
 interface LoginProps {
-  onLogin: (role: UserRole) => void;
+  onLogin: (role: UserRole, username: string) => void;
 }
 
 export const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [showForgotModal, setShowForgotModal] = useState(false);
+  const [recoveryEmail, setRecoveryEmail] = useState('');
+  const [recoveryStatus, setRecoveryStatus] = useState<{type: 'success' | 'error', message: string} | null>(null);
+
   const [isDarkMode, setIsDarkMode] = useState(() => {
     return localStorage.getItem('eha_theme') === 'dark';
   });
   const [config, setConfig] = useState<AppConfig>({
     appName: 'English House Academy',
     appSubtitle: 'Premium Registration Portal',
-    logoUrl: 'https://englishhouseacademy.in/wp-content/uploads/2022/03/187-X-43-px-EHA-LOGO-PNG.png'
+    logoUrl: 'https://englishhouseacademy.in/wp-content/uploads/2022/03/187-X-43-px-EHA-LOGO-PNG.png',
+    adminEmail: '4tvsami@gmail.com'
   });
 
   useEffect(() => {
@@ -45,18 +50,56 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
       users = JSON.parse(savedUsers);
     }
 
-    // Always allow fallback superadmin for initial setup
-    if (username === 'superadmin' && password === 'superadmin') {
-      onLogin('super_admin');
-      return;
+    // Check for custom superadmin password first
+    const customSuperAdmin = users.find(u => u.username === 'superadmin');
+    if (customSuperAdmin) {
+      if (username === 'superadmin' && password === customSuperAdmin.password) {
+        onLogin('super_admin', 'superadmin');
+        return;
+      }
+    } else {
+      // Fallback superadmin
+      if (username === 'superadmin' && password === 'superadmin') {
+        onLogin('super_admin', 'superadmin');
+        return;
+      }
     }
 
     const foundUser = users.find(u => u.username === username && u.password === password);
     
     if (foundUser) {
-      onLogin(foundUser.role);
+      onLogin(foundUser.role, foundUser.username);
     } else {
       setError('Invalid credentials. Please try again or contact administrator.');
+    }
+  };
+
+  const handleForgotPassword = (e: React.FormEvent) => {
+    e.preventDefault();
+    setRecoveryStatus(null);
+
+    if (recoveryEmail.toLowerCase() === (config.adminEmail || '4tvsami@gmail.com').toLowerCase()) {
+      // Reset superadmin password to default
+      const savedUsers = localStorage.getItem('eha_users');
+      let users: UserAccount[] = savedUsers ? JSON.parse(savedUsers) : [];
+      
+      const adminIndex = users.findIndex(u => u.username === 'superadmin');
+      if (adminIndex > -1) {
+        users[adminIndex].password = 'superadmin';
+      } else {
+        users.push({ username: 'superadmin', password: 'superadmin', role: 'super_admin' });
+      }
+      
+      localStorage.setItem('eha_users', JSON.stringify(users));
+      setRecoveryStatus({
+        type: 'success',
+        message: 'Password for "superadmin" has been reset to "superadmin". Please login and change it immediately.'
+      });
+    } else {
+      setRecoveryStatus({
+        type: 'error',
+        message: 'Recovery email not recognized. Please contact system owner.'
+      });
     }
   };
 
@@ -105,7 +148,16 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
             />
           </div>
           <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest ml-1 transition-colors">Password</label>
+            <div className="flex justify-between items-center px-1">
+              <label className="text-[10px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest transition-colors">Password</label>
+              <button 
+                type="button"
+                onClick={() => setShowForgotModal(true)}
+                className="text-[9px] font-black text-indigo-500 uppercase tracking-widest hover:text-indigo-700 transition-colors"
+              >
+                Forgot?
+              </button>
+            </div>
             <input
               type="password"
               value={password}
@@ -132,6 +184,51 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
            </p>
         </div>
       </div>
+
+      {/* FORGOT PASSWORD MODAL */}
+      {showForgotModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-[32px] p-8 shadow-2xl border border-slate-100 dark:border-slate-800 animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-lg font-black text-slate-900 dark:text-slate-100">Reset Access</h2>
+              <button onClick={() => { setShowForgotModal(false); setRecoveryStatus(null); }} className="text-slate-400 hover:text-red-500 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-6 font-medium leading-relaxed">
+              Enter the recovery email associated with the administrator account to reset the "superadmin" password.
+            </p>
+
+            <form onSubmit={handleForgotPassword} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest ml-1">Recovery Email</label>
+                <input
+                  type="email"
+                  value={recoveryEmail}
+                  onChange={(e) => setRecoveryEmail(e.target.value)}
+                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500 dark:text-slate-100"
+                  placeholder="name@example.com"
+                  required
+                />
+              </div>
+
+              {recoveryStatus && (
+                <div className={`p-3 rounded-xl text-[10px] font-bold ${recoveryStatus.type === 'success' ? 'bg-green-50 text-green-600 border border-green-100' : 'bg-red-50 text-red-600 border border-red-100'}`}>
+                  {recoveryStatus.message}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                className="w-full py-3 bg-slate-900 dark:bg-indigo-600 text-white rounded-xl font-bold text-xs hover:bg-slate-800 transition-all"
+              >
+                Verify & Reset
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
