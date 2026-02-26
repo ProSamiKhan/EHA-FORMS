@@ -1166,7 +1166,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, onEdit 
                         <DetailRow label="WhatsApp Number" value={viewingRecord.whatsapp_no} />
                         <DetailRow label="State / UT" value={viewingRecord.state} />
                         <DetailRow label="City" value={viewingRecord.city} />
-                        <DetailRow label="Account Received In" value={viewingRecord.received_ac} />
                         <DetailRow label="Discount Applied" value={`₹${viewingRecord.discount}`} />
                       </div>
                       

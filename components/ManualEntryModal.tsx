@@ -129,16 +129,16 @@ export const ManualEntryModal: React.FC<ManualEntryModalProps> = ({ isOpen, onCl
   const handleChange = (key: keyof RegistrationData, val: string) => {
     setError('');
     if (key.toString().includes('utr')) {
-      const methodKey = key.toString().replace('utr', 'method') as keyof RegistrationData;
-      const method = (formData as any)[methodKey] || 'account';
-      
-      if (method === 'account') {
-        const numeric = val.replace(/[^0-9]/g, '').slice(0, 12);
-        setFormData(prev => ({ ...prev, [key]: numeric }));
-      } else {
-        // For cash, it's "Received By" - allow text
-        setFormData(prev => ({ ...prev, [key]: val }));
-      }
+      setFormData(prev => {
+        const methodKey = key.toString().replace('utr', 'method') as keyof RegistrationData;
+        const method = (prev as any)[methodKey] || 'account';
+        
+        let finalVal = val;
+        if (method === 'account') {
+          finalVal = val.replace(/[^0-9]/g, '').slice(0, 12);
+        }
+        return { ...prev, [key]: finalVal };
+      });
       return;
     }
     
