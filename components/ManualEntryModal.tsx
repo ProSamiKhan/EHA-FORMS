@@ -96,8 +96,12 @@ export const ManualEntryModal: React.FC<ManualEntryModalProps> = ({ isOpen, onCl
         const method = (inferred as any)[`payment${i}_method`];
         if (!method && utr) {
           const utrStr = String(utr).trim();
-          if (utrStr && !/^\d{12}$/.test(utrStr)) {
-            (inferred as any)[`payment${i}_method`] = 'cash';
+          if (utrStr) {
+            if (/^\d{12}$/.test(utrStr)) {
+              (inferred as any)[`payment${i}_method`] = 'account';
+            } else {
+              (inferred as any)[`payment${i}_method`] = 'cash';
+            }
           }
         }
       }

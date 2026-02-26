@@ -227,6 +227,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, onEdit 
         payment10_amount: String(row['payment10_amount'] || row['payment 10 amount'] || '0'),
         payment10_date: String(row['payment10_date'] || row['payment 10 date'] || ''),
         payment10_utr: String(row['payment10_utr'] || row['payment 10 utr'] || ''),
+        payment1_method: (row['payment1_method'] || row['payment 1 method'] || '').toLowerCase() as any || undefined,
+        payment2_method: (row['payment2_method'] || row['payment 2 method'] || '').toLowerCase() as any || undefined,
+        payment3_method: (row['payment3_method'] || row['payment 3 method'] || '').toLowerCase() as any || undefined,
+        payment4_method: (row['payment4_method'] || row['payment 4 method'] || '').toLowerCase() as any || undefined,
+        payment5_method: (row['payment5_method'] || row['payment 5 method'] || '').toLowerCase() as any || undefined,
+        payment6_method: (row['payment6_method'] || row['payment 6 method'] || '').toLowerCase() as any || undefined,
+        payment7_method: (row['payment7_method'] || row['payment 7 method'] || '').toLowerCase() as any || undefined,
+        payment8_method: (row['payment8_method'] || row['payment 8 method'] || '').toLowerCase() as any || undefined,
+        payment9_method: (row['payment9_method'] || row['payment 9 method'] || '').toLowerCase() as any || undefined,
+        payment10_method: (row['payment10_method'] || row['payment 10 method'] || '').toLowerCase() as any || undefined,
         received_ac: String(row['received ac'] || row['received_ac'] || ''),
         discount: String(row['discount'] || '0'),
         remaining_amount: String(row['remaining amount'] || row['remaining_amount'] || '0'),
@@ -279,6 +289,63 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, onEdit 
         } catch(e) { return 0; }
     });
   }, [remoteData, records]);
+
+  const [activeFilters, setActiveFilters] = useState<{ key: string; value: string; label: string }[]>([]);
+  const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
+  const [selectedFilterType, setSelectedFilterType] = useState<string | null>(null);
+  const filterMenuRef = useRef<HTMLDivElement>(null);
+
+  const FILTER_CONFIG = [
+    { id: 'status', label: 'Status', options: ['confirm', 'pending', 'cancelled'] },
+    { id: 'gender', label: 'Gender', options: ['male', 'female', 'other'] },
+    { id: 'medium', label: 'Medium', options: ['english', 'hindi', 'urdu'] },
+    { id: 'payment_method', label: 'Payment Method', options: ['cash', 'account'] },
+    { id: 'state', label: 'State', dynamic: true },
+    { id: 'city', label: 'City', dynamic: true },
+  ];
+
+  const dynamicOptions = useMemo(() => {
+    const states = new Set<string>();
+    const cities = new Set<string>();
+    allSyncedData.forEach(d => {
+      if (d.state) states.add(d.state);
+      if (d.city) cities.add(d.city);
+    });
+    return {
+      state: Array.from(states).sort(),
+      city: Array.from(cities).sort()
+    };
+  }, [allSyncedData]);
+
+  const addFilter = (key: string, value: string) => {
+    const config = FILTER_CONFIG.find(c => c.id === key);
+    const label = `${config?.label}: ${value}`;
+    if (!activeFilters.find(f => f.key === key && f.value === value)) {
+      setActiveFilters([...activeFilters, { key, value, label }]);
+    }
+    setIsFilterMenuOpen(false);
+    setSelectedFilterType(null);
+  };
+
+  const removeFilter = (key: string, value: string) => {
+    setActiveFilters(activeFilters.filter(f => !(f.key === key && f.value === value)));
+  };
+
+  const clearFilters = () => {
+    setActiveFilters([]);
+    setDashboardSearchQuery('');
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (filterMenuRef.current && !filterMenuRef.current.contains(event.target as Node)) {
+        setIsFilterMenuOpen(false);
+        setSelectedFilterType(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const [timeRange, setTimeRange] = useState<TimeRange>('lifetime');
   const [customStart, setCustomStart] = useState<string>('');
@@ -348,6 +415,46 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, onEdit 
     }
 
     return baseFiltered.filter(d => {
+      // Apply Active Filters (YouTube Style)
+      for (const filter of activeFilters) {
+        const { key, value } = filter;
+        if (key === 'status') {
+          const s = (d.status || 'confirm').toLowerCase();
+          if (value === 'confirm') {
+            if (s !== 'confirm' && s !== 'active') return false;
+          } else if (s !== value) return false;
+        } else if (key === 'gender') {
+          if ((d.gender || 'Other').trim().toLowerCase() !== value.toLowerCase()) return false;
+        } else if (key === 'medium') {
+          if ((d.medium || '').trim().toLowerCase() !== value.toLowerCase()) return false;
+        } else if (key === 'state') {
+          if ((d.state || '').trim().toLowerCase() !== value.toLowerCase()) return false;
+        } else if (key === 'city') {
+          if ((d.city || '').trim().toLowerCase() !== value.toLowerCase()) return false;
+        } else if (key === 'payment_method') {
+          let hasMethod = false;
+          for (let i = 1; i <= 10; i++) {
+            const amt = parseFloat(String((d as any)[`payment${i}_amount`]).replace(/[^0-9.]/g, '')) || 0;
+            const utr = (d as any)[`payment${i}_utr`];
+            const rawMethod = (d as any)[`payment${i}_method`];
+            
+            let method = rawMethod || 'account';
+            if (!rawMethod && utr) {
+              const utrStr = String(utr).trim();
+              if (utrStr && !/^\d{12}$/.test(utrStr)) {
+                method = 'cash';
+              }
+            }
+            
+            if (amt > 0 && method === value) {
+              hasMethod = true;
+              break;
+            }
+          }
+          if (!hasMethod) return false;
+        }
+      }
+
       if (filterGender && (d.gender || 'Other').trim().toLowerCase() !== filterGender.toLowerCase()) return false;
       if (filterState && (d.state || 'Unknown').trim().toLowerCase() !== filterState.toLowerCase()) return false;
       if (filterCity && (d.city || 'Unknown').trim().toLowerCase() !== filterCity.toLowerCase()) return false;
@@ -412,7 +519,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, onEdit 
     });
   };
 
-  const filteredData = useMemo(() => getFilteredData(timeRange), [allSyncedData, timeRange, customStart, customEnd, filterGender, filterState, filterCity, filterDate, filterPaymentStatus, filterAdmissionStatus, dashboardSearchQuery, filterPaymentMethod]);
+  const filteredData = useMemo(() => getFilteredData(timeRange), [allSyncedData, timeRange, customStart, customEnd, filterGender, filterState, filterCity, filterDate, filterPaymentStatus, filterAdmissionStatus, dashboardSearchQuery, filterPaymentMethod, activeFilters]);
 
   const sortedMasterData = useMemo(() => {
     let sortableData = [...filteredData];
@@ -606,7 +713,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, onEdit 
     setFilterAdmissionStatus(null);
   };
 
-  const isFiltered = timeRange !== 'lifetime' || filterGender || filterState || filterCity || filterDate || filterPaymentStatus || filterAdmissionStatus || filterPaymentMethod;
+  const isFiltered = timeRange !== 'lifetime' || filterGender || filterState || filterCity || filterDate || filterPaymentStatus || filterAdmissionStatus || filterPaymentMethod || activeFilters.length > 0;
 
   const formatDateClean = (dateStr: string) => {
     if (!dateStr) return '—';
@@ -988,30 +1095,112 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, onEdit 
 
       {/* DATA TABLE */}
       <div className="bg-white dark:bg-slate-900 rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden flex flex-col min-h-[500px] transition-colors">
-          <div className="px-4 md:px-8 py-6 border-b border-slate-50 dark:border-slate-800/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-50/50 dark:bg-slate-800/20 transition-colors">
-              <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
-                <h3 className="text-[10px] font-black text-slate-900 dark:text-white uppercase tracking-widest transition-colors">Master Cloud Records</h3>
-                <div className="relative group w-full sm:w-64">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <svg className="h-3 w-3 text-slate-400 group-focus-within:text-indigo-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+          <div className="px-4 md:px-8 py-6 border-b border-slate-50 dark:border-slate-800/50 flex flex-col gap-4 bg-slate-50/50 dark:bg-slate-800/20 transition-colors">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
+                  <h3 className="text-[10px] font-black text-slate-900 dark:text-white uppercase tracking-widest transition-colors">Master Cloud Records</h3>
+                  <div className="relative group w-full sm:w-64">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <svg className="h-3 w-3 text-slate-400 group-focus-within:text-indigo-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                    </div>
+                    <input 
+                      type="text" 
+                      placeholder="Search records..."
+                      value={dashboardSearchQuery}
+                      onChange={(e) => setDashboardSearchQuery(e.target.value)}
+                      className="block w-full pl-8 pr-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-[10px] font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-sm dark:text-slate-100 dark:placeholder-slate-600"
+                    />
                   </div>
-                  <input 
-                    type="text" 
-                    placeholder="Search records..."
-                    value={dashboardSearchQuery}
-                    onChange={(e) => setDashboardSearchQuery(e.target.value)}
-                    className="block w-full pl-8 pr-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-[10px] font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-sm dark:text-slate-100 dark:placeholder-slate-600"
-                  />
+                  <button 
+                    onClick={() => setIsMasterViewOpen(true)}
+                    className="flex items-center gap-2 bg-indigo-600 text-white px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-indigo-700 active:scale-95 transition-all shadow-sm"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                    Master View
+                  </button>
                 </div>
-                <button 
-                  onClick={() => setIsMasterViewOpen(true)}
-                  className="flex items-center gap-2 bg-indigo-600 text-white px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-indigo-700 active:scale-95 transition-all shadow-sm"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
-                  Master View
-                </button>
+                <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 bg-white dark:bg-slate-800 px-3 py-1 rounded-full shadow-sm dark:shadow-none transition-colors">{sortedMasterData.length} Records</span>
               </div>
-              <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 bg-white dark:bg-slate-800 px-3 py-1 rounded-full shadow-sm dark:shadow-none transition-colors">{sortedMasterData.length} Records</span>
+
+              {/* Filter Bar (YouTube Style) */}
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="relative" ref={filterMenuRef}>
+                  <button 
+                    onClick={() => setIsFilterMenuOpen(!isFilterMenuOpen)}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-[9px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="21" y1="4" x2="14" y2="4"/><line x1="10" y1="4" x2="3" y2="4"/><line x1="21" y1="12" x2="12" y2="12"/><line x1="8" y1="12" x2="3" y2="12"/><line x1="21" y1="20" x2="16" y2="20"/><line x1="12" y1="20" x2="3" y2="20"/><line x1="14" y1="2" x2="14" y2="6"/><line x1="8" y1="10" x2="8" y2="14"/><line x1="16" y1="18" x2="16" y2="22"/></svg>
+                    Add Filter
+                  </button>
+
+                  {isFilterMenuOpen && (
+                    <div className="absolute left-0 mt-2 w-48 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-xl z-[100] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                      {!selectedFilterType ? (
+                        <div className="py-2">
+                          {FILTER_CONFIG.map(config => (
+                            <button 
+                              key={config.id}
+                              onClick={() => setSelectedFilterType(config.id)}
+                              className="w-full text-left px-4 py-2 text-[10px] font-bold text-slate-700 dark:text-slate-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 hover:text-indigo-600 transition-colors uppercase tracking-widest flex justify-between items-center"
+                            >
+                              {config.label}
+                              <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="py-2">
+                          <button 
+                            onClick={() => setSelectedFilterType(null)}
+                            className="w-full text-left px-4 py-2 text-[9px] font-black text-indigo-600 border-b border-slate-100 dark:border-slate-700 mb-1 flex items-center gap-2"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                            Back
+                          </button>
+                          <div className="max-h-48 overflow-y-auto">
+                            {(FILTER_CONFIG.find(c => c.id === selectedFilterType)?.dynamic 
+                              ? (dynamicOptions as any)[selectedFilterType] 
+                              : FILTER_CONFIG.find(c => c.id === selectedFilterType)?.options
+                            )?.map((opt: string) => (
+                              <button 
+                                key={opt}
+                                onClick={() => addFilter(selectedFilterType, opt)}
+                                className="w-full text-left px-4 py-2 text-[10px] font-bold text-slate-600 dark:text-slate-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 hover:text-emerald-600 transition-colors uppercase tracking-tight"
+                              >
+                                {opt}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {activeFilters.map((filter, idx) => (
+                  <div 
+                    key={`${filter.key}-${filter.value}-${idx}`}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-100 dark:border-indigo-800 rounded-full text-[9px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest animate-in zoom-in duration-200"
+                  >
+                    {filter.label}
+                    <button 
+                      onClick={() => removeFilter(filter.key, filter.value)}
+                      className="hover:text-red-500 transition-colors"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                  </div>
+                ))}
+
+                {activeFilters.length > 0 && (
+                  <button 
+                    onClick={clearFilters}
+                    className="text-[9px] font-black text-slate-400 hover:text-red-500 uppercase tracking-widest ml-2 transition-colors"
+                  >
+                    Clear All
+                  </button>
+                )}
+              </div>
           </div>
           <div className="overflow-x-auto grow">
               <table className="w-full text-left">
@@ -1288,32 +1477,60 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, onEdit 
         <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 md:p-8 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
           <div className="bg-white dark:bg-slate-900 w-full max-w-6xl h-full max-h-[90vh] rounded-[40px] shadow-2xl flex flex-col overflow-hidden border border-white/20">
             {/* Header */}
-            <div className="p-6 border-b border-slate-50 dark:border-slate-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-50/50 dark:bg-slate-800/20">
-              <div>
-                <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest">Master View</h3>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Filtered Records: {sortedMasterData.length}</p>
-              </div>
-              
-              <div className="flex items-center gap-3 w-full sm:w-auto">
-                <div className="relative group flex-1 sm:flex-none">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <svg className="h-3 w-3 text-slate-400 group-focus-within:text-indigo-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-                  </div>
-                  <input 
-                    type="text" 
-                    placeholder="Search in Master View..."
-                    value={masterViewSearchQuery}
-                    onChange={(e) => setMasterViewSearchQuery(e.target.value)}
-                    className="block w-full sm:w-64 pl-8 pr-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-[10px] font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-sm dark:text-slate-100 dark:placeholder-slate-600"
-                  />
+            <div className="p-6 border-b border-slate-50 dark:border-slate-800 flex flex-col gap-4 bg-slate-50/50 dark:bg-slate-800/20">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                  <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest">Master View</h3>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Filtered Records: {sortedMasterData.length}</p>
                 </div>
-                <button 
-                  onClick={() => setIsMasterViewOpen(false)}
-                  className="w-10 h-10 rounded-full bg-white dark:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-red-500 transition-colors shadow-sm shrink-0"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-                </button>
+                
+                <div className="flex items-center gap-3 w-full sm:w-auto">
+                  <div className="relative group flex-1 sm:flex-none">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <svg className="h-3 w-3 text-slate-400 group-focus-within:text-indigo-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                    </div>
+                    <input 
+                      type="text" 
+                      placeholder="Search in Master View..."
+                      value={masterViewSearchQuery}
+                      onChange={(e) => setMasterViewSearchQuery(e.target.value)}
+                      className="block w-full sm:w-64 pl-8 pr-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-[10px] font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-sm dark:text-slate-100 dark:placeholder-slate-600"
+                    />
+                  </div>
+                  <button 
+                    onClick={() => setIsMasterViewOpen(false)}
+                    className="w-10 h-10 rounded-full bg-white dark:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-red-500 transition-colors shadow-sm shrink-0"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                  </button>
+                </div>
               </div>
+
+              {/* Filter Chips in Master View */}
+              {activeFilters.length > 0 && (
+                <div className="flex flex-wrap items-center gap-2">
+                  {activeFilters.map((filter, idx) => (
+                    <div 
+                      key={`mv-${filter.key}-${filter.value}-${idx}`}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-100 dark:border-indigo-800 rounded-full text-[9px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest"
+                    >
+                      {filter.label}
+                      <button 
+                        onClick={() => removeFilter(filter.key, filter.value)}
+                        className="hover:text-red-500 transition-colors"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                      </button>
+                    </div>
+                  ))}
+                  <button 
+                    onClick={clearFilters}
+                    className="text-[9px] font-black text-slate-400 hover:text-red-500 uppercase tracking-widest ml-2 transition-colors"
+                  >
+                    Clear All
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Content Area */}
