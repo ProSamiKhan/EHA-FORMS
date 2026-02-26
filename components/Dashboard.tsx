@@ -510,7 +510,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, onEdit 
       let studentTotal = 0;
       for (let i = 1; i <= 10; i++) {
         const amt = parseFloat(String((d as any)[`payment${i}_amount`]).replace(/[^0-9.]/g, '')) || 0;
-        const method = (d as any)[`payment${i}_method`] || 'account';
+        const utr = (d as any)[`payment${i}_utr`];
+        const rawMethod = (d as any)[`payment${i}_method`];
+        
+        // Inference logic: if method is missing but UTR is not a 12-digit number, assume Cash
+        let method = rawMethod || 'account';
+        if (!rawMethod && utr) {
+          const utrStr = String(utr).trim();
+          if (utrStr && !/^\d{12}$/.test(utrStr)) {
+            method = 'cash';
+          }
+        }
+
         studentTotal += amt;
         if (method === 'cash') {
           cashRevenue += amt;
@@ -1179,7 +1190,20 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, onEdit 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => {
                             const amt = (viewingRecord as any)[`payment${num}_amount`];
-                            const method = (viewingRecord as any)[`payment${num}_method`] || 'account';
+                            const utr = (viewingRecord as any)[`payment${num}_utr`];
+                            const rawMethod = (viewingRecord as any)[`payment${num}_method`];
+                            
+                            // Inference logic for detail view
+                            const getMethod = (u: any, m: any) => {
+                              if (m === 'cash' || m === 'account') return m;
+                              const s = String(u || '').trim();
+                              if (!s) return 'account';
+                              if (/^\d{12}$/.test(s)) return 'account';
+                              return 'cash';
+                            };
+                            
+                            const method = getMethod(utr, rawMethod);
+                            
                             if (!amt || amt === '0') return null;
                             return (
                               <div key={num} className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800 flex justify-between items-center">
@@ -1195,8 +1219,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, onEdit 
                                 <div className="text-right">
                                   <p className="text-[9px] font-bold text-slate-500">{formatDateClean((viewingRecord as any)[`payment${num}_date`] || '')}</p>
                                   <p className="text-[8px] font-mono text-indigo-500 font-bold">
-                                    <span className="text-slate-400 mr-1">{method === 'cash' ? 'BY:' : 'UTR:'}</span>
-                                    {(viewingRecord as any)[`payment${num}_utr`]}
+                                    <span className="text-slate-400 mr-1">{method === 'cash' ? 'RECEIVED BY:' : 'UTR:'}</span>
+                                    {utr}
                                   </p>
                                 </div>
                               </div>

@@ -89,7 +89,19 @@ export const ManualEntryModal: React.FC<ManualEntryModalProps> = ({ isOpen, onCl
 
   useEffect(() => {
     if (initialData) {
-      setFormData({ ...INITIAL_DATA, ...initialData });
+      const inferred = { ...INITIAL_DATA, ...initialData };
+      // Infer payment methods if missing from data source
+      for (let i = 1; i <= 10; i++) {
+        const utr = (inferred as any)[`payment${i}_utr`];
+        const method = (inferred as any)[`payment${i}_method`];
+        if (!method && utr) {
+          const utrStr = String(utr).trim();
+          if (utrStr && !/^\d{12}$/.test(utrStr)) {
+            (inferred as any)[`payment${i}_method`] = 'cash';
+          }
+        }
+      }
+      setFormData(inferred);
       // Heuristic: if contact starts with something other than 10 digits or has non-numeric chars, it might be 'Other'
       // But let's just default to India unless we see a reason not to.
       // Actually, let's check if the contact number is exactly 10 digits.
