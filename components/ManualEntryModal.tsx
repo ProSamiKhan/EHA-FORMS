@@ -150,9 +150,7 @@ export const ManualEntryModal: React.FC<ManualEntryModalProps> = ({ isOpen, onCl
         const method = (prev as any)[methodKey] || 'account';
         
         let finalVal = val;
-        if (method === 'account') {
-          finalVal = val.replace(/[^0-9]/g, '').slice(0, 12);
-        }
+        // Removed alphanumeric restriction and 12-digit lock as requested
         return { ...prev, [key]: finalVal };
       });
       return;
@@ -182,9 +180,6 @@ export const ManualEntryModal: React.FC<ManualEntryModalProps> = ({ isOpen, onCl
       const amt = (formData as any)[`payment${i}_amount`];
       
       if (amt && amt !== '0') {
-        if (method === 'account' && utr && utr.length !== 12) {
-          return setError(`Payment ${i} UTR must be 12 digits`);
-        }
         if (method === 'cash' && !utr) {
           return setError(`Payment ${i} Received By name is required for cash`);
         }
@@ -266,11 +261,34 @@ export const ManualEntryModal: React.FC<ManualEntryModalProps> = ({ isOpen, onCl
                 </div>
                 <div className="space-y-1">
                   <label className="text-[9px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest ml-1 transition-colors">Medium</label>
-                  <select value={formData.medium} onChange={(e) => handleChange('medium', e.target.value)} className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-bold outline-none dark:text-slate-100 transition-colors">
-                    <option value="English">English</option>
-                    <option value="Hindi">Hindi</option>
-                    <option value="Urdu">Urdu</option>
-                  </select>
+                  <div className="space-y-2">
+                    <select 
+                      value={['English', 'Hindi', 'Urdu'].includes(formData.medium) ? formData.medium : 'Other'} 
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === 'Other') {
+                          handleChange('medium', '');
+                        } else {
+                          handleChange('medium', val);
+                        }
+                      }} 
+                      className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-bold outline-none dark:text-slate-100 transition-colors"
+                    >
+                      <option value="English">English</option>
+                      <option value="Hindi">Hindi</option>
+                      <option value="Urdu">Urdu</option>
+                      <option value="Other">Other (Type below)</option>
+                    </select>
+                    {(!['English', 'Hindi', 'Urdu'].includes(formData.medium) || formData.medium === '') && (
+                      <input 
+                        type="text" 
+                        value={formData.medium} 
+                        onChange={(e) => handleChange('medium', e.target.value)} 
+                        placeholder="Type Medium..." 
+                        className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-500 dark:text-slate-100 transition-colors"
+                      />
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -390,7 +408,7 @@ export const ManualEntryModal: React.FC<ManualEntryModalProps> = ({ isOpen, onCl
                       </div>
                       <input 
                         type="text" 
-                        placeholder={method === 'account' ? "UTR (12 Digits)" : "Received By (Name)"} 
+                        placeholder={method === 'account' ? "UTR (Alphanumeric)" : "Received By (Name)"} 
                         value={(formData as any)[`payment${num}_utr`]} 
                         onChange={(e) => handleChange(`payment${num}_utr` as any, e.target.value)} 
                         className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 text-xs font-mono font-bold outline-none dark:text-slate-100" 

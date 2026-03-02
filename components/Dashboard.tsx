@@ -298,6 +298,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, onEdit 
   const FILTER_CONFIG = [
     { id: 'status', label: 'Status', options: ['confirm', 'pending', 'cancelled'] },
     { id: 'gender', label: 'Gender', options: ['male', 'female', 'other'] },
+    { id: 'age', label: 'Age', dynamic: true },
     { id: 'medium', label: 'Medium', options: ['english', 'hindi', 'urdu'] },
     { id: 'payment_method', label: 'Payment Method', options: ['cash', 'account'] },
     { id: 'state', label: 'State', dynamic: true },
@@ -307,13 +308,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, onEdit 
   const dynamicOptions = useMemo(() => {
     const states = new Set<string>();
     const cities = new Set<string>();
+    const ages = new Set<string>();
     allSyncedData.forEach(d => {
       if (d.state) states.add(d.state);
       if (d.city) cities.add(d.city);
+      if (d.age) ages.add(d.age);
     });
     return {
       state: Array.from(states).sort(),
-      city: Array.from(cities).sort()
+      city: Array.from(cities).sort(),
+      age: Array.from(ages).sort((a, b) => parseInt(a) - parseInt(b))
     };
   }, [allSyncedData]);
 
@@ -425,6 +429,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, onEdit 
           } else if (s !== value) return false;
         } else if (key === 'gender') {
           if ((d.gender || 'Other').trim().toLowerCase() !== value.toLowerCase()) return false;
+        } else if (key === 'age') {
+          if ((d.age || '').trim() !== value.trim()) return false;
         } else if (key === 'medium') {
           if ((d.medium || '').trim().toLowerCase() !== value.toLowerCase()) return false;
         } else if (key === 'state') {
@@ -656,9 +662,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, onEdit 
 
   const genderPieData = useMemo(() => {
     const map = genderViewType === 'confirm' ? globalStats.genderMapConfirm : globalStats.genderMapTotal;
+    const total = Object.values(map).reduce((a, b) => a + b, 0);
     return Object.entries(map).map(([name, value]) => ({
       name: name.charAt(0).toUpperCase() + name.slice(1),
-      value
+      value,
+      percentage: total > 0 ? ((value / total) * 100).toFixed(1) : '0'
     }));
   }, [globalStats, genderViewType]);
 
@@ -989,7 +997,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, onEdit 
                   <div className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.name.toLowerCase() === 'male' ? '#4f46e5' : entry.name.toLowerCase() === 'female' ? '#ec4899' : '#94a3b8' }}></div>
                   <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">{entry.name}</span>
                 </div>
-                <span className="text-[10px] font-black text-slate-800 dark:text-slate-200">{entry.value}</span>
+                <div className="flex items-center gap-3">
+                  <span className="text-[10px] font-black text-indigo-600 dark:text-indigo-400">{entry.percentage}%</span>
+                  <span className="text-[10px] font-black text-slate-800 dark:text-slate-200">{entry.value}</span>
+                </div>
               </div>
             ))}
           </div>

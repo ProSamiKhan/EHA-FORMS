@@ -1,6 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { UserRole, AppConfig, UserAccount } from '../types';
+import { motion, AnimatePresence } from 'motion/react';
+import { Lock, User, Eye, EyeOff, Sun, Moon, ShieldCheck, ArrowRight } from 'lucide-react';
 
 interface LoginProps {
   onLogin: (role: UserRole, username: string) => void;
@@ -9,6 +11,7 @@ interface LoginProps {
 export const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isDarkMode, setIsDarkMode] = useState(() => {
     return localStorage.getItem('eha_theme') === 'dark';
@@ -27,7 +30,6 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
     }
   }, []);
 
-  // Theme support for login page too
   useEffect(() => {
     if (isDarkMode) {
       document.documentElement.classList.add('dark');
@@ -46,7 +48,6 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
       users = JSON.parse(savedUsers);
     }
 
-    // Check for custom superadmin password first
     const customSuperAdmin = users.find(u => u.username === 'superadmin');
     if (customSuperAdmin) {
       if (username === 'superadmin' && password === customSuperAdmin.password) {
@@ -54,7 +55,6 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
         return;
       }
     } else {
-      // Fallback superadmin
       if (username === 'superadmin' && password === 'superadmin') {
         onLogin('super_admin', 'superadmin');
         return;
@@ -71,77 +71,148 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 p-4 transition-colors duration-300 relative">
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 p-4 transition-colors duration-500 overflow-hidden relative">
+      {/* Background Decorative Elements */}
+      <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-500/10 dark:bg-indigo-500/5 rounded-full blur-[120px]" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-emerald-500/10 dark:bg-emerald-500/5 rounded-full blur-[120px]" />
+      </div>
+
       <div className="absolute top-6 right-6">
-        <button 
+        <motion.button 
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
           onClick={() => {
             const newMode = !isDarkMode;
             setIsDarkMode(newMode);
             localStorage.setItem('eha_theme', newMode ? 'dark' : 'light');
           }}
-          className="p-3 bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 text-slate-400 hover:text-indigo-600 transition-all"
+          className="p-3 bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all"
         >
-           {isDarkMode ? (
-             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
-           ) : (
-             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
-           )}
-        </button>
+           {isDarkMode ? <Sun size={20} strokeWidth={2.5} /> : <Moon size={20} strokeWidth={2.5} />}
+        </motion.button>
       </div>
 
-      <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-[40px] shadow-2xl shadow-indigo-100 dark:shadow-none p-10 border border-slate-100 dark:border-slate-800 transition-colors">
-        <div className="flex flex-col items-center mb-10">
-          <div className="w-20 h-20 bg-[#000080] dark:bg-indigo-600 rounded-3xl flex items-center justify-center shadow-xl shadow-indigo-200 dark:shadow-none mb-6 overflow-hidden transition-colors">
-            {config.logoUrl ? (
-              <img src={config.logoUrl} alt="Logo" className="w-full h-full object-cover dark:brightness-90" />
-            ) : (
-              <span className="text-white text-4xl font-black italic">E</span>
-            )}
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: "easeOut" }}
+        className="w-full max-w-md"
+      >
+        <div className="bg-white dark:bg-slate-900 rounded-[48px] shadow-2xl shadow-slate-200/50 dark:shadow-none p-10 border border-slate-100 dark:border-slate-800 transition-colors relative z-10">
+          <div className="flex flex-col items-center mb-10">
+            <motion.div 
+              initial={{ scale: 0.8 }}
+              animate={{ scale: 1 }}
+              transition={{ type: "spring", stiffness: 200, damping: 15 }}
+              className="w-24 h-24 bg-slate-900 dark:bg-indigo-600 rounded-[32px] flex items-center justify-center shadow-2xl shadow-indigo-200 dark:shadow-none mb-8 overflow-hidden group"
+            >
+              {config.logoUrl ? (
+                <img src={config.logoUrl} alt="Logo" className="w-full h-full object-contain p-4 dark:brightness-110" />
+              ) : (
+                <span className="text-white text-5xl font-black italic">E</span>
+              )}
+            </motion.div>
+            
+            <h1 className="text-3xl font-black text-slate-900 dark:text-slate-100 text-center tracking-tight transition-colors">
+              {config.appName}
+            </h1>
+            <div className="flex items-center gap-2 mt-3">
+              <ShieldCheck size={14} className="text-emerald-500" strokeWidth={3} />
+              <p className="text-slate-400 dark:text-slate-500 font-bold uppercase tracking-[0.2em] text-[10px] text-center">
+                Secure Access Portal
+              </p>
+            </div>
           </div>
-          <h1 className="text-2xl font-black text-slate-900 dark:text-slate-100 text-center transition-colors">{config.appName}</h1>
-          <p className="text-slate-400 dark:text-slate-600 font-bold uppercase tracking-widest text-[10px] mt-2 text-center">Secure Access Required</p>
+
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">
+                Account ID
+              </label>
+              <div className="relative group">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <User size={18} className="text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+                </div>
+                <input
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  className="w-full pl-12 pr-5 py-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-2xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 dark:focus:border-indigo-600 outline-none transition-all font-semibold text-slate-900 dark:text-slate-100 placeholder:text-slate-300 dark:placeholder:text-slate-600"
+                  placeholder="Enter your username"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">
+                Password
+              </label>
+              <div className="relative group">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <Lock size={18} className="text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+                </div>
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full pl-12 pr-12 py-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-2xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 dark:focus:border-indigo-600 outline-none transition-all font-semibold text-slate-900 dark:text-slate-100 placeholder:text-slate-300 dark:placeholder:text-slate-600"
+                  placeholder="••••••••"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 hover:text-indigo-500 transition-colors"
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+            </div>
+
+            <AnimatePresence mode="wait">
+              {error && (
+                <motion.div 
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/20 rounded-xl p-3"
+                >
+                  <p className="text-red-600 dark:text-red-400 text-[11px] font-bold text-center leading-tight">
+                    {error}
+                  </p>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <motion.button
+              whileHover={{ scale: 1.01 }}
+              whileTap={{ scale: 0.98 }}
+              type="submit"
+              className="w-full py-4.5 bg-slate-900 dark:bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-slate-200 dark:shadow-none hover:bg-black dark:hover:bg-indigo-700 transition-all flex items-center justify-center gap-3 mt-4"
+            >
+              <span>Sign In to Portal</span>
+              <ArrowRight size={16} strokeWidth={3} />
+            </motion.button>
+          </form>
+
+          <div className="mt-10 pt-10 border-t border-slate-50 dark:border-slate-800 text-center">
+             <p className="text-slate-400 dark:text-slate-600 text-[9px] font-black uppercase tracking-[0.25em]">
+               {config.appSubtitle}
+             </p>
+          </div>
         </div>
-
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest ml-1 transition-colors">Account ID</label>
-            <input
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-600 outline-none transition-all font-medium dark:text-slate-100"
-              placeholder="Enter username"
-              required
-            />
-          </div>
-          <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest ml-1 transition-colors">Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-600 outline-none transition-all font-medium dark:text-slate-100"
-              placeholder="••••••••"
-              required
-            />
-          </div>
-
-          {error && <p className="text-red-500 dark:text-red-400 text-xs font-bold text-center">{error}</p>}
-
-          <button
-            type="submit"
-            className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold shadow-lg shadow-indigo-100 dark:shadow-none hover:bg-indigo-700 transition-all hover:-translate-y-0.5 active:translate-y-0 mt-4 transition-colors"
-          >
-            Sign In to Portal
-          </button>
-        </form>
-
-        <div className="mt-8 pt-8 border-t border-slate-50 dark:border-slate-800 text-center transition-colors">
-           <p className="text-slate-400 dark:text-slate-600 text-[10px] font-black uppercase tracking-widest">
-             {config.appSubtitle}
-           </p>
-        </div>
-      </div>
+        
+        <motion.p 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.5 }}
+          className="text-center mt-8 text-slate-400 dark:text-slate-600 text-[10px] font-bold uppercase tracking-widest"
+        >
+          © {new Date().getFullYear()} English House Academy • All Rights Reserved
+        </motion.p>
+      </motion.div>
     </div>
   );
 };
