@@ -9,10 +9,15 @@ import {
 } from 'recharts';
 import { 
   format, subDays, subMonths, subYears, isAfter, parse, isValid, addDays,
-  startOfDay, startOfWeek, startOfMonth, startOfYear 
+  startOfDay, startOfWeek, startOfMonth, startOfYear, isBefore, endOfDay
 } from 'date-fns';
+import { Calendar, ChevronDown } from 'lucide-react';
 
-type TimeRange = 'today' | 'yesterday' | 'week' | 'month' | 'year' | 'lifetime' | 'custom';
+type TimeRange = 
+  | '7d' | '28d' | '90d' | '365d' | 'lifetime' 
+  | '2026' | '2025' 
+  | 'jan' | 'feb' | 'mar' | 'apr' | 'may' | 'jun' | 'jul' | 'aug' | 'sep' | 'oct' | 'nov' | 'dec'
+  | 'custom';
 
 interface DashboardProps {
   records: ProcessingRecord[];
@@ -38,7 +43,26 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
   const modalRef = useRef<HTMLDivElement>(null);
   const masterViewRef = useRef<HTMLDivElement>(null);
 
+  const [isTimeRangeMenuOpen, setIsTimeRangeMenuOpen] = useState(false);
+  const timeRangeMenuRef = useRef<HTMLDivElement>(null);
   const [genderViewType, setGenderViewType] = useState<'confirm' | 'total'>('confirm');
+
+  const TIME_RANGE_OPTIONS = [
+    { id: '7d', label: 'Last 7 days' },
+    { id: '28d', label: 'Last 28 days' },
+    { id: '90d', label: 'Last 90 days' },
+    { id: '365d', label: 'Last 365 days' },
+    { id: 'lifetime', label: 'Lifetime' },
+    { divider: true },
+    { id: '2026', label: '2026' },
+    { id: '2025', label: '2025' },
+    { divider: true },
+    { id: 'mar', label: 'March' },
+    { id: 'feb', label: 'February' },
+    { id: 'jan', label: 'January' },
+    { divider: true },
+    { id: 'custom', label: 'Custom' },
+  ];
   const [dashboardSearchQuery, setDashboardSearchQuery] = useState('');
   const [masterViewSearchQuery, setMasterViewSearchQuery] = useState('');
 
@@ -377,6 +401,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
         setIsFilterMenuOpen(false);
         setSelectedFilterType(null);
       }
+      if (timeRangeMenuRef.current && !timeRangeMenuRef.current.contains(event.target as Node)) {
+        setIsTimeRangeMenuOpen(false);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -406,10 +433,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
 
   const parseDate = (s: string): Date | null => {
     if (!s) return null;
-    const parts = s.split('/');
-    if (parts.length !== 3) return null;
-    const [d, m, y] = parts;
-    const date = new Date(`${y}-${m}-${d}`);
+    
+    // Handle dd/mm/yyyy
+    if (s.includes('/')) {
+      const parts = s.split('/');
+      if (parts.length === 3) {
+        const [d, m, y] = parts;
+        const date = new Date(`${y}-${m}-${d}`);
+        if (isValid(date)) return date;
+      }
+    }
+    
+    // Handle yyyy-mm-dd or other ISO-like formats
+    const date = new Date(s);
     return isValid(date) ? date : null;
   };
 
@@ -418,36 +454,37 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
 
     if (range !== 'lifetime') {
       const now = new Date();
-      const today = startOfDay(now);
-      const yesterday = startOfDay(subDays(now, 1));
-      let startDate: Date;
-      let endDate: Date | null = null;
-      
-      switch (range) {
-        case 'today': startDate = today; break;
-        case 'yesterday': startDate = yesterday; endDate = today; break;
-        case 'week': startDate = startOfWeek(now, { weekStartsOn: 1 }); break;
-        case 'month': startDate = startOfMonth(now); break;
-        case 'year': startDate = startOfYear(now); break;
-        case 'custom':
-          const start = custom?.start || customStart;
-          const end = custom?.end || customEnd;
-          if (!start) {
-            startDate = new Date(0);
-          } else {
-            startDate = startOfDay(new Date(start));
-            if (end) endDate = addDays(startOfDay(new Date(end)), 1);
-          }
-          break;
-        default: startDate = new Date(0);
-      }
-
-      baseFiltered = allSyncedData.filter(d => {
+      baseFiltered = baseFiltered.filter(d => {
         const date = parseDate(d.payment1_date);
         if (!date) return false;
-        const dTime = startOfDay(date).getTime();
-        if (endDate) return dTime >= startDate.getTime() && dTime < endDate.getTime();
-        return dTime >= startDate.getTime();
+        
+        switch (range) {
+          case '7d': return isAfter(date, subDays(now, 7));
+          case '28d': return isAfter(date, subDays(now, 28));
+          case '90d': return isAfter(date, subDays(now, 90));
+          case '365d': return isAfter(date, subDays(now, 365));
+          case '2026': return date.getFullYear() === 2026;
+          case '2025': return date.getFullYear() === 2025;
+          case 'jan': return date.getMonth() === 0 && date.getFullYear() === 2026;
+          case 'feb': return date.getMonth() === 1 && date.getFullYear() === 2026;
+          case 'mar': return date.getMonth() === 2 && date.getFullYear() === 2026;
+          case 'apr': return date.getMonth() === 3 && date.getFullYear() === 2026;
+          case 'may': return date.getMonth() === 4 && date.getFullYear() === 2026;
+          case 'jun': return date.getMonth() === 5 && date.getFullYear() === 2026;
+          case 'jul': return date.getMonth() === 6 && date.getFullYear() === 2026;
+          case 'aug': return date.getMonth() === 7 && date.getFullYear() === 2026;
+          case 'sep': return date.getMonth() === 8 && date.getFullYear() === 2026;
+          case 'oct': return date.getMonth() === 9 && date.getFullYear() === 2026;
+          case 'nov': return date.getMonth() === 10 && date.getFullYear() === 2026;
+          case 'dec': return date.getMonth() === 11 && date.getFullYear() === 2026;
+          case 'custom':
+            const start = custom?.start || customStart;
+            const end = custom?.end || customEnd;
+            if (!start || !end) return true;
+            return isAfter(date, startOfDay(new Date(start))) && 
+                   isBefore(date, endOfDay(new Date(end)));
+          default: return true;
+        }
       });
     }
 
@@ -604,30 +641,84 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
   }, [filteredData, sortConfig, isMasterViewOpen, masterViewSearchQuery]);
 
   const getChartData = (data: RegistrationData[], range: TimeRange) => {
-    const dailyMap: Record<string, number> = {};
-    const revenueMap: Record<string, number> = {};
-    const sorted = [...data].sort((a, b) => {
-      const dateA = parseDate(a.payment1_date)?.getTime() || 0;
-      const dateB = parseDate(b.payment1_date)?.getTime() || 0;
-      return dateA - dateB;
-    });
-    sorted.forEach(d => {
+    const dailyMap: Record<string, { admissions: number, revenue: number }> = {};
+    
+    // 1. Group data by date
+    data.forEach(d => {
       const date = parseDate(d.payment1_date);
       if (!date) return;
-      const key = format(date, 'dd MMM');
-      dailyMap[key] = (dailyMap[key] || 0) + 1;
+      
+      const key = format(date, 'yyyy-MM-dd');
+      if (!dailyMap[key]) dailyMap[key] = { admissions: 0, revenue: 0 };
+      
+      dailyMap[key].admissions += 1;
+      
       let studentTotal = 0;
       for (let i = 1; i <= 10; i++) {
         studentTotal += parseFloat(String((d as any)[`payment${i}_amount`]).replace(/[^0-9.]/g, '')) || 0;
       }
-      revenueMap[key] = (revenueMap[key] || 0) + studentTotal;
+      dailyMap[key].revenue += studentTotal;
     });
-    const result = Object.keys(dailyMap).map(key => ({
-      name: key,
-      admissions: dailyMap[key],
-      revenue: revenueMap[key]
-    }));
-    return range === 'lifetime' ? result.slice(-30) : result;
+
+    // 2. Determine the range to display
+    let startDate: Date;
+    let endDate = new Date();
+    const now = new Date();
+
+    switch (range) {
+      case '7d': startDate = subDays(now, 6); break;
+      case '28d': startDate = subDays(now, 27); break;
+      case '90d': startDate = subDays(now, 89); break;
+      case '365d': startDate = subDays(now, 364); break;
+      case 'jan': startDate = new Date(2026, 0, 1); endDate = new Date(2026, 0, 31); break;
+      case 'feb': startDate = new Date(2026, 1, 1); endDate = new Date(2026, 1, 28); break;
+      case 'mar': startDate = new Date(2026, 2, 1); endDate = new Date(2026, 2, 31); break;
+      case '2026': startDate = new Date(2026, 0, 1); endDate = new Date(2026, 11, 31); break;
+      case '2025': startDate = new Date(2025, 0, 1); endDate = new Date(2025, 11, 31); break;
+      case 'custom':
+        startDate = customStart ? new Date(customStart) : subDays(now, 30);
+        endDate = customEnd ? new Date(customEnd) : now;
+        break;
+      default:
+        // For lifetime, find the first date in data
+        const dates = data.map(d => parseDate(d.payment1_date)).filter(Boolean) as Date[];
+        startDate = dates.length > 0 ? new Date(Math.min(...dates.map(d => d.getTime()))) : subDays(now, 30);
+    }
+
+    // 3. Fill gaps with 0
+    const result: any[] = [];
+    let current = startOfDay(startDate);
+    const last = startOfDay(endDate);
+
+    while (current <= last) {
+      const key = format(current, 'yyyy-MM-dd');
+      const stats = dailyMap[key] || { admissions: 0, revenue: 0 };
+      result.push({
+        name: format(current, 'dd MMM'),
+        fullDate: key,
+        admissions: stats.admissions,
+        revenue: stats.revenue
+      });
+      current = addDays(current, 1);
+    }
+
+    // 4. Group by month if too many points
+    if (result.length > 60) {
+      const monthlyMap: Record<string, { admissions: number, revenue: number }> = {};
+      result.forEach(r => {
+        const monthKey = r.fullDate.substring(0, 7); // yyyy-MM
+        if (!monthlyMap[monthKey]) monthlyMap[monthKey] = { admissions: 0, revenue: 0 };
+        monthlyMap[monthKey].admissions += r.admissions;
+        monthlyMap[monthKey].revenue += r.revenue;
+      });
+      return Object.keys(monthlyMap).sort().map(key => ({
+        name: format(new Date(key + '-01'), 'MMM yy'),
+        admissions: monthlyMap[key].admissions,
+        revenue: monthlyMap[key].revenue
+      }));
+    }
+
+    return result;
   };
 
   const admChartData = useMemo(() => getChartData(filteredData, timeRange), [filteredData, timeRange]);
@@ -829,22 +920,57 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
         </div>
 
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full lg:w-auto">
-          <div className="flex items-center gap-1 bg-white dark:bg-slate-900 p-1 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm w-full sm:w-auto overflow-x-auto no-scrollbar">
-            {(['today', 'yesterday', 'week', 'month', 'year', 'lifetime', 'custom'] as TimeRange[]).map((range) => (
-              <button
-                key={range}
-                onClick={() => handleGlobalTimeRangeChange(range)}
-                className={`px-3 py-1.5 text-[9px] font-black uppercase tracking-widest rounded-xl transition-all whitespace-nowrap ${
-                  timeRange === range 
-                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200 dark:shadow-none' 
-                  : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
-                }`}
-              >
-                {range}
-              </button>
-            ))}
+          <button
+            onClick={() => setTimeRange('lifetime')}
+            className={`px-4 py-2 text-[9px] font-black uppercase tracking-widest rounded-xl transition-all whitespace-nowrap border ${
+              timeRange === 'lifetime'
+                ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-200 dark:shadow-none'
+                : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
+            }`}
+          >
+            Lifetime
+          </button>
+
+          <div className="relative" ref={timeRangeMenuRef}>
+            <button
+              onClick={() => setIsTimeRangeMenuOpen(!isTimeRangeMenuOpen)}
+              className={`flex items-center gap-2 px-4 py-2 text-[9px] font-black uppercase tracking-widest rounded-xl transition-all border ${
+                timeRange !== 'lifetime'
+                  ? 'bg-indigo-50 dark:bg-indigo-900/20 border-indigo-200 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400'
+                  : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
+              }`}
+            >
+              <Calendar className="w-3 h-3" />
+              {timeRange === 'lifetime' ? 'Select Range' : TIME_RANGE_OPTIONS.find(o => o.id === timeRange)?.label || 'Custom'}
+              <ChevronDown className={`w-3 h-3 transition-transform ${isTimeRangeMenuOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {isTimeRangeMenuOpen && (
+              <div className="absolute top-full right-0 mt-2 w-48 bg-white dark:bg-slate-900 rounded-xl shadow-2xl border border-slate-100 dark:border-slate-800 py-2 z-50 max-h-[300px] overflow-y-auto no-scrollbar">
+                {TIME_RANGE_OPTIONS.map((option, idx) => (
+                  option.divider ? (
+                    <div key={`div-${idx}`} className="my-1 border-t border-slate-50 dark:border-slate-800" />
+                  ) : (
+                    <button
+                      key={option.id}
+                      onClick={() => {
+                        setTimeRange(option.id as TimeRange);
+                        setIsTimeRangeMenuOpen(false);
+                      }}
+                      className={`w-full text-left px-4 py-2 text-[9px] font-black uppercase tracking-widest transition-colors ${
+                        timeRange === option.id
+                          ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400'
+                          : 'text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-600 dark:hover:text-slate-300'
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  )
+                ))}
+              </div>
+            )}
           </div>
-          
+
           {timeRange === 'custom' && (
             <div className="flex items-center gap-2 bg-white dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm w-full sm:w-auto overflow-x-auto">
               <input 
