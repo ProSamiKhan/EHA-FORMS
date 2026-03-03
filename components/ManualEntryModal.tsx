@@ -144,6 +144,11 @@ export const ManualEntryModal: React.FC<ManualEntryModalProps> = ({ isOpen, onCl
 
   const handleChange = (key: keyof RegistrationData, val: string) => {
     setError('');
+    if (key === 'admission_id') {
+      setFormData(prev => ({ ...prev, [key]: val.trim() }));
+      return;
+    }
+
     if (key.toString().includes('utr')) {
       setFormData(prev => {
         const methodKey = key.toString().replace('utr', 'method') as keyof RegistrationData;

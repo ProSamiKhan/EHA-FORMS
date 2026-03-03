@@ -13,6 +13,34 @@ export const syncToGoogleSheets = async (data: RegistrationData): Promise<boolea
     return false;
   }
 
+  // Create a payload that includes both normalized keys and common header variations
+  // to ensure the Apps Script can match the record for updates.
+  const payload: any = {
+    ...data,
+    "Admission ID": data.admission_id,
+    "Student Name": data.name,
+    "Contact No": data.contact_no,
+    "WhatsApp No": data.whatsapp_no,
+    "City": data.city,
+    "State": data.state,
+    "Status": data.status,
+    "Received AC": data.received_ac,
+    "Discount": data.discount,
+    "Remaining Amount": data.remaining_amount,
+    "Gender": data.gender,
+    "Age": data.age,
+    "Qualification": data.qualification,
+    "Medium": data.medium,
+  };
+
+  // Add payment fields with common header variations
+  for (let i = 1; i <= 10; i++) {
+    payload[`Payment ${i} Amount`] = (data as any)[`payment${i}_amount`];
+    payload[`Payment ${i} Date`] = (data as any)[`payment${i}_date`];
+    payload[`Payment ${i} UTR`] = (data as any)[`payment${i}_utr`];
+    payload[`Payment ${i} Method`] = (data as any)[`payment${i}_method`];
+  }
+
   try {
     await fetch(GOOGLE_SHEET_WEBAPP_URL, {
       method: "POST",
@@ -21,7 +49,7 @@ export const syncToGoogleSheets = async (data: RegistrationData): Promise<boolea
       headers: {
         "Content-Type": "text/plain;charset=utf-8",
       },
-      body: JSON.stringify(data),
+      body: JSON.stringify(payload),
     });
     return true;
   } catch (error) {

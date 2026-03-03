@@ -1,6 +1,6 @@
 
 import React, { useMemo, useEffect, useState, useRef } from 'react';
-import { ProcessingRecord, RegistrationData, UserRole } from '../types';
+import { ProcessingRecord, RegistrationData, UserRole, AppConfig } from '../types';
 import { fetchAllRegistrations } from '../services/sheetService';
 import html2canvas from 'html2canvas';
 import { 
@@ -17,6 +17,7 @@ type TimeRange = 'today' | 'yesterday' | 'week' | 'month' | 'year' | 'lifetime' 
 interface DashboardProps {
   records: ProcessingRecord[];
   userRole: UserRole | null;
+  config: AppConfig;
   onEdit?: (record: RegistrationData) => void;
 }
 
@@ -27,7 +28,7 @@ const DetailRow = ({ label, value, fullWidth = false }: { label: string, value: 
   </div>
 );
 
-export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, onEdit }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config, onEdit }) => {
   const [remoteData, setRemoteData] = useState<RegistrationData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

@@ -179,9 +179,23 @@ const App: React.FC = () => {
       if (existingRecord) {
         updateRecordData(existingRecord.id, data);
       } else {
-        const success = await syncToGoogleSheets(data);
-        if (success) alert("Remote record updated successfully.");
-        else alert("Failed to update remote record.");
+        // Remote record update: Add to local records so it can be tracked and synced
+        const id = uuidv4();
+        const newRecord: ProcessingRecord = {
+          id,
+          timestamp: Date.now(),
+          fileName: `Cloud Edit - ${data.name || 'Student'}`,
+          imageUrl: '',
+          data: data,
+          status: 'completed',
+          source: 'manual',
+          syncStatus: 'idle',
+        };
+        setRecords(prev => [newRecord, ...prev]);
+        setActiveTab('processing');
+        
+        // Trigger sync for this new local record
+        performSync(id, data);
       }
       setEditingRecord(null);
     } else {
