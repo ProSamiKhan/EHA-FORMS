@@ -13,32 +13,34 @@ export const syncToGoogleSheets = async (data: RegistrationData): Promise<boolea
     return false;
   }
 
-  // Create a payload that includes both normalized keys and common header variations
-  // to ensure the Apps Script can match the record for updates.
+  // Create a clean payload that matches the sheet headers exactly.
+  // Based on the screenshot, the first payment amount header is 'payment1' 
+  // while others are 'paymentX_amount'.
   const payload: any = {
     ...data,
-    "Admission ID": data.admission_id,
-    "Student Name": data.name,
-    "Contact No": data.contact_no,
-    "WhatsApp No": data.whatsapp_no,
-    "City": data.city,
-    "State": data.state,
-    "Status": data.status,
-    "Received AC": data.received_ac,
-    "Discount": data.discount,
-    "Remaining Amount": data.remaining_amount,
-    "Gender": data.gender,
-    "Age": data.age,
-    "Qualification": data.qualification,
-    "Medium": data.medium,
+    "payment1": data.payment1_amount, // Match Column K in screenshot
   };
 
-  // Add payment fields with common header variations
+  // Ensure dates are in DD/MM/YYYY format for the sheet
+  const formatDate = (dateStr: string) => {
+    if (!dateStr) return "";
+    if (dateStr.includes('T')) {
+      const d = new Date(dateStr);
+      if (!isNaN(d.getTime())) {
+        const day = String(d.getDate()).padStart(2, '0');
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const year = d.getFullYear();
+        return `${day}/${month}/${year}`;
+      }
+    }
+    return dateStr;
+  };
+
   for (let i = 1; i <= 10; i++) {
-    payload[`Payment ${i} Amount`] = (data as any)[`payment${i}_amount`];
-    payload[`Payment ${i} Date`] = (data as any)[`payment${i}_date`];
-    payload[`Payment ${i} UTR`] = (data as any)[`payment${i}_utr`];
-    payload[`Payment ${i} Method`] = (data as any)[`payment${i}_method`];
+    const dateKey = `payment${i}_date` as keyof RegistrationData;
+    if (payload[dateKey]) {
+      payload[dateKey] = formatDate(payload[dateKey]);
+    }
   }
 
   try {
