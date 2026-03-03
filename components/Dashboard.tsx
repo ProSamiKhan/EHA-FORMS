@@ -2,7 +2,7 @@
 import React, { useMemo, useEffect, useState, useRef } from 'react';
 import { ProcessingRecord, RegistrationData, UserRole, AppConfig } from '../types';
 import { fetchAllRegistrations } from '../services/sheetService';
-import html2canvas from 'html2canvas';
+import { domToPng } from 'modern-screenshot';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   LineChart, Line, Cell, PieChart, Pie, AreaChart, Area
@@ -50,20 +50,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
       modalRef.current.style.maxHeight = 'none';
       modalRef.current.style.overflow = 'visible';
       
-      const canvas = await html2canvas(modalRef.current, {
+      const dataUrl = await domToPng(modalRef.current, {
         backgroundColor: '#ffffff',
         scale: 3, // Higher scale for better quality
-        useCORS: true,
-        logging: false,
-        windowWidth: modalRef.current.scrollWidth,
-        windowHeight: modalRef.current.scrollHeight
+        quality: 1,
       });
       
       modalRef.current.style.cssText = originalStyle;
 
       const link = document.createElement('a');
       link.download = `EHA-Admission-${viewingRecord?.admission_id || 'record'}.png`;
-      link.href = canvas.toDataURL('image/png', 1.0);
+      link.href = dataUrl;
       link.click();
     } catch (err) {
       console.error('Download failed:', err);
@@ -121,15 +118,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
   const handleMasterDownload = async () => {
     if (!masterViewRef.current) return;
     try {
-      const canvas = await html2canvas(masterViewRef.current, {
+      const dataUrl = await domToPng(masterViewRef.current, {
         backgroundColor: '#ffffff',
         scale: 2,
-        useCORS: true,
-        logging: false,
+        quality: 1,
       });
       const link = document.createElement('a');
       link.download = `EHA-Master-Cloud-Records-${format(new Date(), 'dd-MM-yyyy')}.png`;
-      link.href = canvas.toDataURL('image/png', 1.0);
+      link.href = dataUrl;
       link.click();
     } catch (err) {
       console.error('Master download failed:', err);
@@ -162,9 +158,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
         </head>
         <body class="bg-white">
           <div class="p-8">
-            <h1 class="text-xl font-black uppercase tracking-widest mb-6">Master Cloud Records</h1>
-            <p class="text-[10px] font-bold text-slate-500 mb-8 uppercase tracking-widest">Generated on: ${format(new Date(), 'dd MMM yyyy, hh:mm a')}</p>
-            ${printContent}
+              <h1 class="text-xl font-black uppercase tracking-widest mb-6">Master Cloud Records</h1>
+              <p class="text-[10px] font-bold text-slate-500 mb-8 uppercase tracking-widest">Generated on: ${format(new Date(), 'dd MMM yyyy, hh:mm a')}</p>
+              <style>
+                table { width: 100%; border-collapse: collapse; }
+                th, td { border: 1px solid #e2e8f0; padding: 8px; text-align: left; font-size: 10px; }
+                th { background-color: #f8fafc; font-weight: 900; text-transform: uppercase; letter-spacing: 0.1em; }
+              </style>
+              ${printContent}
           </div>
           <script>
             window.onload = () => {
@@ -300,7 +301,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
   const FILTER_CONFIG = [
     { id: 'status', label: 'Status', options: ['confirm', 'pending', 'cancelled'] },
     { id: 'gender', label: 'Gender', options: ['male', 'female', 'other'] },
-    { id: 'age', label: 'Age', dynamic: true },
+    { id: 'age', label: 'Age', dynamic: true, custom: true },
+    { id: 'payment_amount', label: 'Payment Amount', dynamic: true },
     { id: 'medium', label: 'Medium', options: ['english', 'hindi', 'urdu'] },
     { id: 'payment_method', label: 'Payment Method', options: ['cash', 'account'] },
     { id: 'state', label: 'State', dynamic: true },
@@ -311,15 +313,42 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
     const states = new Set<string>();
     const cities = new Set<string>();
     const ages = new Set<string>();
+    const payments = new Set<string>();
     allSyncedData.forEach(d => {
       if (d.state) states.add(d.state);
       if (d.city) cities.add(d.city);
       if (d.age) ages.add(d.age);
+      
+      for (let i = 1; i <= 10; i++) {
+        const amt = parseFloat(String((d as any)[`payment${i}_amount`]).replace(/[^0-9.]/g, '')) || 0;
+        if (amt > 0) payments.add(String(amt));
+      }
     });
+
+    const sortedAges = Array.from(ages).sort((a, b) => parseInt(a) - parseInt(b));
+    const ageOptions = sortedAges;
+
+    const sortedPayments = Array.from(payments).sort((a, b) => parseFloat(a) - parseFloat(b));
+    // Also add multiples of 1k up to 20k as requested
+    const standardPayments = Array.from({ length: 20 }, (_, i) => String((i + 1) * 1000));
+    
+    // Calculate total payments for each record to add to options
+    const totalPaymentsSet = new Set<string>();
+    allSyncedData.forEach(d => {
+      let total = 0;
+      for (let i = 1; i <= 10; i++) {
+        total += parseFloat(String((d as any)[`payment${i}_amount`]).replace(/[^0-9.]/g, '')) || 0;
+      }
+      if (total > 0) totalPaymentsSet.add(String(total));
+    });
+
+    const finalPaymentOptions = Array.from(new Set([...standardPayments, ...Array.from(totalPaymentsSet)])).sort((a, b) => parseFloat(a) - parseFloat(b));
+
     return {
       state: Array.from(states).sort(),
       city: Array.from(cities).sort(),
-      age: Array.from(ages).sort((a, b) => parseInt(a) - parseInt(b))
+      age: ageOptions,
+      payment_amount: finalPaymentOptions
     };
   }, [allSyncedData]);
 
@@ -356,6 +385,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
   const [timeRange, setTimeRange] = useState<TimeRange>('lifetime');
   const [customStart, setCustomStart] = useState<string>('');
   const [customEnd, setCustomEnd] = useState<string>('');
+  const [customAgeMin, setCustomAgeMin] = useState<string>('');
+  const [customAgeMax, setCustomAgeMax] = useState<string>('');
   const [filterGender, setFilterGender] = useState<string | null>(null);
   const [filterState, setFilterState] = useState<string | null>(null);
   const [filterCity, setFilterCity] = useState<string | null>(null);
@@ -432,7 +463,20 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
         } else if (key === 'gender') {
           if ((d.gender || 'Other').trim().toLowerCase() !== value.toLowerCase()) return false;
         } else if (key === 'age') {
-          if ((d.age || '').trim() !== value.trim()) return false;
+          const ageVal = parseInt((d.age || '0').trim());
+          if (value.includes('-')) {
+            const [min, max] = value.split('-').map(v => parseInt(v));
+            if (ageVal < min || ageVal > max) return false;
+          } else {
+            if ((d.age || '').trim() !== value.trim()) return false;
+          }
+        } else if (key === 'payment_amount') {
+          const targetAmt = parseFloat(value);
+          let totalPaid = 0;
+          for (let i = 1; i <= 10; i++) {
+            totalPaid += parseFloat(String((d as any)[`payment${i}_amount`]).replace(/[^0-9.]/g, '')) || 0;
+          }
+          if (totalPaid !== targetAmt) return false;
         } else if (key === 'medium') {
           if ((d.medium || '').trim().toLowerCase() !== value.toLowerCase()) return false;
         } else if (key === 'state') {
@@ -1170,6 +1214,42 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
                             <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
                             Back
                           </button>
+
+                          {selectedFilterType === 'age' && (
+                            <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-700 space-y-2">
+                              <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Custom Range</p>
+                              <div className="flex items-center gap-2">
+                                <input 
+                                  type="number" 
+                                  placeholder="Min"
+                                  value={customAgeMin}
+                                  onChange={(e) => setCustomAgeMin(e.target.value)}
+                                  className="w-full px-2 py-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded text-[10px] font-bold outline-none focus:ring-1 focus:ring-indigo-500"
+                                />
+                                <span className="text-slate-300">-</span>
+                                <input 
+                                  type="number" 
+                                  placeholder="Max"
+                                  value={customAgeMax}
+                                  onChange={(e) => setCustomAgeMax(e.target.value)}
+                                  className="w-full px-2 py-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded text-[10px] font-bold outline-none focus:ring-1 focus:ring-indigo-500"
+                                />
+                                <button 
+                                  onClick={() => {
+                                    if (customAgeMin || customAgeMax) {
+                                      addFilter('age', `${customAgeMin || 0}-${customAgeMax || 100}`);
+                                      setCustomAgeMin('');
+                                      setCustomAgeMax('');
+                                    }
+                                  }}
+                                  className="p-1 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition-colors"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
                           <div className="max-h-48 overflow-y-auto">
                             {(FILTER_CONFIG.find(c => c.id === selectedFilterType)?.dynamic 
                               ? (dynamicOptions as any)[selectedFilterType] 
@@ -1552,10 +1632,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
               <table className="w-full border-collapse">
                 <thead>
                   <tr className="bg-slate-50 dark:bg-slate-900">
+                    <th className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-black uppercase tracking-widest text-slate-500">S.No</th>
                     <th className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-black uppercase tracking-widest text-slate-500">ID</th>
                     <th className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-black uppercase tracking-widest text-slate-500">Name</th>
-                    <th className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-black uppercase tracking-widest text-slate-500">State</th>
                     <th className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-black uppercase tracking-widest text-slate-500">Contact</th>
+                    <th className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-black uppercase tracking-widest text-slate-500">WhatsApp</th>
+                    <th className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-black uppercase tracking-widest text-slate-500">State</th>
                     <th className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-black uppercase tracking-widest text-slate-500">Status</th>
                     <th className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-black uppercase tracking-widest text-slate-500">Paid</th>
                     <th className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-black uppercase tracking-widest text-slate-500">Remaining</th>
@@ -1569,10 +1651,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
                     }
                     return (
                       <tr key={data.admission_id || idx} className="hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors">
+                        <td className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-bold text-slate-700 dark:text-slate-300">{idx + 1}</td>
                         <td className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-bold text-slate-700 dark:text-slate-300">{data.admission_id}</td>
                         <td className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-black uppercase text-slate-900 dark:text-slate-100">{data.name}</td>
-                        <td className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase">{data.state}</td>
                         <td className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-mono font-bold text-slate-500">{data.contact_no}</td>
+                        <td className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-mono font-bold text-slate-500">{data.whatsapp_no}</td>
+                        <td className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase">{data.state}</td>
                         <td className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-black uppercase">
                           <span className={
                             data.status === 'cancelled' ? 'text-red-500' : 

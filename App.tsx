@@ -2,7 +2,7 @@ import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
-  Plus, Upload, LayoutDashboard, FileText, Settings as SettingsIcon, 
+  Plus, Upload, LayoutDashboard, Settings as SettingsIcon, 
   LogOut, Sun, Moon, Search, Download, Trash2, 
   Database, Cloud, ShieldCheck, UserCircle2, 
   ChevronRight, Info, AlertCircle, Loader2,
@@ -20,10 +20,10 @@ import { Login } from './components/Login';
 const App: React.FC = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userRole, setUserRole] = useState<UserRole | null>(null);
-  const [activeTab, setActiveTab] = useState<'processing' | 'dashboard' | 'settings'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'settings'>('dashboard');
   const [records, setRecords] = useState<ProcessingRecord[]>([]);
   const [isUploading, setIsUploading] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [isSyncing, setIsSyncing] = useState(false);
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<RegistrationData | null>(null);
   const [isDarkMode, setIsDarkMode] = useState(() => {
@@ -104,7 +104,6 @@ const App: React.FC = () => {
     const files = event.target.files;
     if (!files || files.length === 0) return;
 
-    setActiveTab('processing');
     setIsUploading(true);
     const newRecords: ProcessingRecord[] = [];
 
@@ -156,8 +155,23 @@ const App: React.FC = () => {
       setRecords(prev => prev.map(r => r.id === record.id ? { 
         ...r, 
         status: 'completed', 
-        data: extractedData 
+        data: extractedData,
+        syncStatus: 'syncing'
       } : r));
+
+      // Auto-sync OCR result
+      if (extractedData) {
+        const success = await syncToGoogleSheets(extractedData);
+        setRecords(prev => prev.map(r => r.id === record.id ? { 
+          ...r, 
+          syncStatus: success ? 'synced' : 'failed',
+          syncedAt: success ? Date.now() : undefined
+        } : r));
+        
+        if (success) {
+          console.log(`OCR record ${record.fileName} synced successfully`);
+        }
+      }
     } catch (error: any) {
       setRecords(prev => prev.map(r => r.id === record.id ? { 
         ...r, 
@@ -174,31 +188,12 @@ const App: React.FC = () => {
   };
 
   const handleManualSubmit = async (data: RegistrationData) => {
-    if (editingRecord) {
-      const existingRecord = records.find(r => r.data?.admission_id === data.admission_id);
-      if (existingRecord) {
-        updateRecordData(existingRecord.id, data);
-      } else {
-        // Remote record update: Add to local records so it can be tracked and synced
-        const id = uuidv4();
-        const newRecord: ProcessingRecord = {
-          id,
-          timestamp: Date.now(),
-          fileName: `Cloud Edit - ${data.name || 'Student'}`,
-          imageUrl: '',
-          data: data,
-          status: 'completed',
-          source: 'manual',
-          syncStatus: 'idle',
-        };
-        setRecords(prev => [newRecord, ...prev]);
-        setActiveTab('processing');
-        
-        // Trigger sync for this new local record
-        performSync(id, data);
-      }
-      setEditingRecord(null);
-    } else {
+    setIsSyncing(true);
+    const success = await syncToGoogleSheets(data);
+    setIsSyncing(false);
+    
+    if (success) {
+      // Add to local records just to keep track for the current session's dashboard
       const id = uuidv4();
       const newRecord: ProcessingRecord = {
         id,
@@ -208,12 +203,15 @@ const App: React.FC = () => {
         data: data,
         status: 'completed',
         source: 'manual',
-        syncStatus: 'idle',
+        syncStatus: 'synced',
       };
       setRecords(prev => [newRecord, ...prev]);
-      setActiveTab('processing');
+      alert("Registration synced successfully to Google Sheets!");
+      setEditingRecord(null);
+      setIsManualModalOpen(false);
+    } else {
+      alert("Failed to sync to Google Sheets. Please check your connection.");
     }
-    setIsManualModalOpen(false);
   };
 
   const updateRecordData = (id: string, newData: RegistrationData) => {
@@ -228,43 +226,6 @@ const App: React.FC = () => {
           return prev.filter(r => r.id !== id);
       });
     }
-  };
-
-  const clearAll = () => {
-    const confirmation = window.confirm("WARNING: This will permanently delete all local records. Data synced to Google Sheets will remain safe.");
-    if (confirmation) {
-      records.forEach(r => r.imageUrl && URL.revokeObjectURL(r.imageUrl));
-      setRecords([]);
-      localStorage.removeItem('eha_ocr_records');
-    }
-  };
-
-  const filteredRecords = useMemo(() => {
-    if (!searchQuery) return records;
-    const lower = searchQuery.toLowerCase();
-    return records.filter(r => 
-        r.data?.name?.toLowerCase().includes(lower) || 
-        r.data?.admission_id?.toLowerCase().includes(lower) ||
-        r.fileName.toLowerCase().includes(lower) ||
-        r.data?.city?.toLowerCase().includes(lower) ||
-        r.data?.state?.toLowerCase().includes(lower)
-    );
-  }, [records, searchQuery]);
-
-  const exportToCSV = () => {
-    const completed = records.filter(r => r.status === 'completed' && r.data);
-    if (completed.length === 0) return alert("No completed records found for export.");
-    const headers = Object.keys(completed[0].data!).join(",");
-    const rows = completed.map(r => Object.values(r.data!).map(val => `"${String(val).replace(/"/g, '""')}"`).join(","));
-    const csvContent = [headers, ...rows].join("\n");
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `Registration_Export_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
   };
 
   if (!isLoggedIn) return <Login onLogin={handleLogin} />;
@@ -300,18 +261,19 @@ const App: React.FC = () => {
               onClick={() => setActiveTab('dashboard')}
               className="flex items-center gap-4 group active:scale-95 transition-all"
             >
-              <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-indigo-200 dark:shadow-none overflow-hidden">
+              <div className="h-10 lg:h-12 w-auto flex items-center justify-center overflow-hidden">
                 {config.logoUrl ? (
-                  <img src={config.logoUrl} alt="Logo" className="w-full h-full object-cover" />
+                  <img src={config.logoUrl} alt="Logo" className="h-full w-auto object-contain" referrerPolicy="no-referrer" />
                 ) : (
-                  <span className="text-2xl font-black italic">E</span>
+                  <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-indigo-200 dark:shadow-none">
+                    <span className="text-2xl font-black italic">E</span>
+                  </div>
                 )}
               </div>
             </button>
 
             <nav className="hidden lg:flex items-center bg-slate-50 dark:bg-slate-800/50 p-1.5 rounded-[24px] border border-slate-100 dark:border-slate-800">
               <NavButton tab="dashboard" icon={LayoutDashboard} label="Analytics" />
-              <NavButton tab="processing" icon={FileText} label="Records" />
               {userRole === 'super_admin' && <NavButton tab="settings" icon={SettingsIcon} label="Setup" />}
             </nav>
           </div>
@@ -374,10 +336,6 @@ const App: React.FC = () => {
           <LayoutDashboard size={24} strokeWidth={activeTab === 'dashboard' ? 3 : 2} />
           <span className="text-[9px] font-black uppercase tracking-widest">Stats</span>
         </button>
-        <button onClick={() => setActiveTab('processing')} className={`flex flex-col items-center gap-2 transition-all ${activeTab === 'processing' ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 dark:text-slate-600'}`}>
-          <FileText size={24} strokeWidth={activeTab === 'processing' ? 3 : 2} />
-          <span className="text-[9px] font-black uppercase tracking-widest">Records</span>
-        </button>
         {userRole === 'super_admin' && (
           <button onClick={() => setActiveTab('settings')} className={`flex flex-col items-center gap-2 transition-all ${activeTab === 'settings' ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 dark:text-slate-600'}`}>
             <SettingsIcon size={24} strokeWidth={activeTab === 'settings' ? 3 : 2} />
@@ -401,103 +359,13 @@ const App: React.FC = () => {
                 }}
               />
             </motion.div>
-          ) : activeTab === 'settings' && userRole === 'super_admin' ? (
+          ) : (
             <motion.div key="settings" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} transition={{ duration: 0.3 }}>
               <Settings 
                 config={config} 
                 onUpdate={updateAppConfig} 
                 currentUsername={sessionStorage.getItem('eha_session_v2') ? JSON.parse(sessionStorage.getItem('eha_session_v2')!).username : 'superadmin'}
               />
-            </motion.div>
-          ) : (
-            <motion.div key="processing" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} transition={{ duration: 0.3 }} className="flex flex-col lg:flex-row gap-12">
-              {/* SIDEBAR */}
-              <div className="w-full lg:w-1/3 space-y-8">
-                <div className="bg-white dark:bg-slate-900 p-10 rounded-[48px] shadow-sm border border-slate-100 dark:border-slate-800 transition-all hover:shadow-xl hover:shadow-indigo-500/5">
-                  <div className="flex items-center gap-4 mb-8">
-                    <div className="w-10 h-10 bg-indigo-50 dark:bg-indigo-900/30 rounded-xl flex items-center justify-center text-indigo-600 dark:text-indigo-400">
-                      <Database size={20} strokeWidth={2.5} />
-                    </div>
-                    <h2 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-[0.2em]">Storage Overview</h2>
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-6">
-                    <div className="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-[32px] border border-slate-100 dark:border-slate-800/50">
-                        <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">Total Records</p>
-                        <p className="text-3xl font-black text-slate-900 dark:text-white tracking-tighter">{records.length}</p>
-                    </div>
-                    <div className="bg-emerald-50 dark:bg-emerald-900/20 p-6 rounded-[32px] border border-emerald-100 dark:border-emerald-900/10">
-                        <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-2">Cloud Synced</p>
-                        <p className="text-3xl font-black text-emerald-600 tracking-tighter">{records.filter(r => r.syncStatus === 'synced').length}</p>
-                    </div>
-                  </div>
-                  
-                  <div className="mt-10 space-y-4">
-                    <button onClick={exportToCSV} disabled={records.filter(r => r.status === 'completed').length === 0} className="w-full py-5 bg-slate-900 dark:bg-slate-700 text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-slate-800 dark:hover:bg-slate-600 transition-all disabled:opacity-30 flex items-center justify-center gap-3 shadow-xl shadow-slate-200 dark:shadow-none">
-                        <Download size={18} strokeWidth={2.5} />
-                        Download CSV
-                    </button>
-                    {userRole === 'super_admin' && records.length > 0 && (
-                      <button onClick={clearAll} className="w-full py-4 text-slate-300 dark:text-slate-600 hover:text-red-500 dark:hover:text-red-400 font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-2">
-                        <Trash2 size={14} />
-                        Purge Local Memory
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                <div className="bg-indigo-600 dark:bg-indigo-900/40 p-10 rounded-[48px] text-white shadow-2xl shadow-indigo-200 dark:shadow-none relative overflow-hidden group">
-                    <div className="absolute -right-8 -top-8 w-32 h-32 bg-white/10 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-700"></div>
-                    <div className="flex items-center gap-3 mb-6">
-                      <Info size={20} strokeWidth={2.5} />
-                      <h3 className="text-xs font-black uppercase tracking-[0.2em]">Data Security</h3>
-                    </div>
-                    <p className="text-sm font-bold text-indigo-100 leading-relaxed">
-                        Your data is stored locally in this browser. Use the Cloud Sync feature to ensure your records are safely backed up to your centralized Google Sheet.
-                    </p>
-                    <div className="mt-8 flex items-center gap-2">
-                      <ShieldCheck size={16} className="text-indigo-200" />
-                      <span className="text-[10px] font-black uppercase tracking-widest text-indigo-200">End-to-End Encrypted</span>
-                    </div>
-                </div>
-              </div>
-
-              {/* MAIN LIST */}
-              <div className="w-full lg:w-2/3 space-y-8">
-                <div className="relative group">
-                    <div className="absolute inset-y-0 left-0 pl-6 flex items-center pointer-events-none">
-                        <Search size={20} className="text-slate-400 dark:text-slate-600 group-focus-within:text-indigo-500 transition-colors" strokeWidth={2.5} />
-                    </div>
-                    <input 
-                        type="text" 
-                        placeholder="Search by name, ID, or location..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="block w-full pl-16 pr-8 py-6 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[32px] text-sm font-bold focus:outline-none focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-500 transition-all shadow-sm dark:text-slate-100 dark:placeholder-slate-700"
-                    />
-                </div>
-
-                <div className="space-y-6">
-                  {filteredRecords.length > 0 ? (
-                    filteredRecords.map(record => (
-                      <ProcessingCard 
-                        key={record.id} 
-                        record={record} 
-                        onRemove={removeRecord}
-                        onUpdate={updateRecordData}
-                        onSync={(id) => record.data && performSync(id, record.data)}
-                      />
-                    ))
-                  ) : (
-                    <div className="flex flex-col items-center justify-center py-32 bg-white dark:bg-slate-900 rounded-[48px] border border-slate-100 dark:border-slate-800 border-dashed transition-all">
-                      <div className="w-24 h-24 bg-slate-50 dark:bg-slate-800/50 rounded-[32px] flex items-center justify-center mb-8 text-slate-200 dark:text-slate-800">
-                        <Database size={48} strokeWidth={1} />
-                      </div>
-                      <p className="text-slate-400 dark:text-slate-600 font-black text-xs uppercase tracking-[0.2em]">No records found in memory</p>
-                    </div>
-                  )}
-                </div>
-              </div>
             </motion.div>
           )}
         </AnimatePresence>
@@ -511,6 +379,7 @@ const App: React.FC = () => {
         }}
         onSubmit={handleManualSubmit}
         initialData={editingRecord}
+        isSyncing={isSyncing}
       />
 
       <input type="file" className="hidden" ref={fileInputRef} onChange={handleFileUpload} accept="image/*" multiple />

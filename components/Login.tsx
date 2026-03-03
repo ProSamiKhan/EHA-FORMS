@@ -105,12 +105,14 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
               initial={{ scale: 0.8 }}
               animate={{ scale: 1 }}
               transition={{ type: "spring", stiffness: 200, damping: 15 }}
-              className="w-24 h-24 bg-slate-900 dark:bg-indigo-600 rounded-[32px] flex items-center justify-center shadow-2xl shadow-indigo-200 dark:shadow-none mb-8 overflow-hidden group"
+              className="w-full h-16 flex items-center justify-center mb-8 overflow-hidden group"
             >
               {config.logoUrl ? (
-                <img src={config.logoUrl} alt="Logo" className="w-full h-full object-contain p-4 dark:brightness-110" />
+                <img src={config.logoUrl} alt="Logo" className="h-full w-auto object-contain dark:brightness-110" referrerPolicy="no-referrer" />
               ) : (
-                <span className="text-white text-5xl font-black italic">E</span>
+                <div className="w-16 h-16 bg-slate-900 dark:bg-indigo-600 rounded-2xl flex items-center justify-center shadow-2xl shadow-indigo-200 dark:shadow-none">
+                  <span className="text-white text-3xl font-black italic">E</span>
+                </div>
               )}
             </motion.div>
             

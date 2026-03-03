@@ -7,6 +7,7 @@ interface ManualEntryModalProps {
   onClose: () => void;
   onSubmit: (data: RegistrationData) => void;
   initialData?: RegistrationData | null;
+  isSyncing?: boolean;
 }
 
 const TOTAL_FEES = 20000;
@@ -83,7 +84,7 @@ const fromInputDate = (s: string) => {
   return `${d}/${m}/${y}`;
 };
 
-export const ManualEntryModal: React.FC<ManualEntryModalProps> = ({ isOpen, onClose, onSubmit, initialData }) => {
+export const ManualEntryModal: React.FC<ManualEntryModalProps> = ({ isOpen, onClose, onSubmit, initialData, isSyncing }) => {
   const [formData, setFormData] = useState<RegistrationData>(INITIAL_DATA);
 
   const [country, setCountry] = useState<'India' | 'Other'>('India');
@@ -447,8 +448,25 @@ export const ManualEntryModal: React.FC<ManualEntryModalProps> = ({ isOpen, onCl
         </form>
 
         <div className="px-4 md:px-8 py-6 border-t border-slate-100 dark:border-slate-800 flex gap-4 bg-slate-50 dark:bg-slate-800/50 transition-colors">
-          <button type="button" onClick={onClose} className="px-6 py-3 text-sm font-bold text-slate-400 dark:text-slate-600 hover:text-slate-600 dark:hover:text-slate-400 transition-all transition-colors">Cancel</button>
-          <button type="submit" onClick={handleSubmit} className="flex-1 py-4 bg-indigo-600 text-white rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl dark:shadow-none hover:bg-indigo-700 active:scale-95 transition-all transition-colors">Submit Entry</button>
+          <button type="button" onClick={onClose} disabled={isSyncing} className="px-6 py-3 text-sm font-bold text-slate-400 dark:text-slate-600 hover:text-slate-600 dark:hover:text-slate-400 transition-all transition-colors disabled:opacity-50">Cancel</button>
+          <button 
+            type="submit" 
+            onClick={handleSubmit} 
+            disabled={isSyncing}
+            className="flex-1 py-4 bg-indigo-600 text-white rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl dark:shadow-none hover:bg-indigo-700 active:scale-95 transition-all transition-colors disabled:opacity-70 flex items-center justify-center gap-3"
+          >
+            {isSyncing ? (
+              <>
+                <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span>Syncing...</span>
+              </>
+            ) : (
+              <span>Submit Entry</span>
+            )}
+          </button>
         </div>
       </div>
     </div>
