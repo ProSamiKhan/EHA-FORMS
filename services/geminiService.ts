@@ -35,6 +35,7 @@ The user is uploading images of a specific registration form. You must identify 
    - payment9_amount, payment9_date, payment9_utr, payment9_method
    - payment10_amount, payment10_date, payment10_utr, payment10_method
    - received_ac (Account details)
+   - total_fees (Default to "20000" unless specified otherwise)
    - discount
    - remaining_amount
    - status (Default to "confirm" unless "cancelled" is mentioned)
@@ -122,6 +123,7 @@ export const processRegistrationForm = async (base64Image: string): Promise<Regi
             payment10_utr: { type: Type.STRING },
             payment10_method: { type: Type.STRING, description: "cash or account" },
             received_ac: { type: Type.STRING },
+            total_fees: { type: Type.STRING },
             discount: { type: Type.STRING },
             remaining_amount: { type: Type.STRING },
             status: { type: Type.STRING, description: "confirm or cancelled" },
@@ -129,7 +131,7 @@ export const processRegistrationForm = async (base64Image: string): Promise<Regi
           required: [
             "admission_id", "name", "gender", "age", "qualification", "medium", 
             "contact_no", "whatsapp_no", "city", "state", "payment1_amount", "payment1_date", 
-            "payment1_utr", "received_ac", "discount", "remaining_amount", "status"
+            "payment1_utr", "received_ac", "total_fees", "discount", "remaining_amount", "status"
           ]
         },
       },

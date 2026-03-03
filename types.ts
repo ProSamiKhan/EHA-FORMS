@@ -70,6 +70,7 @@ export interface RegistrationData {
   
   received_ac: string;
   discount: string;
+  total_fees: string;
   remaining_amount: string;
   status: 'confirm' | 'cancelled' | 'pending';
 }

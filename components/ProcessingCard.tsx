@@ -58,7 +58,8 @@ export const ProcessingCard: React.FC<ProcessingCardProps> = ({ record, onRemove
         totalPaid += parseFloat((tempData as any)[`payment${i}_amount`]) || 0;
       }
       const disc = parseFloat(tempData.discount) || 0;
-      const remaining = BASE_FEES - totalPaid - disc;
+      const totalFees = parseFloat(tempData.total_fees) || BASE_FEES;
+      const remaining = totalFees - totalPaid - disc;
       const finalRem = remaining >= 0 ? remaining : 0;
       
       if (tempData.remaining_amount !== String(finalRem)) {
@@ -69,7 +70,7 @@ export const ProcessingCard: React.FC<ProcessingCardProps> = ({ record, onRemove
     tempData?.payment1_amount, tempData?.payment2_amount, tempData?.payment3_amount, 
     tempData?.payment4_amount, tempData?.payment5_amount, tempData?.payment6_amount,
     tempData?.payment7_amount, tempData?.payment8_amount, tempData?.payment9_amount,
-    tempData?.payment10_amount, tempData?.discount, isEditing
+    tempData?.payment10_amount, tempData?.discount, tempData?.total_fees, isEditing
   ]);
 
   const startEditing = (e: React.MouseEvent) => {
@@ -254,6 +255,7 @@ export const ProcessingCard: React.FC<ProcessingCardProps> = ({ record, onRemove
                           <DataRow label="State / UT" value={isEditing ? tempData!.state : record.data.state} isEditing={isEditing} onChange={(v) => handleDataChange('state', v)} icon={MapPin} />
                           <DataRow label="City" value={isEditing ? tempData!.city : record.data.city} isEditing={isEditing} onChange={(v) => handleDataChange('city', v)} icon={Building2} />
                           <DataRow label="Received In A/C" value={isEditing ? tempData!.received_ac : record.data.received_ac} isEditing={isEditing} onChange={(v) => handleDataChange('received_ac', v)} icon={ShieldCheck} />
+                          <DataRow label="Total Fees" value={isEditing ? tempData!.total_fees : record.data.total_fees} isEditing={isEditing} onChange={(v) => handleDataChange('total_fees', v)} type="number" icon={IndianRupee} />
                           <div className="grid grid-cols-2 gap-4">
                             <DataRow label="Discount" value={isEditing ? tempData!.discount : record.data.discount} isEditing={isEditing} onChange={(v) => handleDataChange('discount', v)} type="number" icon={Zap} />
                             <DataRow label="Pending" value={isEditing ? tempData!.remaining_amount : record.data.remaining_amount} isEditing={isEditing} onChange={(v) => handleDataChange('remaining_amount', v)} type="number" icon={IndianRupee} />

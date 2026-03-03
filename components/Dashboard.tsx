@@ -240,6 +240,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
         payment10_method: (row['payment10_method'] || row['payment 10 method'] || '').toLowerCase() as any || undefined,
         received_ac: String(row['received ac'] || row['received_ac'] || ''),
         discount: String(row['discount'] || '0'),
+        total_fees: String(row['total_fees'] || row['total fees'] || '20000'),
         remaining_amount: String(row['remaining amount'] || row['remaining_amount'] || '0'),
         status: (() => {
           const s = (row['status'] || 'confirm').toLowerCase();
@@ -1378,6 +1379,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
                         <DetailRow label="WhatsApp Number" value={viewingRecord.whatsapp_no} />
                         <DetailRow label="State / UT" value={viewingRecord.state} />
                         <DetailRow label="City" value={viewingRecord.city} />
+                        <DetailRow label="Total Fees" value={`₹${viewingRecord.total_fees}`} />
                         <DetailRow label="Discount Applied" value={`₹${viewingRecord.discount}`} />
                       </div>
                       

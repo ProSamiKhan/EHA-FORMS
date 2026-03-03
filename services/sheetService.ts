@@ -19,6 +19,7 @@ export const syncToGoogleSheets = async (data: RegistrationData): Promise<boolea
   const payload: any = {
     ...data,
     "payment1": data.payment1_amount, // Match Column K in screenshot
+    "total_fees": data.total_fees || "20000",
   };
 
   // Ensure dates are in DD/MM/YYYY format for the sheet

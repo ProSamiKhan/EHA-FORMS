@@ -34,7 +34,8 @@ const INITIAL_DATA: RegistrationData = {
   payment10_amount: '', payment10_date: '', payment10_utr: '', payment10_method: 'account',
   received_ac: 'EHA Account',
   discount: '0',
-  remaining_amount: '20000',
+  total_fees: String(TOTAL_FEES),
+  remaining_amount: String(TOTAL_FEES),
   status: 'confirm'
 };
 
@@ -131,13 +132,14 @@ export const ManualEntryModal: React.FC<ManualEntryModalProps> = ({ isOpen, onCl
     const p10 = parseFloat(formData.payment10_amount) || 0;
     const disc = parseFloat(formData.discount) || 0;
     const totalPaid = p1 + p2 + p3 + p4 + p5 + p6 + p7 + p8 + p9 + p10;
-    const remaining = TOTAL_FEES - totalPaid - disc;
+    const totalFees = parseFloat(formData.total_fees) || TOTAL_FEES;
+    const remaining = totalFees - totalPaid - disc;
     setFormData(prev => ({ ...prev, remaining_amount: String(remaining >= 0 ? remaining : 0) }));
   }, [
     formData.payment1_amount, formData.payment2_amount, formData.payment3_amount, 
     formData.payment4_amount, formData.payment5_amount, formData.payment6_amount,
     formData.payment7_amount, formData.payment8_amount, formData.payment9_amount,
-    formData.payment10_amount, formData.discount
+    formData.payment10_amount, formData.discount, formData.total_fees
   ]);
 
   if (!isOpen) return null;
@@ -424,9 +426,15 @@ export const ManualEntryModal: React.FC<ManualEntryModalProps> = ({ isOpen, onCl
               </div>
 
               <div className="space-y-4">
-                <div className="space-y-1">
-                  <label className="text-[9px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest ml-1 transition-colors">Discount</label>
-                  <input type="number" value={formData.discount} onChange={(e) => handleChange('discount', e.target.value)} className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-bold outline-none dark:text-slate-100 transition-colors" />
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest ml-1 transition-colors">Total Fees</label>
+                    <input type="number" value={formData.total_fees} onChange={(e) => handleChange('total_fees', e.target.value)} className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-bold outline-none dark:text-slate-100 transition-colors" />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest ml-1 transition-colors">Discount</label>
+                    <input type="number" value={formData.discount} onChange={(e) => handleChange('discount', e.target.value)} className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-bold outline-none dark:text-slate-100 transition-colors" />
+                  </div>
                 </div>
 
                 <div className="bg-indigo-600 dark:bg-indigo-700 p-4 rounded-2xl flex justify-between items-center shadow-lg dark:shadow-none transition-colors">
