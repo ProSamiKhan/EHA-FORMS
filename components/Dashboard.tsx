@@ -9,10 +9,11 @@ import {
 } from 'recharts';
 import { 
   format, subDays, subMonths, subYears, isAfter, parse, isValid, addDays,
-  startOfDay, startOfWeek, startOfMonth, startOfYear, isBefore, endOfDay
+  startOfDay, startOfWeek, startOfMonth, startOfYear, isBefore, endOfDay, isSameDay
 } from 'date-fns';
 import { Calendar, ChevronDown, X, MapPin, Edit2, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { formatDateClean, parseDate } from '../services/utils';
 
 type TimeRange = 
   | 'today' | 'yesterday' | 'week' | 'month' | 'year' | 'lifetime' | 'custom';
@@ -215,34 +216,34 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
         city: String(row['city'] || row['address'] || ''),
         state: String(row['state'] || ''),
         payment1_amount: String(row['payment1'] || row['payment1_amount'] || row['payment 1 amount'] || row['initial payment'] || row['initial_payment'] || '0'),
-        payment1_date: String(row['payment1_date'] || row['payment 1 date'] || row['date'] || ''),
+        payment1_date: formatDateClean(String(row['payment1_date'] || row['payment 1 date'] || row['date'] || '')),
         payment1_utr: String(row['payment1_utr'] || row['payment 1 utr'] || row['utr'] || ''),
         payment2_amount: String(row['payment2_amount'] || row['payment 2 amount'] || '0'),
-        payment2_date: String(row['payment2_date'] || row['payment 2 date'] || ''),
+        payment2_date: formatDateClean(String(row['payment2_date'] || row['payment 2 date'] || '')),
         payment2_utr: String(row['payment2_utr'] || row['payment 2 utr'] || ''),
         payment3_amount: String(row['payment3_amount'] || row['payment 3 amount'] || '0'),
-        payment3_date: String(row['payment3_date'] || row['payment 3 date'] || ''),
+        payment3_date: formatDateClean(String(row['payment3_date'] || row['payment 3 date'] || '')),
         payment3_utr: String(row['payment3_utr'] || row['payment 3 utr'] || ''),
         payment4_amount: String(row['payment4_amount'] || row['payment 4 amount'] || '0'),
-        payment4_date: String(row['payment4_date'] || row['payment 4 date'] || ''),
+        payment4_date: formatDateClean(String(row['payment4_date'] || row['payment 4 date'] || '')),
         payment4_utr: String(row['payment4_utr'] || row['payment 4 utr'] || ''),
         payment5_amount: String(row['payment5_amount'] || row['payment 5 amount'] || '0'),
-        payment5_date: String(row['payment5_date'] || row['payment 5 date'] || ''),
+        payment5_date: formatDateClean(String(row['payment5_date'] || row['payment 5 date'] || '')),
         payment5_utr: String(row['payment5_utr'] || row['payment 5 utr'] || ''),
         payment6_amount: String(row['payment6_amount'] || row['payment 6 amount'] || '0'),
-        payment6_date: String(row['payment6_date'] || row['payment 6 date'] || ''),
+        payment6_date: formatDateClean(String(row['payment6_date'] || row['payment 6 date'] || '')),
         payment6_utr: String(row['payment6_utr'] || row['payment 6 utr'] || ''),
         payment7_amount: String(row['payment7_amount'] || row['payment 7 amount'] || '0'),
-        payment7_date: String(row['payment7_date'] || row['payment 7 date'] || ''),
+        payment7_date: formatDateClean(String(row['payment7_date'] || row['payment 7 date'] || '')),
         payment7_utr: String(row['payment7_utr'] || row['payment 7 utr'] || ''),
         payment8_amount: String(row['payment8_amount'] || row['payment 8 amount'] || '0'),
-        payment8_date: String(row['payment8_date'] || row['payment 8 date'] || ''),
+        payment8_date: formatDateClean(String(row['payment8_date'] || row['payment 8 date'] || '')),
         payment8_utr: String(row['payment8_utr'] || row['payment 8 utr'] || ''),
         payment9_amount: String(row['payment9_amount'] || row['payment 9 amount'] || '0'),
-        payment9_date: String(row['payment9_date'] || row['payment 9 date'] || ''),
+        payment9_date: formatDateClean(String(row['payment9_date'] || row['payment 9 date'] || '')),
         payment9_utr: String(row['payment9_utr'] || row['payment 9 utr'] || ''),
         payment10_amount: String(row['payment10_amount'] || row['payment 10 amount'] || '0'),
-        payment10_date: String(row['payment10_date'] || row['payment 10 date'] || ''),
+        payment10_date: formatDateClean(String(row['payment10_date'] || row['payment 10 date'] || '')),
         payment10_utr: String(row['payment10_utr'] || row['payment 10 utr'] || ''),
         payment1_method: (row['payment1_method'] || row['payment 1 method'] || '').toLowerCase() as any || undefined,
         payment2_method: (row['payment2_method'] || row['payment 2 method'] || '').toLowerCase() as any || undefined,
@@ -293,19 +294,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
     localSynced.forEach(item => { if (item.admission_id && !uniqueMap.has(item.admission_id)) uniqueMap.set(item.admission_id, item); });
     return Array.from(uniqueMap.values()).sort((a, b) => {
         try {
-            const parseDate = (s: string): number => {
-                if (!s) return 0;
-                const separator = s.includes('/') ? '/' : (s.includes('-') ? '-' : null);
-                if (!separator) return 0;
-                const parts = s.split(separator);
-                if (parts.length !== 3) return 0;
-                const [d, m, y] = parts;
-                const year = y.length === 2 ? `20${y}` : y;
-                const time = new Date(`${year}-${m}-${d}`).getTime();
-                return isNaN(time) ? 0 : time;
-            };
-            const timeB = parseDate(b.payment1_date);
-            const timeA = parseDate(a.payment1_date);
+            const timeB = parseDate(b.payment1_date)?.getTime() || 0;
+            const timeA = parseDate(a.payment1_date)?.getTime() || 0;
             return timeB - timeA;
         } catch(e) { return 0; }
     });
@@ -425,34 +415,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
     setSortConfig({ key, direction });
   };
 
-  const parseDate = (s: string): Date | null => {
-    if (!s) return null;
-    
-    // Handle dd/mm/yyyy or dd-mm-yyyy
-    const separator = s.includes('/') ? '/' : (s.includes('-') ? '-' : null);
-    if (separator) {
-      const parts = s.split(separator);
-      if (parts.length === 3) {
-        const [d, m, y] = parts;
-        // Check if it's YYYY-MM-DD (ISO) or DD-MM-YYYY
-        if (d.length === 4) {
-          // Likely YYYY-MM-DD
-          const date = new Date(`${d}-${m}-${s.split(separator)[2]}`);
-          if (isValid(date)) return date;
-        } else {
-          // Likely DD-MM-YYYY
-          const year = y.length === 2 ? `20${y}` : y;
-          const date = new Date(`${year}-${m}-${d}`);
-          if (isValid(date)) return date;
-        }
-      }
-    }
-    
-    // Fallback for other formats
-    const date = new Date(s);
-    return isValid(date) ? date : null;
-  };
-
   const getFilteredData = (range: TimeRange, custom?: { start: string, end: string }) => {
     let baseFiltered = allSyncedData;
 
@@ -463,8 +425,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
         if (!date) return false;
         
         switch (range) {
-          case 'today': return isAfter(date, startOfDay(now));
-          case 'yesterday': return isAfter(date, startOfDay(subDays(now, 1))) && isBefore(date, endOfDay(subDays(now, 1)));
+          case 'today': return isSameDay(date, now);
+          case 'yesterday': return isSameDay(date, subDays(now, 1));
           case 'week': return isAfter(date, startOfWeek(now));
           case 'month': return isAfter(date, startOfMonth(now));
           case 'year': return isAfter(date, startOfYear(now));
@@ -846,20 +808,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
   };
 
   const isFiltered = timeRange !== 'lifetime' || filterGender || filterState || filterCity || filterDate || filterPaymentStatus || filterAdmissionStatus || filterPaymentMethod || activeFilters.length > 0;
-
-  const formatDateClean = (dateStr: string) => {
-    if (!dateStr) return '—';
-    // If it looks like an ISO date or has T
-    if (dateStr.includes('T')) {
-      try {
-        const d = new Date(dateStr);
-        if (!isNaN(d.getTime())) {
-          return format(d, 'dd/MM/yyyy');
-        }
-      } catch (e) {}
-    }
-    return dateStr;
-  };
 
   return (
     <div className="space-y-8 pb-10 transition-colors">
@@ -1847,6 +1795,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
                 <thead>
                   <tr className="bg-slate-50 dark:bg-slate-900">
                     <th className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-black uppercase tracking-widest text-slate-500">S.No</th>
+                    <th className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-black uppercase tracking-widest text-slate-500">Date</th>
                     <th className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-black uppercase tracking-widest text-slate-500">ID</th>
                     <th className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-black uppercase tracking-widest text-slate-500">Name</th>
                     <th className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-black uppercase tracking-widest text-slate-500">Contact</th>
@@ -1866,6 +1815,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
                     return (
                       <tr key={data.admission_id || idx} className="hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors">
                         <td className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-bold text-slate-700 dark:text-slate-300">{idx + 1}</td>
+                        <td className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-bold text-slate-700 dark:text-slate-300">{formatDateClean(data.payment1_date)}</td>
                         <td className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-bold text-slate-700 dark:text-slate-300">{data.admission_id}</td>
                         <td className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-black uppercase text-slate-900 dark:text-slate-100">{data.name}</td>
                         <td className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-mono font-bold text-slate-500">{data.contact_no}</td>
@@ -1902,7 +1852,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
                     >
                       <div className="flex justify-between items-start mb-3">
                         <div className="flex flex-col">
-                          <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">S.No {idx + 1}</span>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">S.No {idx + 1}</span>
+                            <span className="text-[8px] font-black text-indigo-500 uppercase tracking-widest">{formatDateClean(data.payment1_date)}</span>
+                          </div>
                           <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">{data.name}</h4>
                           <span className="text-[9px] font-mono font-bold text-indigo-500">{data.admission_id}</span>
                         </div>

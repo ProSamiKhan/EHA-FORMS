@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ProcessingRecord, RegistrationData } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
+import { formatDateClean } from '../services/utils';
 import { 
   Trash2, Edit3, Check, Globe, FileText, 
   AlertCircle, Cloud, CloudOff, Loader2, 
@@ -40,7 +41,7 @@ const DataRow: React.FC<{
       />
     ) : (
       <span className={`text-xs font-bold truncate ${value === 'CHECK_MANUALLY' ? 'text-red-500' : 'text-slate-700 dark:text-slate-200'}`}>
-        {value || <em className="text-slate-300 dark:text-slate-600 font-normal italic text-[10px]">blank</em>}
+        {label.toLowerCase().includes('date') ? formatDateClean(value) : (value || <em className="text-slate-300 dark:text-slate-600 font-normal italic text-[10px]">blank</em>)}
       </span>
     )}
   </div>

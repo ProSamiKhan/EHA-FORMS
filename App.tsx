@@ -11,6 +11,7 @@ import {
 import { ProcessingRecord, RegistrationData, UserRole, AppConfig } from './types';
 import { processRegistrationForm } from './services/geminiService';
 import { syncToGoogleSheets } from './services/sheetService';
+import { formatDateClean } from './services/utils';
 import { ProcessingCard } from './components/ProcessingCard';
 import { ManualEntryModal } from './components/ManualEntryModal';
 import { Dashboard } from './components/Dashboard';
@@ -151,6 +152,16 @@ const App: React.FC = () => {
 
       const base64 = await base64Promise;
       const extractedData = await processRegistrationForm(base64);
+      
+      // Normalize dates from AI
+      if (extractedData) {
+        for (let i = 1; i <= 10; i++) {
+          const key = `payment${i}_date`;
+          if ((extractedData as any)[key]) {
+            (extractedData as any)[key] = formatDateClean((extractedData as any)[key]);
+          }
+        }
+      }
 
       setRecords(prev => prev.map(r => r.id === record.id ? { 
         ...r, 

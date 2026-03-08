@@ -1,5 +1,6 @@
 
 import { RegistrationData } from "../types";
+import { formatDateClean } from "./utils";
 
 // The deployment URL for the Google Apps Script
 const GOOGLE_SHEET_WEBAPP_URL: string = "https://script.google.com/macros/s/AKfycbzNzCmbrMaDi2pToj-hRoM9oqX1-TqnB3yPXhBApMu4jajvFzaLDIP86EY16LI7GBSq/exec";
@@ -22,25 +23,11 @@ export const syncToGoogleSheets = async (data: RegistrationData): Promise<boolea
     "total_fees": data.total_fees || "20000",
   };
 
-  // Ensure dates are in DD/MM/YYYY format for the sheet
-  const formatDate = (dateStr: string) => {
-    if (!dateStr) return "";
-    if (dateStr.includes('T')) {
-      const d = new Date(dateStr);
-      if (!isNaN(d.getTime())) {
-        const day = String(d.getDate()).padStart(2, '0');
-        const month = String(d.getMonth() + 1).padStart(2, '0');
-        const year = d.getFullYear();
-        return `${day}/${month}/${year}`;
-      }
-    }
-    return dateStr;
-  };
-
+  // Ensure dates are in DD-MM-YYYY format for the sheet
   for (let i = 1; i <= 10; i++) {
     const dateKey = `payment${i}_date` as keyof RegistrationData;
     if (payload[dateKey]) {
-      payload[dateKey] = formatDate(payload[dateKey]);
+      payload[dateKey] = formatDateClean(payload[dateKey]);
     }
   }
 
