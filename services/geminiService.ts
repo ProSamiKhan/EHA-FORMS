@@ -22,7 +22,7 @@ The user is uploading images of a specific registration form. You must identify 
    - city
    - state
    - payment1_amount (Initial payment)
-   - payment1_date (Format: DD/MM/YYYY)
+   - payment1_date (Format: DD-MM-YYYY)
    - payment1_utr (Transaction ID or "Received By" name if cash)
    - payment1_method ("cash" or "account")
    - payment2_amount, payment2_date, payment2_utr, payment2_method

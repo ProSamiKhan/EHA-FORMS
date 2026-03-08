@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import { format } from 'date-fns';
 import { RegistrationData } from '../types';
 
 interface ManualEntryModalProps {
@@ -23,7 +24,7 @@ const INITIAL_DATA: RegistrationData = {
   whatsapp_no: '',
   city: '',
   state: '',
-  payment1_amount: '', payment1_date: new Date().toLocaleDateString('en-GB'), payment1_utr: '', payment1_method: 'account',
+  payment1_amount: '', payment1_date: format(new Date(), 'dd-MM-yyyy'), payment1_utr: '', payment1_method: 'account',
   payment2_amount: '', payment2_date: '', payment2_utr: '', payment2_method: 'account',
   payment3_amount: '', payment3_date: '', payment3_utr: '', payment3_method: 'account',
   payment4_amount: '', payment4_date: '', payment4_utr: '', payment4_method: 'account',
@@ -70,10 +71,21 @@ const toInputDate = (s: string) => {
       }
     } catch (e) {}
   }
-  const parts = s.split('/');
+  const separator = s.includes('/') ? '/' : '-';
+  const parts = s.split(separator);
   if (parts.length !== 3) return '';
+  
+  // Check if it's already YYYY-MM-DD
+  if (parts[0].length === 4) {
+    return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+  }
+  
   const [d, m, y] = parts;
-  return `${y}-${m}-${d}`;
+  // Ensure we have YYYY-MM-DD for input type="date"
+  const year = y.length === 2 ? `20${y}` : y;
+  const month = m.padStart(2, '0');
+  const day = d.padStart(2, '0');
+  return `${year}-${month}-${day}`;
 };
 
 const fromInputDate = (s: string) => {
@@ -81,7 +93,7 @@ const fromInputDate = (s: string) => {
   const parts = s.split('-');
   if (parts.length !== 3) return '';
   const [y, m, d] = parts;
-  return `${d}/${m}/${y}`;
+  return `${d}-${m}-${y}`;
 };
 
 export const ManualEntryModal: React.FC<ManualEntryModalProps> = ({ isOpen, onClose, onSubmit, initialData, isSyncing }) => {

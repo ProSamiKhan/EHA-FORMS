@@ -11,13 +11,11 @@ import {
   format, subDays, subMonths, subYears, isAfter, parse, isValid, addDays,
   startOfDay, startOfWeek, startOfMonth, startOfYear, isBefore, endOfDay
 } from 'date-fns';
-import { Calendar, ChevronDown } from 'lucide-react';
+import { Calendar, ChevronDown, X, MapPin, Edit2, ChevronRight } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 
 type TimeRange = 
-  | '7d' | '28d' | '90d' | '365d' | 'lifetime' 
-  | '2026' | '2025' 
-  | 'jan' | 'feb' | 'mar' | 'apr' | 'may' | 'jun' | 'jul' | 'aug' | 'sep' | 'oct' | 'nov' | 'dec'
-  | 'custom';
+  | 'today' | 'yesterday' | 'week' | 'month' | 'year' | 'lifetime' | 'custom';
 
 interface DashboardProps {
   records: ProcessingRecord[];
@@ -48,20 +46,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
   const [genderViewType, setGenderViewType] = useState<'confirm' | 'total'>('confirm');
 
   const TIME_RANGE_OPTIONS = [
-    { id: '7d', label: 'Last 7 days' },
-    { id: '28d', label: 'Last 28 days' },
-    { id: '90d', label: 'Last 90 days' },
-    { id: '365d', label: 'Last 365 days' },
-    { id: 'lifetime', label: 'Lifetime' },
+    { id: 'today', label: 'Today' },
+    { id: 'yesterday', label: 'Yesterday' },
+    { id: 'week', label: 'This Week' },
+    { id: 'month', label: 'This Month' },
+    { id: 'year', label: 'This Year' },
     { divider: true },
-    { id: '2026', label: '2026' },
-    { id: '2025', label: '2025' },
-    { divider: true },
-    { id: 'mar', label: 'March' },
-    { id: 'feb', label: 'February' },
-    { id: 'jan', label: 'January' },
-    { divider: true },
-    { id: 'custom', label: 'Custom' },
+    { id: 'custom', label: 'Custom Range' },
   ];
   const [dashboardSearchQuery, setDashboardSearchQuery] = useState('');
   const [masterViewSearchQuery, setMasterViewSearchQuery] = useState('');
@@ -304,10 +295,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
         try {
             const parseDate = (s: string): number => {
                 if (!s) return 0;
-                const parts = s.split('/');
+                const separator = s.includes('/') ? '/' : (s.includes('-') ? '-' : null);
+                if (!separator) return 0;
+                const parts = s.split(separator);
                 if (parts.length !== 3) return 0;
                 const [d, m, y] = parts;
-                const time = new Date(`${y}-${m}-${d}`).getTime();
+                const year = y.length === 2 ? `20${y}` : y;
+                const time = new Date(`${year}-${m}-${d}`).getTime();
                 return isNaN(time) ? 0 : time;
             };
             const timeB = parseDate(b.payment1_date);
@@ -434,17 +428,27 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
   const parseDate = (s: string): Date | null => {
     if (!s) return null;
     
-    // Handle dd/mm/yyyy
-    if (s.includes('/')) {
-      const parts = s.split('/');
+    // Handle dd/mm/yyyy or dd-mm-yyyy
+    const separator = s.includes('/') ? '/' : (s.includes('-') ? '-' : null);
+    if (separator) {
+      const parts = s.split(separator);
       if (parts.length === 3) {
         const [d, m, y] = parts;
-        const date = new Date(`${y}-${m}-${d}`);
-        if (isValid(date)) return date;
+        // Check if it's YYYY-MM-DD (ISO) or DD-MM-YYYY
+        if (d.length === 4) {
+          // Likely YYYY-MM-DD
+          const date = new Date(`${d}-${m}-${s.split(separator)[2]}`);
+          if (isValid(date)) return date;
+        } else {
+          // Likely DD-MM-YYYY
+          const year = y.length === 2 ? `20${y}` : y;
+          const date = new Date(`${year}-${m}-${d}`);
+          if (isValid(date)) return date;
+        }
       }
     }
     
-    // Handle yyyy-mm-dd or other ISO-like formats
+    // Fallback for other formats
     const date = new Date(s);
     return isValid(date) ? date : null;
   };
@@ -459,24 +463,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
         if (!date) return false;
         
         switch (range) {
-          case '7d': return isAfter(date, subDays(now, 7));
-          case '28d': return isAfter(date, subDays(now, 28));
-          case '90d': return isAfter(date, subDays(now, 90));
-          case '365d': return isAfter(date, subDays(now, 365));
-          case '2026': return date.getFullYear() === 2026;
-          case '2025': return date.getFullYear() === 2025;
-          case 'jan': return date.getMonth() === 0 && date.getFullYear() === 2026;
-          case 'feb': return date.getMonth() === 1 && date.getFullYear() === 2026;
-          case 'mar': return date.getMonth() === 2 && date.getFullYear() === 2026;
-          case 'apr': return date.getMonth() === 3 && date.getFullYear() === 2026;
-          case 'may': return date.getMonth() === 4 && date.getFullYear() === 2026;
-          case 'jun': return date.getMonth() === 5 && date.getFullYear() === 2026;
-          case 'jul': return date.getMonth() === 6 && date.getFullYear() === 2026;
-          case 'aug': return date.getMonth() === 7 && date.getFullYear() === 2026;
-          case 'sep': return date.getMonth() === 8 && date.getFullYear() === 2026;
-          case 'oct': return date.getMonth() === 9 && date.getFullYear() === 2026;
-          case 'nov': return date.getMonth() === 10 && date.getFullYear() === 2026;
-          case 'dec': return date.getMonth() === 11 && date.getFullYear() === 2026;
+          case 'today': return isAfter(date, startOfDay(now));
+          case 'yesterday': return isAfter(date, startOfDay(subDays(now, 1))) && isBefore(date, endOfDay(subDays(now, 1)));
+          case 'week': return isAfter(date, startOfWeek(now));
+          case 'month': return isAfter(date, startOfMonth(now));
+          case 'year': return isAfter(date, startOfYear(now));
           case 'custom':
             const start = custom?.start || customStart;
             const end = custom?.end || customEnd;
@@ -666,15 +657,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
     const now = new Date();
 
     switch (range) {
-      case '7d': startDate = subDays(now, 6); break;
-      case '28d': startDate = subDays(now, 27); break;
-      case '90d': startDate = subDays(now, 89); break;
-      case '365d': startDate = subDays(now, 364); break;
-      case 'jan': startDate = new Date(2026, 0, 1); endDate = new Date(2026, 0, 31); break;
-      case 'feb': startDate = new Date(2026, 1, 1); endDate = new Date(2026, 1, 28); break;
-      case 'mar': startDate = new Date(2026, 2, 1); endDate = new Date(2026, 2, 31); break;
-      case '2026': startDate = new Date(2026, 0, 1); endDate = new Date(2026, 11, 31); break;
-      case '2025': startDate = new Date(2025, 0, 1); endDate = new Date(2025, 11, 31); break;
+      case 'today': startDate = startOfDay(now); break;
+      case 'yesterday': startDate = startOfDay(subDays(now, 1)); endDate = endOfDay(subDays(now, 1)); break;
+      case 'week': startDate = startOfWeek(now); break;
+      case 'month': startDate = startOfMonth(now); break;
+      case 'year': startDate = startOfYear(now); break;
       case 'custom':
         startDate = customStart ? new Date(customStart) : subDays(now, 30);
         endDate = customEnd ? new Date(customEnd) : now;
@@ -992,7 +979,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
       </div>
 
       {/* STAT CARDS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
         <div 
           onClick={() => { setFilterAdmissionStatus(null); setFilterPaymentStatus(null); setFilterGender(null); setFilterState(null); setFilterCity(null); setFilterDate(null); }}
           className="bg-white dark:bg-slate-900 p-6 md:p-8 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm relative overflow-hidden group transition-colors cursor-pointer hover:border-indigo-500"
@@ -1124,8 +1111,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
               </button>
             </div>
           </div>
-          <div className="flex-1 flex items-center justify-center min-h-[180px]">
-            <ResponsiveContainer width="100%" height={200}>
+          <div className="flex-1 flex items-center justify-center min-h-[150px] sm:min-h-[180px]">
+            <ResponsiveContainer width="100%" height={180}>
               <BarChart data={genderPieData} layout="vertical" margin={{ left: 0, right: 30, top: 10, bottom: 10 }}>
                 <XAxis type="number" hide />
                 <YAxis 
@@ -1188,7 +1175,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
               <span className="px-2 py-1 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-[8px] font-black uppercase rounded-md">Daily Trend</span>
             </div>
           </div>
-          <div className="h-[250px] w-full mt-6">
+          <div className="h-[200px] sm:h-[250px] w-full mt-6">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={admChartData} onClick={(data) => data && data.activeLabel && setFilterDate(String(data.activeLabel))}>
                 <defs>
@@ -1204,7 +1191,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
                   contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontSize: '10px', fontWeight: 'bold' }}
                   cursor={{ stroke: '#4f46e5', strokeWidth: 1 }}
                 />
-                <Area type="monotone" dataKey="admissions" stroke="#4f46e5" strokeWidth={3} fillOpacity={1} fill="url(#colorAdm)" />
+                <Area 
+                  type="monotone" 
+                  dataKey="admissions" 
+                  stroke="#4f46e5" 
+                  strokeWidth={3} 
+                  fillOpacity={1} 
+                  fill="url(#colorAdm)" 
+                  animationDuration={1500}
+                  activeDot={{ r: 6, strokeWidth: 0, fill: '#4f46e5' }}
+                />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -1310,90 +1306,136 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
                 <div className="relative" ref={filterMenuRef}>
                   <button 
                     onClick={() => setIsFilterMenuOpen(!isFilterMenuOpen)}
-                    className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-[9px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all"
+                    className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-[9px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all shadow-sm active:scale-95"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="21" y1="4" x2="14" y2="4"/><line x1="10" y1="4" x2="3" y2="4"/><line x1="21" y1="12" x2="12" y2="12"/><line x1="8" y1="12" x2="3" y2="12"/><line x1="21" y1="20" x2="16" y2="20"/><line x1="12" y1="20" x2="3" y2="20"/><line x1="14" y1="2" x2="14" y2="6"/><line x1="8" y1="10" x2="8" y2="14"/><line x1="16" y1="18" x2="16" y2="22"/></svg>
-                    Add Filter
+                    <span>Add Filter</span>
+                    {activeFilters.length > 0 && (
+                      <span className="w-4 h-4 bg-indigo-600 text-white rounded-full flex items-center justify-center text-[8px] font-bold">
+                        {activeFilters.length}
+                      </span>
+                    )}
                   </button>
 
-                  {isFilterMenuOpen && (
-                    <div className="absolute left-0 mt-2 w-48 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-xl z-[100] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                      {!selectedFilterType ? (
-                        <div className="py-2">
-                          {FILTER_CONFIG.map(config => (
-                            <button 
-                              key={config.id}
-                              onClick={() => setSelectedFilterType(config.id)}
-                              className="w-full text-left px-4 py-2 text-[10px] font-bold text-slate-700 dark:text-slate-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 hover:text-indigo-600 transition-colors uppercase tracking-widest flex justify-between items-center"
-                            >
-                              {config.label}
-                              <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
-                            </button>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="py-2">
-                          <button 
-                            onClick={() => setSelectedFilterType(null)}
-                            className="w-full text-left px-4 py-2 text-[9px] font-black text-indigo-600 border-b border-slate-100 dark:border-slate-700 mb-1 flex items-center gap-2"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
-                            Back
+                  <AnimatePresence>
+                    {isFilterMenuOpen && (
+                      <motion.div 
+                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                        className="fixed inset-0 sm:absolute sm:inset-auto sm:left-0 sm:mt-2 w-full sm:w-64 h-full sm:h-auto bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 sm:rounded-2xl shadow-2xl z-[100] overflow-hidden flex flex-col"
+                      >
+                        {/* Mobile Header */}
+                        <div className="sm:hidden p-6 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
+                          <h3 className="text-xs font-black uppercase tracking-widest text-slate-900 dark:text-white">Filters</h3>
+                          <button onClick={() => setIsFilterMenuOpen(false)} className="p-2 text-slate-400">
+                            <X size={20} />
                           </button>
+                        </div>
 
-                          {selectedFilterType === 'age' && (
-                            <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-700 space-y-2">
-                              <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Custom Range</p>
-                              <div className="flex items-center gap-2">
-                                <input 
-                                  type="number" 
-                                  placeholder="Min"
-                                  value={customAgeMin}
-                                  onChange={(e) => setCustomAgeMin(e.target.value)}
-                                  className="w-full px-2 py-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded text-[10px] font-bold outline-none focus:ring-1 focus:ring-indigo-500"
-                                />
-                                <span className="text-slate-300">-</span>
-                                <input 
-                                  type="number" 
-                                  placeholder="Max"
-                                  value={customAgeMax}
-                                  onChange={(e) => setCustomAgeMax(e.target.value)}
-                                  className="w-full px-2 py-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded text-[10px] font-bold outline-none focus:ring-1 focus:ring-indigo-500"
-                                />
+                        <div className="flex-1 overflow-y-auto custom-scrollbar">
+                          {!selectedFilterType ? (
+                            <div className="py-2 sm:py-2 p-4 sm:p-0">
+                              {FILTER_CONFIG.map(config => (
                                 <button 
-                                  onClick={() => {
-                                    if (customAgeMin || customAgeMax) {
-                                      addFilter('age', `${customAgeMin || 0}-${customAgeMax || 100}`);
-                                      setCustomAgeMin('');
-                                      setCustomAgeMax('');
-                                    }
-                                  }}
-                                  className="p-1 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition-colors"
+                                  key={config.id}
+                                  onClick={() => setSelectedFilterType(config.id)}
+                                  className="w-full text-left px-4 py-4 sm:py-2 text-[11px] sm:text-[10px] font-bold text-slate-700 dark:text-slate-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 hover:text-indigo-600 transition-colors uppercase tracking-widest flex justify-between items-center border-b sm:border-none border-slate-50 dark:border-slate-700 last:border-none"
                                 >
-                                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                  {config.label}
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
                                 </button>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="py-2 p-4 sm:p-0">
+                              <button 
+                                onClick={() => setSelectedFilterType(null)}
+                                className="w-full text-left px-4 py-4 sm:py-2 text-[10px] sm:text-[9px] font-black text-indigo-600 border-b border-slate-100 dark:border-slate-700 mb-2 flex items-center gap-2"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                                Back to Filters
+                              </button>
+
+                              <div className="px-4 py-2 space-y-2">
+                                {selectedFilterType === 'age' && (
+                                  <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-700 space-y-2">
+                                    <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Custom Range</p>
+                                    <div className="flex items-center gap-2">
+                                      <input 
+                                        type="number" 
+                                        placeholder="Min"
+                                        value={customAgeMin}
+                                        onChange={(e) => setCustomAgeMin(e.target.value)}
+                                        className="w-full px-2 py-2 sm:py-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded text-[11px] sm:text-[10px] font-bold outline-none focus:ring-1 focus:ring-indigo-500"
+                                      />
+                                      <span className="text-slate-300">-</span>
+                                      <input 
+                                        type="number" 
+                                        placeholder="Max"
+                                        value={customAgeMax}
+                                        onChange={(e) => setCustomAgeMax(e.target.value)}
+                                        className="w-full px-2 py-2 sm:py-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded text-[11px] sm:text-[10px] font-bold outline-none focus:ring-1 focus:ring-indigo-500"
+                                      />
+                                      <button 
+                                        onClick={() => {
+                                          if (customAgeMin || customAgeMax) {
+                                            addFilter('age', `${customAgeMin || 0}-${customAgeMax || 100}`);
+                                            setCustomAgeMin('');
+                                            setCustomAgeMax('');
+                                            setIsFilterMenuOpen(false);
+                                          }
+                                        }}
+                                        className="p-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition-colors"
+                                      >
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {selectedFilterType !== 'age' && (
+                                  <div className="max-h-[60vh] sm:max-h-48 overflow-y-auto custom-scrollbar">
+                                    {(FILTER_CONFIG.find(c => c.id === selectedFilterType)?.dynamic 
+                                      ? (dynamicOptions as any)[selectedFilterType] 
+                                      : FILTER_CONFIG.find(c => c.id === selectedFilterType)?.options
+                                    )?.map((opt: string) => (
+                                      <button 
+                                        key={opt}
+                                        onClick={() => {
+                                          addFilter(selectedFilterType, opt);
+                                          setIsFilterMenuOpen(false);
+                                        }}
+                                        className="w-full text-left px-4 py-4 sm:py-2 text-[11px] sm:text-[10px] font-bold text-slate-600 dark:text-slate-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 hover:text-emerald-600 transition-colors uppercase tracking-tight border-b sm:border-none border-slate-50 dark:border-slate-700 last:border-none"
+                                      >
+                                        {opt}
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
                             </div>
                           )}
-
-                          <div className="max-h-48 overflow-y-auto">
-                            {(FILTER_CONFIG.find(c => c.id === selectedFilterType)?.dynamic 
-                              ? (dynamicOptions as any)[selectedFilterType] 
-                              : FILTER_CONFIG.find(c => c.id === selectedFilterType)?.options
-                            )?.map((opt: string) => (
-                              <button 
-                                key={opt}
-                                onClick={() => addFilter(selectedFilterType, opt)}
-                                className="w-full text-left px-4 py-2 text-[10px] font-bold text-slate-600 dark:text-slate-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 hover:text-emerald-600 transition-colors uppercase tracking-tight"
-                              >
-                                {opt}
-                              </button>
-                            ))}
-                          </div>
                         </div>
-                      )}
-                    </div>
-                  )}
+
+                        {/* Mobile Footer */}
+                        <div className="sm:hidden p-6 border-t border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 flex gap-4">
+                          <button 
+                            onClick={clearFilters}
+                            className="flex-1 py-4 text-xs font-black uppercase tracking-widest text-slate-400"
+                          >
+                            Reset
+                          </button>
+                          <button 
+                            onClick={() => setIsFilterMenuOpen(false)}
+                            className="flex-1 py-4 bg-indigo-600 text-white rounded-2xl text-xs font-black uppercase tracking-widest shadow-xl shadow-indigo-200 dark:shadow-none"
+                          >
+                            Close
+                          </button>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
 
                 {activeFilters.map((filter, idx) => (
@@ -1422,7 +1464,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
               </div>
           </div>
           <div className="overflow-x-auto grow">
-              <table className="w-full text-left">
+              {/* Desktop Table */}
+              <table className="w-full text-left hidden md:table">
                   <thead>
                   <tr className="border-b border-slate-50 dark:border-slate-800/50">
                       <th 
@@ -1515,13 +1558,57 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
                   ))}
                   </tbody>
               </table>
+
+              {/* Mobile Card View */}
+              <div className="md:hidden space-y-4 p-4">
+                {sortedMasterData.map((data, idx) => (
+                  <div 
+                    key={data.admission_id || idx}
+                    onClick={() => setViewingRecord(data)}
+                    className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm active:scale-[0.98] transition-all"
+                  >
+                    <div className="flex justify-between items-start mb-4">
+                      <div className="flex flex-col gap-1">
+                        <span className="text-[10px] font-mono font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-2 py-0.5 rounded w-fit">
+                          {data.admission_id || 'N/A'}
+                        </span>
+                        <h4 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">{data.name}</h4>
+                      </div>
+                      <span className={`px-2 py-0.5 text-[8px] font-black uppercase rounded-md ${
+                        data.status === 'cancelled' ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400' : 
+                        data.status === 'pending' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400' :
+                        'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400'
+                      }`}>
+                        {data.status}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center pt-4 border-t border-slate-50 dark:border-slate-800">
+                      <div className="flex items-center gap-2 text-slate-500">
+                        <MapPin size={12} />
+                        <span className="text-[10px] font-bold uppercase">{data.city || 'Unknown'}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {onEdit && (
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); onEdit(data); }}
+                            className="p-2 text-slate-400 hover:text-indigo-600"
+                          >
+                            <Edit2 size={14} />
+                          </button>
+                        )}
+                        <ChevronRight size={16} className="text-slate-300" />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
           </div>
       </div>
 
       {/* DETAIL MODAL */}
       {viewingRecord && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/80 dark:bg-black/90 backdrop-blur-md p-4 animate-in fade-in duration-300">
-            <div className="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-[32px] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 border border-slate-100 dark:border-slate-800 flex flex-col max-h-[90vh]">
+        <div className="fixed inset-0 z-[110] flex items-end sm:items-center justify-center bg-slate-900/80 dark:bg-black/90 backdrop-blur-md sm:p-4 animate-in fade-in duration-300">
+            <div className="bg-white dark:bg-slate-900 w-full max-w-2xl sm:rounded-[32px] rounded-t-[32px] shadow-2xl overflow-hidden animate-in slide-in-from-bottom sm:zoom-in-95 duration-300 border border-slate-100 dark:border-slate-800 flex flex-col h-[95vh] sm:h-auto sm:max-h-[90vh]">
                 {/* Header - Fixed */}
                 <div className="p-4 md:p-6 border-b border-slate-50 dark:border-slate-800/50 flex justify-between items-center bg-white dark:bg-slate-900 transition-colors">
                     <div className="flex items-center gap-4">
@@ -1694,8 +1781,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
 
       {/* MASTER VIEW MODAL */}
       {isMasterViewOpen && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 md:p-8 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="bg-white dark:bg-slate-900 w-full max-w-6xl h-full max-h-[90vh] rounded-[40px] shadow-2xl flex flex-col overflow-hidden border border-white/20">
+        <div className="fixed inset-0 z-[120] flex items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-sm sm:p-4 animate-in fade-in duration-300">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-6xl h-[95vh] sm:h-full sm:max-h-[90vh] rounded-t-[40px] sm:rounded-[40px] shadow-2xl flex flex-col overflow-hidden border border-white/20 animate-in slide-in-from-bottom sm:zoom-in-95 duration-300">
             {/* Header */}
             <div className="p-6 border-b border-slate-50 dark:border-slate-800 flex flex-col gap-4 bg-slate-50/50 dark:bg-slate-800/20">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -1755,7 +1842,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
 
             {/* Content Area */}
             <div className="flex-1 overflow-auto p-4 md:p-8 bg-white dark:bg-slate-950" ref={masterViewRef}>
-              <table className="w-full border-collapse">
+              {/* Desktop Table */}
+              <table className="w-full border-collapse hidden md:table">
                 <thead>
                   <tr className="bg-slate-50 dark:bg-slate-900">
                     <th className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-black uppercase tracking-widest text-slate-500">S.No</th>
@@ -1799,6 +1887,57 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
                   })}
                 </tbody>
               </table>
+
+              {/* Mobile Card View for Master View */}
+              <div className="md:hidden space-y-4">
+                {sortedMasterData.map((data, idx) => {
+                  let studentTotal = 0;
+                  for (let i = 1; i <= 10; i++) {
+                    studentTotal += parseFloat(String((data as any)[`payment${i}_amount`]).replace(/[^0-9.]/g, '')) || 0;
+                  }
+                  return (
+                    <div 
+                      key={data.admission_id || idx}
+                      className="bg-slate-50 dark:bg-slate-900 p-4 rounded-2xl border border-slate-100 dark:border-slate-800"
+                    >
+                      <div className="flex justify-between items-start mb-3">
+                        <div className="flex flex-col">
+                          <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">S.No {idx + 1}</span>
+                          <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">{data.name}</h4>
+                          <span className="text-[9px] font-mono font-bold text-indigo-500">{data.admission_id}</span>
+                        </div>
+                        <span className={`px-2 py-0.5 text-[8px] font-black uppercase rounded-md ${
+                          data.status === 'cancelled' ? 'bg-red-100 text-red-700' : 
+                          data.status === 'pending' ? 'bg-amber-100 text-amber-700' :
+                          'bg-green-100 text-green-700'
+                        }`}>
+                          {data.status}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3 mb-3">
+                        <div>
+                          <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Contact</p>
+                          <p className="text-[10px] font-mono font-bold text-slate-700 dark:text-slate-300">{data.contact_no}</p>
+                        </div>
+                        <div>
+                          <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">WhatsApp</p>
+                          <p className="text-[10px] font-mono font-bold text-slate-700 dark:text-slate-300">{data.whatsapp_no}</p>
+                        </div>
+                      </div>
+                      <div className="flex justify-between items-center pt-3 border-t border-slate-200 dark:border-slate-800">
+                        <div>
+                          <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Paid</p>
+                          <p className="text-xs font-black text-emerald-600">₹{studentTotal.toLocaleString()}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Remaining</p>
+                          <p className="text-xs font-black text-slate-900 dark:text-white">₹{data.remaining_amount}</p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
 
             {/* Actions */}
