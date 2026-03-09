@@ -204,6 +204,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
         row[k.toLowerCase().trim()] = item[k];
       });
 
+      const getVal = (keys: string[]) => {
+        // First pass: look for keys that are NOT 'timestamp'
+        for (const k of keys) {
+          if (k === 'timestamp') continue;
+          if (row[k] !== undefined && row[k] !== null && row[k] !== '') return String(row[k]);
+        }
+        // Second pass: look for 'timestamp'
+        if (row['timestamp'] !== undefined && row['timestamp'] !== null && row['timestamp'] !== '') return String(row['timestamp']);
+        return '';
+      };
+
       return {
         admission_id: String(row['admission id'] || row['admission_id'] || row['id'] || ''),
         name: String(row['name'] || row['student name'] || ''),
@@ -216,34 +227,34 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
         city: String(row['city'] || row['address'] || ''),
         state: String(row['state'] || ''),
         payment1_amount: String(row['payment1'] || row['payment1_amount'] || row['payment 1 amount'] || row['initial payment'] || row['initial_payment'] || '0'),
-        payment1_date: formatDateClean(String(row['payment1_date'] || row['payment 1 date'] || row['date'] || '')),
+        payment1_date: formatDateClean(getVal(['payment1_date', 'payment 1 date', 'date', 'registration date', 'reg date', 'admission date', 'timestamp'])),
         payment1_utr: String(row['payment1_utr'] || row['payment 1 utr'] || row['utr'] || ''),
         payment2_amount: String(row['payment2_amount'] || row['payment 2 amount'] || '0'),
-        payment2_date: formatDateClean(String(row['payment2_date'] || row['payment 2 date'] || '')),
+        payment2_date: formatDateClean(getVal(['payment2_date', 'payment 2 date'])),
         payment2_utr: String(row['payment2_utr'] || row['payment 2 utr'] || ''),
         payment3_amount: String(row['payment3_amount'] || row['payment 3 amount'] || '0'),
-        payment3_date: formatDateClean(String(row['payment3_date'] || row['payment 3 date'] || '')),
+        payment3_date: formatDateClean(getVal(['payment3_date', 'payment 3 date'])),
         payment3_utr: String(row['payment3_utr'] || row['payment 3 utr'] || ''),
         payment4_amount: String(row['payment4_amount'] || row['payment 4 amount'] || '0'),
-        payment4_date: formatDateClean(String(row['payment4_date'] || row['payment 4 date'] || '')),
+        payment4_date: formatDateClean(getVal(['payment4_date', 'payment 4 date'])),
         payment4_utr: String(row['payment4_utr'] || row['payment 4 utr'] || ''),
         payment5_amount: String(row['payment5_amount'] || row['payment 5 amount'] || '0'),
-        payment5_date: formatDateClean(String(row['payment5_date'] || row['payment 5 date'] || '')),
+        payment5_date: formatDateClean(getVal(['payment5_date', 'payment 5 date'])),
         payment5_utr: String(row['payment5_utr'] || row['payment 5 utr'] || ''),
         payment6_amount: String(row['payment6_amount'] || row['payment 6 amount'] || '0'),
-        payment6_date: formatDateClean(String(row['payment6_date'] || row['payment 6 date'] || '')),
+        payment6_date: formatDateClean(getVal(['payment6_date', 'payment 6 date'])),
         payment6_utr: String(row['payment6_utr'] || row['payment 6 utr'] || ''),
         payment7_amount: String(row['payment7_amount'] || row['payment 7 amount'] || '0'),
-        payment7_date: formatDateClean(String(row['payment7_date'] || row['payment 7 date'] || '')),
+        payment7_date: formatDateClean(getVal(['payment7_date', 'payment 7 date'])),
         payment7_utr: String(row['payment7_utr'] || row['payment 7 utr'] || ''),
         payment8_amount: String(row['payment8_amount'] || row['payment 8 amount'] || '0'),
-        payment8_date: formatDateClean(String(row['payment8_date'] || row['payment 8 date'] || '')),
+        payment8_date: formatDateClean(getVal(['payment8_date', 'payment 8 date'])),
         payment8_utr: String(row['payment8_utr'] || row['payment 8 utr'] || ''),
         payment9_amount: String(row['payment9_amount'] || row['payment 9 amount'] || '0'),
-        payment9_date: formatDateClean(String(row['payment9_date'] || row['payment 9 date'] || '')),
+        payment9_date: formatDateClean(getVal(['payment9_date', 'payment 9 date'])),
         payment9_utr: String(row['payment9_utr'] || row['payment 9 utr'] || ''),
         payment10_amount: String(row['payment10_amount'] || row['payment 10 amount'] || '0'),
-        payment10_date: formatDateClean(String(row['payment10_date'] || row['payment 10 date'] || '')),
+        payment10_date: formatDateClean(getVal(['payment10_date', 'payment 10 date'])),
         payment10_utr: String(row['payment10_utr'] || row['payment 10 utr'] || ''),
         payment1_method: (row['payment1_method'] || row['payment 1 method'] || '').toLowerCase() as any || undefined,
         payment2_method: (row['payment2_method'] || row['payment 2 method'] || '').toLowerCase() as any || undefined,
@@ -595,11 +606,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
 
   const getChartData = (data: RegistrationData[], range: TimeRange) => {
     const dailyMap: Record<string, { admissions: number, revenue: number }> = {};
+    const now = new Date();
+    const minDate = subYears(now, 5); // Ignore dates older than 5 years
+    const maxDate = addDays(now, 365); // Ignore dates more than 1 year in future
     
     // 1. Group data by date
     data.forEach(d => {
       const date = parseDate(d.payment1_date);
-      if (!date) return;
+      if (!date || isBefore(date, minDate) || isAfter(date, maxDate)) return;
       
       const key = format(date, 'yyyy-MM-dd');
       if (!dailyMap[key]) dailyMap[key] = { admissions: 0, revenue: 0 };
@@ -615,8 +629,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
 
     // 2. Determine the range to display
     let startDate: Date;
-    let endDate = new Date();
-    const now = new Date();
+    let endDate = now;
 
     switch (range) {
       case 'today': startDate = startOfDay(now); break;
@@ -631,7 +644,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
       default:
         // For lifetime, find the first date in data
         const dates = data.map(d => parseDate(d.payment1_date)).filter(Boolean) as Date[];
-        startDate = dates.length > 0 ? new Date(Math.min(...dates.map(d => d.getTime()))) : subDays(now, 30);
+        const validDates = dates.filter(d => isAfter(d, minDate) && isBefore(d, maxDate));
+        startDate = validDates.length > 0 ? new Date(Math.min(...validDates.map(d => d.getTime()))) : subDays(now, 30);
+        // If start date is too old, limit it for better visualization
+        if (isBefore(startDate, subYears(now, 2))) {
+          startDate = subYears(now, 2);
+        }
     }
 
     // 3. Fill gaps with 0
@@ -643,7 +661,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
       const key = format(current, 'yyyy-MM-dd');
       const stats = dailyMap[key] || { admissions: 0, revenue: 0 };
       result.push({
-        name: format(current, 'dd MMM'),
+        name: format(current, 'MMM dd'),
         fullDate: key,
         admissions: stats.admissions,
         revenue: stats.revenue
@@ -661,7 +679,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
         monthlyMap[monthKey].revenue += r.revenue;
       });
       return Object.keys(monthlyMap).sort().map(key => ({
-        name: format(new Date(key + '-01'), 'MMM yy'),
+        name: format(new Date(key + '-01'), 'MMM yyyy'),
         admissions: monthlyMap[key].admissions,
         revenue: monthlyMap[key].revenue
       }));
@@ -1428,6 +1446,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
                         </div>
                       </th>
                       <th 
+                        onClick={() => requestSort('payment1_date')}
+                        className="px-4 md:px-8 py-4 text-[10px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-wider cursor-pointer hover:text-indigo-600 transition-colors"
+                      >
+                        <div className="flex items-center gap-1">
+                          Date
+                          {sortConfig?.key === 'payment1_date' && (
+                            <span className="text-indigo-500">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+                          )}
+                        </div>
+                      </th>
+                      <th 
                         onClick={() => requestSort('name')}
                         className="px-4 md:px-8 py-4 text-[10px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-wider cursor-pointer hover:text-indigo-600 transition-colors"
                       >
@@ -1473,6 +1502,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
                           >
                             {data.admission_id || 'N/A'}
                           </button>
+                      </td>
+                      <td className="px-4 md:px-8 py-4">
+                          <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-tight">{formatDateClean(data.payment1_date)}</span>
                       </td>
                       <td className="px-4 md:px-8 py-4">
                           <span className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-tight transition-colors">{data.name}</span>

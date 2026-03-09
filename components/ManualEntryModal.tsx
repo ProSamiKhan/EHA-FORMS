@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { RegistrationData } from '../types';
+import { parseDate, formatDateClean } from '../services/utils';
 
 interface ManualEntryModalProps {
   isOpen: boolean;
@@ -62,38 +63,19 @@ const INDIAN_CITIES = [
 ];
 
 const toInputDate = (s: string) => {
-  if (!s) return '';
-  if (s.includes('T')) {
-    try {
-      const d = new Date(s);
-      if (!isNaN(d.getTime())) {
-        return d.toISOString().split('T')[0];
-      }
-    } catch (e) {}
+  const d = parseDate(s);
+  if (d) {
+    return format(d, 'yyyy-MM-dd');
   }
-  const separator = s.includes('/') ? '/' : '-';
-  const parts = s.split(separator);
-  if (parts.length !== 3) return '';
-  
-  // Check if it's already YYYY-MM-DD
-  if (parts[0].length === 4) {
-    return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
-  }
-  
-  const [d, m, y] = parts;
-  // Ensure we have YYYY-MM-DD for input type="date"
-  const year = y.length === 2 ? `20${y}` : y;
-  const month = m.padStart(2, '0');
-  const day = d.padStart(2, '0');
-  return `${year}-${month}-${day}`;
+  return '';
 };
 
 const fromInputDate = (s: string) => {
-  if (!s) return '';
-  const parts = s.split('-');
-  if (parts.length !== 3) return '';
-  const [y, m, d] = parts;
-  return `${d}-${m}-${y}`;
+  const d = parseDate(s);
+  if (d) {
+    return format(d, 'dd-MM-yyyy');
+  }
+  return '';
 };
 
 export const ManualEntryModal: React.FC<ManualEntryModalProps> = ({ isOpen, onClose, onSubmit, initialData, isSyncing }) => {
