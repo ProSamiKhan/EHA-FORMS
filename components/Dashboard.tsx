@@ -52,6 +52,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
     { id: 'week', label: 'This Week' },
     { id: 'month', label: 'This Month' },
     { id: 'year', label: 'This Year' },
+    { id: 'lifetime', label: 'Lifetime' },
     { divider: true },
     { id: 'custom', label: 'Custom Range' },
   ];
@@ -290,7 +291,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
           setError(`Cloud Error: ${(rawData as any).error}`);
         }
       } catch (err) {
-        setError("Network error: Could not sync with Google Sheets.");
+        setError("Sync Error: Could not fetch data from Google Sheets. Please ensure your Apps Script is deployed as a Web App with 'Anyone' access.");
       } finally {
         setIsLoading(false);
       }
@@ -607,10 +608,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
   const getChartData = (data: RegistrationData[], range: TimeRange) => {
     const dailyMap: Record<string, { admissions: number, revenue: number }> = {};
     const now = new Date();
-    const minDate = subYears(now, 5); // Ignore dates older than 5 years
-    const maxDate = addDays(now, 365); // Ignore dates more than 1 year in future
+    const minDate = subYears(now, 5); 
+    const maxDate = addDays(now, 365); 
     
-    // 1. Group data by date
     data.forEach(d => {
       const date = parseDate(d.payment1_date);
       if (!date || isBefore(date, minDate) || isAfter(date, maxDate)) return;
@@ -627,7 +627,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
       dailyMap[key].revenue += studentTotal;
     });
 
-    // 2. Determine the range to display
     let startDate: Date;
     let endDate = now;
 
@@ -642,17 +641,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
         endDate = customEnd ? new Date(customEnd) : now;
         break;
       default:
-        // For lifetime, find the first date in data
         const dates = data.map(d => parseDate(d.payment1_date)).filter(Boolean) as Date[];
         const validDates = dates.filter(d => isAfter(d, minDate) && isBefore(d, maxDate));
         startDate = validDates.length > 0 ? new Date(Math.min(...validDates.map(d => d.getTime()))) : subDays(now, 30);
-        // If start date is too old, limit it for better visualization
         if (isBefore(startDate, subYears(now, 2))) {
           startDate = subYears(now, 2);
         }
     }
 
-    // 3. Fill gaps with 0
     const result: any[] = [];
     let current = startOfDay(startDate);
     const last = startOfDay(endDate);
@@ -669,11 +665,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
       current = addDays(current, 1);
     }
 
-    // 4. Group by month if too many points
-    if (result.length > 60) {
+    // 4. Group by month if too many points (increased threshold for day-wise spikes)
+    if (result.length > 366 || (range === 'lifetime' && result.length > 90)) {
       const monthlyMap: Record<string, { admissions: number, revenue: number }> = {};
       result.forEach(r => {
-        const monthKey = r.fullDate.substring(0, 7); // yyyy-MM
+        const monthKey = r.fullDate.substring(0, 7); 
         if (!monthlyMap[monthKey]) monthlyMap[monthKey] = { admissions: 0, revenue: 0 };
         monthlyMap[monthKey].admissions += r.admissions;
         monthlyMap[monthKey].revenue += r.revenue;
@@ -689,7 +685,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
   };
 
   const admChartData = useMemo(() => getChartData(filteredData, timeRange), [filteredData, timeRange]);
-  const revChartData = useMemo(() => getChartData(filteredData, timeRange), [filteredData, timeRange]);
 
   const getStats = (data: RegistrationData[]) => {
     const total = data.length;
@@ -1132,36 +1127,65 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
         </div>
 
         <div className="bg-white dark:bg-slate-900 p-6 md:p-8 rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-sm transition-colors lg:col-span-2">
-          <div className="flex justify-between items-center mb-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
             <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Admission Velocity</h3>
-            <div className="flex items-center gap-2">
-              {filterDate && (
-                <button onClick={() => setFilterDate(null)} className="text-[8px] font-black text-indigo-600 uppercase tracking-widest hover:underline">Reset</button>
-              )}
-              <span className="px-2 py-1 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-[8px] font-black uppercase rounded-md">Daily Trend</span>
+            <div className="flex flex-wrap items-center gap-1 bg-slate-50 dark:bg-slate-800/50 p-1 rounded-xl">
+              {TIME_RANGE_OPTIONS.filter(o => !o.divider).map((option) => (
+                <button
+                  key={option.id}
+                  onClick={() => setTimeRange(option.id as TimeRange)}
+                  className={`px-3 py-1.5 text-[8px] font-black uppercase rounded-lg transition-all ${
+                    timeRange === option.id 
+                      ? 'bg-white dark:bg-slate-700 text-indigo-600 shadow-sm' 
+                      : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
+                  }`}
+                >
+                  {option.label}
+                </button>
+              ))}
             </div>
           </div>
-          <div className="h-[200px] sm:h-[250px] w-full mt-6">
+
+          <div className="h-[250px] w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={admChartData} onClick={(data) => data && data.activeLabel && setFilterDate(String(data.activeLabel))}>
+              <AreaChart data={admChartData}>
                 <defs>
                   <linearGradient id="colorAdm" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.1}/>
+                    <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.3}/>
                     <stop offset="95%" stopColor="#4f46e5" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 9, fontWeight: 700, fill: '#94a3b8'}} dy={10} />
-                <YAxis axisLine={false} tickLine={false} tick={{fontSize: 9, fontWeight: 700, fill: '#94a3b8'}} />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" strokeOpacity={0.5} />
+                <XAxis 
+                  dataKey="name" 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{fontSize: 9, fontWeight: 800, fill: '#94a3b8'}} 
+                  dy={10}
+                />
+                <YAxis 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{fontSize: 9, fontWeight: 800, fill: '#94a3b8'}} 
+                />
                 <Tooltip 
-                  contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontSize: '10px', fontWeight: 'bold' }}
-                  cursor={{ stroke: '#4f46e5', strokeWidth: 1 }}
+                  contentStyle={{ 
+                    borderRadius: '16px', 
+                    border: 'none', 
+                    boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', 
+                    fontSize: '10px', 
+                    fontWeight: 'bold',
+                    backgroundColor: '#1e293b',
+                    color: '#f8fafc'
+                  }}
+                  itemStyle={{ color: '#818cf8' }}
+                  cursor={{ stroke: '#4f46e5', strokeWidth: 2, strokeDasharray: '5 5' }}
                 />
                 <Area 
                   type="monotone" 
                   dataKey="admissions" 
                   stroke="#4f46e5" 
-                  strokeWidth={3} 
+                  strokeWidth={4} 
                   fillOpacity={1} 
                   fill="url(#colorAdm)" 
                   animationDuration={1500}
@@ -1170,6 +1194,29 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
               </AreaChart>
             </ResponsiveContainer>
           </div>
+          
+          {timeRange === 'custom' && (
+            <div className="mt-4 flex items-center gap-4 animate-in fade-in slide-in-from-top-2">
+              <div className="flex flex-col gap-1">
+                <span className="text-[8px] font-black text-slate-400 uppercase ml-1">Start Date</span>
+                <input 
+                  type="date" 
+                  value={customStart}
+                  onChange={(e) => setCustomStart(e.target.value)}
+                  className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 text-[10px] font-bold outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <span className="text-[8px] font-black text-slate-400 uppercase ml-1">End Date</span>
+                <input 
+                  type="date" 
+                  value={customEnd}
+                  onChange={(e) => setCustomEnd(e.target.value)}
+                  className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 text-[10px] font-bold outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+                />
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

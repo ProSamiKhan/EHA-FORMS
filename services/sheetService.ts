@@ -72,6 +72,6 @@ export const fetchAllRegistrations = async (): Promise<RegistrationData[]> => {
     return Array.isArray(data) ? data : [];
   } catch (error) {
     console.error("SHEET_FETCH_ERROR:", error);
-    return [];
+    throw error;
   }
 };

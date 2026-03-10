@@ -34,8 +34,13 @@ export const parseDate = (s: string | any): Date | null => {
           // YYYY-MM-DD
           [year, month, day] = parts;
         } else if (parts[2].length === 4 || parts[2].length === 2) {
-          // DD-MM-YYYY or MM-DD-YYYY
+          // DD-MM-YYYY (Primary) or MM-DD-YYYY (Fallback)
           [day, month, year] = parts;
+          
+          // If month > 12, it's definitely DD-MM-YYYY (already handled by assignment)
+          // If day > 12 and month <= 12, it's definitely DD-MM-YYYY
+          // If both <= 12, we prioritize DD-MM-YYYY as per user request
+          
           if (year.length === 2) {
             const y = parseInt(year);
             year = y < 50 ? `20${year}` : `19${year}`;
@@ -59,12 +64,16 @@ export const parseDate = (s: string | any): Date | null => {
 
       if (isNaN(d) || isNaN(m) || isNaN(y)) return null;
 
-      // Heuristic: if month > 12, it's likely DD-MM-YYYY
+      // User explicitly wants DD-MM-YYYY. 
+      // If we have something like 01-05-2026 and the user says it should be Jan 5th,
+      // then the input we received was actually MM-DD-YYYY (01-05).
+      // But if the user says they WROTE 05-01-2026, then our parser should get d=05, m=01.
+      
+      // If m > 12, it's definitely DD-MM-YYYY
       if (m > 12 && d <= 12) {
         [d, m] = [m, d];
       }
       
-      // Final check: if it's still invalid, try standard parser
       const date = new Date(y, m - 1, d);
       if (isValid(date) && date.getFullYear() === y && date.getMonth() === m - 1 && date.getDate() === d) {
         return date;
@@ -73,8 +82,11 @@ export const parseDate = (s: string | any): Date | null => {
   }
 
   // 4. Handle "DD MMM YYYY" or "MMM DD, YYYY"
-  const fallbackDate = new Date(str);
-  if (isValid(fallbackDate)) return fallbackDate;
+  // Avoid using new Date() for ambiguous numeric strings like "05-01-2026"
+  if (!/^\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4}$/.test(str)) {
+    const fallbackDate = new Date(str);
+    if (isValid(fallbackDate)) return fallbackDate;
+  }
 
   return null;
 };
