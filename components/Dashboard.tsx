@@ -5,11 +5,13 @@ import { fetchAllRegistrations } from '../services/sheetService';
 import { domToPng } from 'modern-screenshot';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
-  LineChart, Line, Cell, PieChart, Pie, AreaChart, Area
+  LineChart, Line, Cell, PieChart, Pie, AreaChart, Area, LabelList, Legend
 } from 'recharts';
 import { 
   format, subDays, subMonths, subYears, isAfter, parse, isValid, addDays,
-  startOfDay, startOfWeek, startOfMonth, startOfYear, isBefore, endOfDay, isSameDay
+  startOfDay, startOfWeek, startOfMonth, startOfYear, isBefore, endOfDay, isSameDay,
+  eachMonthOfInterval, eachYearOfInterval, eachWeekOfInterval, eachDayOfInterval,
+  endOfMonth, endOfYear, endOfWeek
 } from 'date-fns';
 import { Calendar, ChevronDown, X, MapPin, Edit2, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -49,12 +51,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
   const TIME_RANGE_OPTIONS = [
     { id: 'today', label: 'Today' },
     { id: 'yesterday', label: 'Yesterday' },
-    { id: 'week', label: 'This Week' },
-    { id: 'month', label: 'This Month' },
-    { id: 'year', label: 'This Year' },
-    { id: 'lifetime', label: 'Lifetime' },
+    { id: 'week', label: 'Week' },
+    { id: 'month', label: 'Month' },
+    { id: 'year', label: 'Year' },
+    { id: 'lifetime', label: 'Day' },
     { divider: true },
-    { id: 'custom', label: 'Custom Range' },
+    { id: 'custom', label: 'Custom' },
   ];
   const [dashboardSearchQuery, setDashboardSearchQuery] = useState('');
   const [masterViewSearchQuery, setMasterViewSearchQuery] = useState('');
@@ -606,82 +608,112 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
   }, [filteredData, sortConfig, isMasterViewOpen, masterViewSearchQuery]);
 
   const getChartData = (data: RegistrationData[], range: TimeRange) => {
-    const dailyMap: Record<string, { admissions: number, revenue: number }> = {};
     const now = new Date();
-    const minDate = subYears(now, 5); 
-    const maxDate = addDays(now, 365); 
-    
-    data.forEach(d => {
-      const date = parseDate(d.payment1_date);
-      if (!date || isBefore(date, minDate) || isAfter(date, maxDate)) return;
-      
-      const key = format(date, 'yyyy-MM-dd');
-      if (!dailyMap[key]) dailyMap[key] = { admissions: 0, revenue: 0 };
-      
-      dailyMap[key].admissions += 1;
-      
-      let studentTotal = 0;
-      for (let i = 1; i <= 10; i++) {
-        studentTotal += parseFloat(String((d as any)[`payment${i}_amount`]).replace(/[^0-9.]/g, '')) || 0;
-      }
-      dailyMap[key].revenue += studentTotal;
-    });
-
     let startDate: Date;
     let endDate = now;
+    let interval: 'day' | 'week' | 'month' | 'year' = 'day';
 
     switch (range) {
-      case 'today': startDate = startOfDay(now); break;
-      case 'yesterday': startDate = startOfDay(subDays(now, 1)); endDate = endOfDay(subDays(now, 1)); break;
-      case 'week': startDate = startOfWeek(now); break;
-      case 'month': startDate = startOfMonth(now); break;
-      case 'year': startDate = startOfYear(now); break;
+      case 'today':
+        startDate = startOfDay(now);
+        break;
+      case 'yesterday':
+        startDate = startOfDay(subDays(now, 1));
+        endDate = endOfDay(subDays(now, 1));
+        break;
+      case 'week':
+        startDate = new Date(2020, 0, 1); 
+        interval = 'week';
+        break;
+      case 'month':
+        startDate = new Date(2020, 0, 1); 
+        interval = 'month';
+        break;
+      case 'year':
+        startDate = new Date(2020, 0, 1); 
+        interval = 'year';
+        break;
+      case 'lifetime':
+        startDate = new Date(2023, 0, 1); 
+        interval = 'day';
+        break;
       case 'custom':
         startDate = customStart ? new Date(customStart) : subDays(now, 30);
         endDate = customEnd ? new Date(customEnd) : now;
         break;
       default:
-        const dates = data.map(d => parseDate(d.payment1_date)).filter(Boolean) as Date[];
-        const validDates = dates.filter(d => isAfter(d, minDate) && isBefore(d, maxDate));
-        startDate = validDates.length > 0 ? new Date(Math.min(...validDates.map(d => d.getTime()))) : subDays(now, 30);
-        if (isBefore(startDate, subYears(now, 2))) {
-          startDate = subYears(now, 2);
-        }
+        startDate = subDays(now, 30);
     }
 
-    const result: any[] = [];
-    let current = startOfDay(startDate);
-    const last = startOfDay(endDate);
+    // Safety check for very large intervals
+    const maxDays = 2000;
+    if (interval === 'day' && isBefore(startDate, subDays(endDate, maxDays))) {
+      startDate = subDays(endDate, maxDays);
+    }
 
-    while (current <= last) {
-      const key = format(current, 'yyyy-MM-dd');
-      const stats = dailyMap[key] || { admissions: 0, revenue: 0 };
-      result.push({
-        name: format(current, 'MMM dd'),
-        fullDate: key,
-        admissions: stats.admissions,
-        revenue: stats.revenue
+    const dataPoints: any[] = [];
+    let dates: Date[] = [];
+
+    try {
+      if (interval === 'year') {
+        dates = eachYearOfInterval({ start: startDate, end: endDate });
+      } else if (interval === 'month') {
+        dates = eachMonthOfInterval({ start: startDate, end: endDate });
+      } else if (interval === 'week') {
+        dates = eachWeekOfInterval({ start: startDate, end: endDate });
+      } else {
+        dates = eachDayOfInterval({ start: startDate, end: endDate });
+      }
+    } catch (e) {
+      console.error("Date interval error:", e);
+      return [];
+    }
+
+    // Pre-parse dates for performance
+    const parsedData = data.map(d => ({
+      ...d,
+      _parsedDate: parseDate(d.payment1_date)
+    })).filter(d => d._parsedDate);
+
+    dates.forEach(date => {
+      let start: Date, end: Date, label: string;
+
+      if (interval === 'year') {
+        start = startOfYear(date);
+        end = endOfYear(date);
+        label = format(date, 'yyyy');
+      } else if (interval === 'month') {
+        start = startOfMonth(date);
+        end = endOfMonth(date);
+        label = format(date, 'MMM yy');
+      } else if (interval === 'week') {
+        start = startOfWeek(date);
+        end = endOfWeek(date);
+        label = `W${format(date, 'w')} ${format(date, 'yy')}`;
+      } else {
+        start = startOfDay(date);
+        end = endOfDay(date);
+        label = format(date, 'MMM dd');
+      }
+
+      const periodData = parsedData.filter(d => 
+        d._parsedDate! >= start && d._parsedDate! <= end
+      );
+
+      const confirmed = periodData.filter(d => d.status === 'confirm').length;
+      const pending = periodData.filter(d => d.status === 'pending').length;
+      const cancelled = periodData.filter(d => d.status === 'cancelled').length;
+
+      dataPoints.push({
+        name: label,
+        confirmed: confirmed,
+        pending: pending,
+        cancelled: cancelled,
+        total: confirmed + pending + cancelled
       });
-      current = addDays(current, 1);
-    }
+    });
 
-    // 4. Group by month if too many points (increased threshold for day-wise spikes)
-    if (result.length > 366 || (range === 'lifetime' && result.length > 90)) {
-      const monthlyMap: Record<string, { admissions: number, revenue: number }> = {};
-      result.forEach(r => {
-        const monthKey = r.fullDate.substring(0, 7); 
-        if (!monthlyMap[monthKey]) monthlyMap[monthKey] = { admissions: 0, revenue: 0 };
-        monthlyMap[monthKey].admissions += r.admissions;
-        monthlyMap[monthKey].revenue += r.revenue;
-      });
-      return Object.keys(monthlyMap).sort().map(key => ({
-        name: format(new Date(key + '-01'), 'MMM yyyy'),
-        admissions: monthlyMap[key].admissions,
-        revenue: monthlyMap[key].revenue
-      }));
-    }
-
-    return result;
+    return dataPoints;
   };
 
   const admChartData = useMemo(() => getChartData(filteredData, timeRange), [filteredData, timeRange]);
@@ -1128,7 +1160,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
 
         <div className="bg-white dark:bg-slate-900 p-6 md:p-8 rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-sm transition-colors lg:col-span-2">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Admission Velocity</h3>
+            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
+              Admission Velocity ({TIME_RANGE_OPTIONS.find(o => o.id === timeRange)?.label})
+            </h3>
             <div className="flex flex-wrap items-center gap-1 bg-slate-50 dark:bg-slate-800/50 p-1 rounded-xl">
               {TIME_RANGE_OPTIONS.filter(o => !o.divider).map((option) => (
                 <button
@@ -1146,53 +1180,67 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
             </div>
           </div>
 
-          <div className="h-[250px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={admChartData}>
-                <defs>
-                  <linearGradient id="colorAdm" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#4f46e5" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" strokeOpacity={0.5} />
-                <XAxis 
-                  dataKey="name" 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{fontSize: 9, fontWeight: 800, fill: '#94a3b8'}} 
-                  dy={10}
-                />
-                <YAxis 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{fontSize: 9, fontWeight: 800, fill: '#94a3b8'}} 
-                />
-                <Tooltip 
-                  contentStyle={{ 
-                    borderRadius: '16px', 
-                    border: 'none', 
-                    boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', 
-                    fontSize: '10px', 
-                    fontWeight: 'bold',
-                    backgroundColor: '#1e293b',
-                    color: '#f8fafc'
-                  }}
-                  itemStyle={{ color: '#818cf8' }}
-                  cursor={{ stroke: '#4f46e5', strokeWidth: 2, strokeDasharray: '5 5' }}
-                />
-                <Area 
-                  type="monotone" 
-                  dataKey="admissions" 
-                  stroke="#4f46e5" 
-                  strokeWidth={4} 
-                  fillOpacity={1} 
-                  fill="url(#colorAdm)" 
-                  animationDuration={1500}
-                  activeDot={{ r: 6, strokeWidth: 0, fill: '#4f46e5' }}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+          <div className="h-[400px] w-full overflow-x-auto custom-scrollbar pb-2">
+            <div style={{ minWidth: Math.max(600, admChartData.length * 40), height: '100%' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={admChartData} margin={{ top: 40, right: 20, left: 0, bottom: 20 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" strokeOpacity={0.5} />
+                  <XAxis 
+                    dataKey="name" 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{fontSize: 9, fontWeight: 800, fill: '#94a3b8'}} 
+                    dy={10}
+                  />
+                  <YAxis 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{fontSize: 9, fontWeight: 800, fill: '#94a3b8'}} 
+                  />
+                  <Tooltip 
+                    contentStyle={{ 
+                      borderRadius: '16px', 
+                      border: 'none', 
+                      boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', 
+                      fontSize: '10px', 
+                      fontWeight: 'bold',
+                      backgroundColor: '#1e293b',
+                      color: '#f8fafc'
+                    }}
+                    cursor={{ fill: '#f1f5f9', opacity: 0.4 }}
+                  />
+                  <Legend 
+                    verticalAlign="top" 
+                    align="right" 
+                    iconType="circle"
+                    wrapperStyle={{ fontSize: '9px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '0.1em', paddingBottom: '20px' }}
+                  />
+                  <Bar 
+                    dataKey="confirmed" 
+                    name="Confirmed"
+                    fill="#4f46e5" 
+                    stackId="a"
+                  />
+                  <Bar 
+                    dataKey="pending" 
+                    name="Pending"
+                    fill="#94a3b8" 
+                    stackId="a"
+                  />
+                  <Bar 
+                    dataKey="cancelled" 
+                    name="Cancelled"
+                    fill="#ef4444" 
+                    stackId="a"
+                    radius={[4, 4, 0, 0]}
+                  >
+                    {admChartData.length < 60 && (
+                      <LabelList dataKey="total" position="top" style={{ fontSize: '10px', fontWeight: '900', fill: '#1e293b' }} />
+                    )}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </div>
           
           {timeRange === 'custom' && (
