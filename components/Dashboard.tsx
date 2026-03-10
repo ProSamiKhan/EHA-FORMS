@@ -634,6 +634,23 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
     return sortableData;
   }, [filteredData, sortConfig, isMasterViewOpen, masterViewSearchQuery]);
 
+  const handleDrillDown = (data: any) => {
+    const item = data?.payload || data;
+    if (!item || !item.rawDate) return;
+    const date = item.rawDate;
+
+    if (drillLevel === 'year') {
+      setDrillLevel('month');
+      setDrillContext({ year: date.getFullYear() });
+    } else if (drillLevel === 'month') {
+      setDrillLevel('week');
+      setDrillContext({ year: drillContext.year, month: date });
+    } else if (drillLevel === 'week') {
+      setDrillLevel('day');
+      setDrillContext({ year: drillContext.year, month: drillContext.month, week: date });
+    }
+  };
+
   const getChartData = (data: RegistrationData[]) => {
     const now = new Date();
     let dates: Date[] = [];
@@ -879,6 +896,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
 
   return (
     <div className="space-y-8 pb-10 transition-colors">
+      <style dangerouslySetInnerHTML={{ __html: `
+        .recharts-wrapper:focus, .recharts-surface:focus, .recharts-bar-rectangle:focus, .recharts-layer:focus, .recharts-sector:focus {
+          outline: none !important;
+        }
+      ` }} />
       {/* HEADER */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-10">
         <div className="flex flex-col sm:flex-row sm:items-center gap-4">
@@ -1129,27 +1151,32 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
           </div>
           <div className="flex-1 flex items-center justify-center min-h-[150px] sm:min-h-[180px]">
             <ResponsiveContainer width="100%" height={180}>
-              <BarChart data={genderPieData} layout="vertical" margin={{ left: 0, right: 30, top: 10, bottom: 10 }}>
-                <XAxis type="number" hide />
-                <YAxis 
+              <BarChart 
+                data={genderPieData} 
+                margin={{ left: 0, right: 0, top: 20, bottom: 0 }}
+                style={{ outline: 'none' }}
+              >
+                <XAxis 
                   dataKey="name" 
-                  type="category" 
                   axisLine={false} 
                   tickLine={false} 
-                  width={60}
-                  tick={{ fontSize: 10, fontWeight: 800, fill: '#64748b' }}
+                  tick={{ fontSize: 9, fontWeight: 900, fill: '#94a3b8' }}
+                  dy={5}
                 />
+                <YAxis hide />
                 <Tooltip 
-                  cursor={{ fill: 'transparent' }}
+                  cursor={{ fill: '#f1f5f9', opacity: 0.4 }}
                   contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontSize: '10px', fontWeight: 'bold' }}
                 />
                 <Bar 
                   dataKey="value" 
-                  radius={[0, 10, 10, 0]} 
-                  barSize={24}
+                  radius={[10, 10, 0, 0]} 
+                  barSize={32}
+                  style={{ outline: 'none' }}
                   onClick={(data) => {
-                    if (data && data.name) {
-                      const name = String(data.name);
+                    const item = data?.payload || data;
+                    if (item && item.name) {
+                      const name = String(item.name);
                       setFilterGender(filterGender === name ? null : name);
                     }
                   }}
@@ -1159,8 +1186,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
                       key={`cell-${index}`} 
                       fill={entry.name.toLowerCase() === 'male' ? '#4f46e5' : entry.name.toLowerCase() === 'female' ? '#ec4899' : '#94a3b8'} 
                       opacity={filterGender && filterGender !== entry.name ? 0.3 : 1}
+                      style={{ outline: 'none' }}
                     />
                   ))}
+                  <LabelList 
+                    dataKey="value" 
+                    position="top" 
+                    style={{ fontSize: '10px', fontWeight: '900', fill: '#94a3b8' }} 
+                  />
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
@@ -1275,22 +1308,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
                   margin={{ top: 40, right: 20, left: 0, bottom: 20 }}
                   barSize={admChartData.length > 100 ? 6 : (admChartData.length > 50 ? 10 : 20)}
                   barGap={1}
-                  onClick={(data: any) => {
-                    if (!data || !data.activePayload || !data.activePayload.length) return;
-                    const item = data.activePayload[0].payload;
-                    const date = item.rawDate;
-
-                    if (drillLevel === 'year') {
-                      setDrillLevel('month');
-                      setDrillContext({ year: date.getFullYear() });
-                    } else if (drillLevel === 'month') {
-                      setDrillLevel('week');
-                      setDrillContext({ year: drillContext.year, month: date });
-                    } else if (drillLevel === 'week') {
-                      setDrillLevel('day');
-                      setDrillContext({ year: drillContext.year, month: drillContext.month, week: date });
-                    }
-                  }}
+                  style={{ outline: 'none' }}
                 >
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" strokeOpacity={0.5} />
                   <XAxis 
@@ -1349,6 +1367,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
                     fill="#4f46e5" 
                     stackId="a"
                     className="cursor-pointer"
+                    style={{ outline: 'none' }}
+                    onClick={(data) => handleDrillDown(data)}
                   />
                   <Bar 
                     dataKey="pending" 
@@ -1356,6 +1376,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
                     fill="#94a3b8" 
                     stackId="a"
                     className="cursor-pointer"
+                    style={{ outline: 'none' }}
+                    onClick={(data) => handleDrillDown(data)}
                   />
                   <Bar 
                     dataKey="cancelled" 
@@ -1364,12 +1386,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
                     stackId="a"
                     radius={[2, 2, 0, 0]}
                     className="cursor-pointer"
+                    style={{ outline: 'none' }}
+                    onClick={(data) => handleDrillDown(data)}
                   >
                     {admChartData.length < 100 && (
                       <LabelList 
                         dataKey="total" 
                         position="top" 
-                        style={{ fontSize: '9px', fontWeight: '900', fill: '#1e293b' }} 
+                        style={{ fontSize: '9px', fontWeight: '900', fill: '#94a3b8' }} 
                         formatter={(val: any) => (Number(val) > 0 ? val : '')}
                       />
                     )}
