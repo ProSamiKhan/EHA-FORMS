@@ -13,7 +13,7 @@ import {
   eachMonthOfInterval, eachYearOfInterval, eachWeekOfInterval, eachDayOfInterval,
   endOfMonth, endOfYear, endOfWeek
 } from 'date-fns';
-import { Calendar, ChevronDown, X, MapPin, Edit2, ChevronRight } from 'lucide-react';
+import { Calendar, ChevronDown, X, MapPin, Edit2, ChevronRight, ArrowLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { formatDateClean, parseDate } from '../services/utils';
 
@@ -408,6 +408,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
   }, []);
 
   const [timeRange, setTimeRange] = useState<TimeRange>('lifetime');
+  const [drillLevel, setDrillLevel] = useState<'year' | 'month' | 'week' | 'day' | 'custom'>('year');
+  const [drillContext, setDrillContext] = useState<{ year?: number; month?: Date; week?: Date }>({});
   const [customStart, setCustomStart] = useState<string>('');
   const [customEnd, setCustomEnd] = useState<string>('');
   const [customAgeMin, setCustomAgeMin] = useState<string>('');
@@ -429,27 +431,52 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
     setSortConfig({ key, direction });
   };
 
-  const getFilteredData = (range: TimeRange, custom?: { start: string, end: string }) => {
+  const getFilteredData = () => {
     let baseFiltered = allSyncedData;
 
-    if (range !== 'lifetime') {
+    // Time Filtering based on Drill-down or Custom Range
+    if (drillLevel === 'custom') {
+      const start = customStart ? startOfDay(new Date(customStart)) : null;
+      const end = customEnd ? endOfDay(new Date(customEnd)) : null;
+      if (start && end) {
+        baseFiltered = baseFiltered.filter(d => {
+          const date = parseDate(d.payment1_date);
+          return date && isAfter(date, start) && isBefore(date, end);
+        });
+      }
+    } else if (drillLevel === 'day' && drillContext.week) {
+      const start = startOfWeek(drillContext.week);
+      const end = endOfWeek(drillContext.week);
+      baseFiltered = baseFiltered.filter(d => {
+        const date = parseDate(d.payment1_date);
+        return date && date >= start && date <= end;
+      });
+    } else if (drillLevel === 'week' && drillContext.month) {
+      const start = startOfMonth(drillContext.month);
+      const end = endOfMonth(drillContext.month);
+      baseFiltered = baseFiltered.filter(d => {
+        const date = parseDate(d.payment1_date);
+        return date && date >= start && date <= end;
+      });
+    } else if (drillLevel === 'month' && drillContext.year) {
+      const start = startOfYear(new Date(drillContext.year, 0, 1));
+      const end = endOfYear(new Date(drillContext.year, 0, 1));
+      baseFiltered = baseFiltered.filter(d => {
+        const date = parseDate(d.payment1_date);
+        return date && date >= start && date <= end;
+      });
+    } else if (timeRange !== 'lifetime') {
+      // Fallback to legacy timeRange if in Year view but a quick filter is selected
       const now = new Date();
       baseFiltered = baseFiltered.filter(d => {
         const date = parseDate(d.payment1_date);
         if (!date) return false;
-        
-        switch (range) {
+        switch (timeRange) {
           case 'today': return isSameDay(date, now);
           case 'yesterday': return isSameDay(date, subDays(now, 1));
           case 'week': return isAfter(date, startOfWeek(now));
           case 'month': return isAfter(date, startOfMonth(now));
           case 'year': return isAfter(date, startOfYear(now));
-          case 'custom':
-            const start = custom?.start || customStart;
-            const end = custom?.end || customEnd;
-            if (!start || !end) return true;
-            return isAfter(date, startOfDay(new Date(start))) && 
-                   isBefore(date, endOfDay(new Date(end)));
           default: return true;
         }
       });
@@ -575,7 +602,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
     });
   };
 
-  const filteredData = useMemo(() => getFilteredData(timeRange), [allSyncedData, timeRange, customStart, customEnd, filterGender, filterState, filterCity, filterDate, filterPaymentStatus, filterAdmissionStatus, dashboardSearchQuery, filterPaymentMethod, activeFilters]);
+  const filteredData = useMemo(() => getFilteredData(), [allSyncedData, timeRange, drillLevel, drillContext, customStart, customEnd, filterGender, filterState, filterCity, filterDate, filterPaymentStatus, filterAdmissionStatus, dashboardSearchQuery, filterPaymentMethod, activeFilters]);
 
   const sortedMasterData = useMemo(() => {
     let sortableData = [...filteredData];
@@ -607,116 +634,112 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
     return sortableData;
   }, [filteredData, sortConfig, isMasterViewOpen, masterViewSearchQuery]);
 
-  const getChartData = (data: RegistrationData[], range: TimeRange) => {
+  const getChartData = (data: RegistrationData[]) => {
     const now = new Date();
-    let startDate: Date;
-    let endDate = now;
-    let interval: 'day' | 'week' | 'month' | 'year' = 'day';
+    let dates: Date[] = [];
+    let interval: 'year' | 'month' | 'week' | 'day' = 'year';
 
-    switch (range) {
-      case 'today':
-        startDate = startOfDay(now);
-        break;
-      case 'yesterday':
-        startDate = startOfDay(subDays(now, 1));
-        endDate = endOfDay(subDays(now, 1));
-        break;
-      case 'week':
-        startDate = new Date(2020, 0, 1); 
-        interval = 'week';
-        break;
-      case 'month':
-        startDate = new Date(2020, 0, 1); 
-        interval = 'month';
-        break;
-      case 'year':
-        startDate = new Date(2020, 0, 1); 
-        interval = 'year';
-        break;
-      case 'lifetime':
-        startDate = new Date(2023, 0, 1); 
-        interval = 'day';
-        break;
-      case 'custom':
-        startDate = customStart ? new Date(customStart) : subDays(now, 30);
-        endDate = customEnd ? new Date(customEnd) : now;
-        break;
-      default:
-        startDate = subDays(now, 30);
-    }
-
-    // Safety check for very large intervals
-    const maxDays = 2000;
-    if (interval === 'day' && isBefore(startDate, subDays(endDate, maxDays))) {
-      startDate = subDays(endDate, maxDays);
+    if (drillLevel === 'year') {
+      dates = eachYearOfInterval({ start: new Date(2020, 0, 1), end: now });
+      interval = 'year';
+    } else if (drillLevel === 'month' && drillContext.year) {
+      dates = eachMonthOfInterval({ 
+        start: startOfYear(new Date(drillContext.year, 0, 1)), 
+        end: endOfYear(new Date(drillContext.year, 0, 1)) 
+      });
+      interval = 'month';
+    } else if (drillLevel === 'week' && drillContext.month) {
+      dates = eachWeekOfInterval({ 
+        start: startOfMonth(drillContext.month), 
+        end: endOfMonth(drillContext.month) 
+      });
+      interval = 'week';
+    } else if (drillLevel === 'day' && drillContext.week) {
+      dates = eachDayOfInterval({ 
+        start: startOfWeek(drillContext.week), 
+        end: endOfWeek(drillContext.week) 
+      });
+      interval = 'day';
+    } else if (drillLevel === 'custom') {
+      const start = customStart ? new Date(customStart) : subDays(now, 30);
+      const end = customEnd ? new Date(customEnd) : now;
+      dates = eachDayOfInterval({ start, end });
+      interval = 'day';
     }
 
     const dataPoints: any[] = [];
-    let dates: Date[] = [];
-
-    try {
-      if (interval === 'year') {
-        dates = eachYearOfInterval({ start: startDate, end: endDate });
-      } else if (interval === 'month') {
-        dates = eachMonthOfInterval({ start: startDate, end: endDate });
-      } else if (interval === 'week') {
-        dates = eachWeekOfInterval({ start: startDate, end: endDate });
-      } else {
-        dates = eachDayOfInterval({ start: startDate, end: endDate });
-      }
-    } catch (e) {
-      console.error("Date interval error:", e);
-      return [];
-    }
-
-    // Pre-parse dates for performance
+    
+    // Pre-parse and filter data
     const parsedData = data.map(d => ({
-      ...d,
+      status: d.status,
       _parsedDate: parseDate(d.payment1_date)
     })).filter(d => d._parsedDate);
 
-    dates.forEach(date => {
-      let start: Date, end: Date, label: string;
-
+    // Group data by interval key for O(M) lookup
+    const groupedMap: Record<string, { confirmed: number, pending: number, cancelled: number, rawDate: Date }> = {};
+    
+    parsedData.forEach(d => {
+      let key: string;
+      const date = d._parsedDate!;
       if (interval === 'year') {
-        start = startOfYear(date);
-        end = endOfYear(date);
-        label = format(date, 'yyyy');
+        key = format(date, 'yyyy');
       } else if (interval === 'month') {
-        start = startOfMonth(date);
-        end = endOfMonth(date);
-        label = format(date, 'MMM yy');
+        key = format(date, 'yyyy-MM');
       } else if (interval === 'week') {
-        start = startOfWeek(date);
-        end = endOfWeek(date);
-        label = `W${format(date, 'w')} ${format(date, 'yy')}`;
+        key = format(startOfWeek(date), 'yyyy-ww');
       } else {
-        start = startOfDay(date);
-        end = endOfDay(date);
-        label = format(date, 'MMM dd');
+        key = format(date, 'yyyy-MM-dd');
       }
 
-      const periodData = parsedData.filter(d => 
-        d._parsedDate! >= start && d._parsedDate! <= end
-      );
+      if (!groupedMap[key]) groupedMap[key] = { confirmed: 0, pending: 0, cancelled: 0, rawDate: date };
+      if (d.status === 'confirm') groupedMap[key].confirmed++;
+      else if (d.status === 'pending') groupedMap[key].pending++;
+      else if (d.status === 'cancelled') groupedMap[key].cancelled++;
+    });
 
-      const confirmed = periodData.filter(d => d.status === 'confirm').length;
-      const pending = periodData.filter(d => d.status === 'pending').length;
-      const cancelled = periodData.filter(d => d.status === 'cancelled').length;
+    dates.forEach(date => {
+      let key: string;
+      let label: string;
+
+      if (interval === 'year') {
+        key = format(date, 'yyyy');
+        label = key;
+      } else if (interval === 'month') {
+        key = format(date, 'yyyy-MM');
+        label = format(date, 'MMM');
+      } else if (interval === 'week') {
+        const start = startOfWeek(date);
+        key = format(start, 'yyyy-ww');
+        label = `W${format(start, 'w')}`;
+      } else {
+        key = format(date, 'yyyy-MM-dd');
+        label = format(date, 'dd MMM');
+      }
+
+      const stats = groupedMap[key] || { confirmed: 0, pending: 0, cancelled: 0 };
 
       dataPoints.push({
         name: label,
-        confirmed: confirmed,
-        pending: pending,
-        cancelled: cancelled,
-        total: confirmed + pending + cancelled
+        confirmed: stats.confirmed,
+        pending: stats.pending,
+        cancelled: stats.cancelled,
+        total: stats.confirmed + stats.pending + stats.cancelled,
+        rawDate: date
       });
     });
 
     return dataPoints;
   };
 
-  const admChartData = useMemo(() => getChartData(filteredData, timeRange), [filteredData, timeRange]);
+  const admChartData = useMemo(() => getChartData(filteredData), [filteredData, drillLevel, drillContext, customStart, customEnd]);
+
+  const chartContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (chartContainerRef.current) {
+      chartContainerRef.current.scrollLeft = chartContainerRef.current.scrollWidth;
+    }
+  }, [admChartData]);
 
   const getStats = (data: RegistrationData[]) => {
     const total = data.length;
@@ -1160,30 +1183,115 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
 
         <div className="bg-white dark:bg-slate-900 p-6 md:p-8 rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-sm transition-colors lg:col-span-2">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
-              Admission Velocity ({TIME_RANGE_OPTIONS.find(o => o.id === timeRange)?.label})
-            </h3>
-            <div className="flex flex-wrap items-center gap-1 bg-slate-50 dark:bg-slate-800/50 p-1 rounded-xl">
-              {TIME_RANGE_OPTIONS.filter(o => !o.divider).map((option) => (
-                <button
-                  key={option.id}
-                  onClick={() => setTimeRange(option.id as TimeRange)}
-                  className={`px-3 py-1.5 text-[8px] font-black uppercase rounded-lg transition-all ${
-                    timeRange === option.id 
-                      ? 'bg-white dark:bg-slate-700 text-indigo-600 shadow-sm' 
-                      : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
-                  }`}
+            <div className="flex flex-col gap-1">
+              <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
+                Admission Explorer
+              </h3>
+              <div className="flex items-center gap-2 mt-1">
+                <button 
+                  onClick={() => {
+                    setDrillLevel('year');
+                    setDrillContext({});
+                  }}
+                  className={`text-[9px] font-black uppercase tracking-wider ${drillLevel === 'year' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
                 >
-                  {option.label}
+                  All Years
                 </button>
-              ))}
+                {drillContext.year && (
+                  <>
+                    <span className="text-slate-300 text-[8px]">/</span>
+                    <button 
+                      onClick={() => {
+                        setDrillLevel('month');
+                        setDrillContext({ year: drillContext.year });
+                      }}
+                      className={`text-[9px] font-black uppercase tracking-wider ${drillLevel === 'month' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
+                    >
+                      {drillContext.year}
+                    </button>
+                  </>
+                )}
+                {drillContext.month && (
+                  <>
+                    <span className="text-slate-300 text-[8px]">/</span>
+                    <button 
+                      onClick={() => {
+                        setDrillLevel('week');
+                        setDrillContext({ year: drillContext.year, month: drillContext.month });
+                      }}
+                      className={`text-[9px] font-black uppercase tracking-wider ${drillLevel === 'week' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
+                    >
+                      {format(drillContext.month, 'MMMM')}
+                    </button>
+                  </>
+                )}
+                {drillContext.week && (
+                  <>
+                    <span className="text-slate-300 text-[8px]">/</span>
+                    <span className="text-[9px] font-black uppercase tracking-wider text-indigo-600">
+                      Week {format(drillContext.week, 'w')}
+                    </span>
+                  </>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setDrillLevel('custom')}
+                className={`px-4 py-2 text-[9px] font-black uppercase rounded-xl transition-all ${
+                  drillLevel === 'custom' 
+                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' 
+                    : 'bg-slate-50 dark:bg-slate-800 text-slate-500 hover:bg-slate-100'
+                }`}
+              >
+                Custom Range
+              </button>
+              {drillLevel !== 'year' && drillLevel !== 'custom' && (
+                <button
+                  onClick={() => {
+                    if (drillLevel === 'day') setDrillLevel('week');
+                    else if (drillLevel === 'week') setDrillLevel('month');
+                    else if (drillLevel === 'month') setDrillLevel('year');
+                  }}
+                  className="p-2 bg-slate-50 dark:bg-slate-800 text-slate-500 rounded-xl hover:bg-slate-100 transition-all"
+                >
+                  <ArrowLeft size={14} />
+                </button>
+              )}
             </div>
           </div>
 
-          <div className="h-[400px] w-full overflow-x-auto custom-scrollbar pb-2">
-            <div style={{ minWidth: Math.max(600, admChartData.length * 40), height: '100%' }}>
+          <div 
+            ref={chartContainerRef}
+            className="h-[400px] w-full overflow-x-auto custom-scrollbar pb-2"
+          >
+            <div style={{ 
+              minWidth: drillLevel === 'year' ? '100%' : Math.max(600, admChartData.length * (admChartData.length > 100 ? 15 : 25)), 
+              height: '100%' 
+            }}>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={admChartData} margin={{ top: 40, right: 20, left: 0, bottom: 20 }}>
+                <BarChart 
+                  data={admChartData} 
+                  margin={{ top: 40, right: 20, left: 0, bottom: 20 }}
+                  barSize={admChartData.length > 100 ? 6 : (admChartData.length > 50 ? 10 : 20)}
+                  barGap={1}
+                  onClick={(data: any) => {
+                    if (!data || !data.activePayload || !data.activePayload.length) return;
+                    const item = data.activePayload[0].payload;
+                    const date = item.rawDate;
+
+                    if (drillLevel === 'year') {
+                      setDrillLevel('month');
+                      setDrillContext({ year: date.getFullYear() });
+                    } else if (drillLevel === 'month') {
+                      setDrillLevel('week');
+                      setDrillContext({ year: drillContext.year, month: date });
+                    } else if (drillLevel === 'week') {
+                      setDrillLevel('day');
+                      setDrillContext({ year: drillContext.year, month: drillContext.month, week: date });
+                    }
+                  }}
+                >
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" strokeOpacity={0.5} />
                   <XAxis 
                     dataKey="name" 
@@ -1191,6 +1299,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
                     tickLine={false} 
                     tick={{fontSize: 9, fontWeight: 800, fill: '#94a3b8'}} 
                     dy={10}
+                    interval={admChartData.length > 500 ? 30 : (admChartData.length > 200 ? 15 : (admChartData.length > 50 ? 7 : 0))}
                   />
                   <YAxis 
                     axisLine={false} 
@@ -1198,16 +1307,35 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
                     tick={{fontSize: 9, fontWeight: 800, fill: '#94a3b8'}} 
                   />
                   <Tooltip 
-                    contentStyle={{ 
-                      borderRadius: '16px', 
-                      border: 'none', 
-                      boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', 
-                      fontSize: '10px', 
-                      fontWeight: 'bold',
-                      backgroundColor: '#1e293b',
-                      color: '#f8fafc'
-                    }}
                     cursor={{ fill: '#f1f5f9', opacity: 0.4 }}
+                    content={({ active, payload, label }) => {
+                      if (active && payload && payload.length) {
+                        return (
+                          <div className="bg-slate-900 text-white p-3 rounded-2xl shadow-xl border border-slate-800 animate-in zoom-in-95 duration-200">
+                            <p className="text-[10px] font-black uppercase tracking-wider mb-2 text-slate-400">{label}</p>
+                            <div className="space-y-1">
+                              {payload.map((p: any) => (
+                                <div key={p.name} className="flex items-center justify-between gap-4">
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: p.fill }}></div>
+                                    <span className="text-[9px] font-bold text-slate-300">{p.name}</span>
+                                  </div>
+                                  <span className="text-[10px] font-black">{p.value}</span>
+                                </div>
+                              ))}
+                              <div className="pt-1 mt-1 border-t border-slate-800 flex items-center justify-between gap-4">
+                                <span className="text-[9px] font-bold text-slate-400">Total</span>
+                                <span className="text-[10px] font-black text-indigo-400">{payload.reduce((acc: number, p: any) => acc + p.value, 0)}</span>
+                              </div>
+                            </div>
+                            {drillLevel !== 'day' && drillLevel !== 'custom' && (
+                              <p className="text-[8px] font-bold text-indigo-400 mt-2 italic">Click to drill down</p>
+                            )}
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
                   />
                   <Legend 
                     verticalAlign="top" 
@@ -1220,22 +1348,30 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
                     name="Confirmed"
                     fill="#4f46e5" 
                     stackId="a"
+                    className="cursor-pointer"
                   />
                   <Bar 
                     dataKey="pending" 
                     name="Pending"
                     fill="#94a3b8" 
                     stackId="a"
+                    className="cursor-pointer"
                   />
                   <Bar 
                     dataKey="cancelled" 
                     name="Cancelled"
                     fill="#ef4444" 
                     stackId="a"
-                    radius={[4, 4, 0, 0]}
+                    radius={[2, 2, 0, 0]}
+                    className="cursor-pointer"
                   >
-                    {admChartData.length < 60 && (
-                      <LabelList dataKey="total" position="top" style={{ fontSize: '10px', fontWeight: '900', fill: '#1e293b' }} />
+                    {admChartData.length < 100 && (
+                      <LabelList 
+                        dataKey="total" 
+                        position="top" 
+                        style={{ fontSize: '9px', fontWeight: '900', fill: '#1e293b' }} 
+                        formatter={(val: any) => (Number(val) > 0 ? val : '')}
+                      />
                     )}
                   </Bar>
                 </BarChart>
@@ -1243,7 +1379,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
             </div>
           </div>
           
-          {timeRange === 'custom' && (
+          {drillLevel === 'custom' && (
             <div className="mt-4 flex items-center gap-4 animate-in fade-in slide-in-from-top-2">
               <div className="flex flex-col gap-1">
                 <span className="text-[8px] font-black text-slate-400 uppercase ml-1">Start Date</span>
@@ -1263,6 +1399,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
                   className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 text-[10px] font-bold outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
                 />
               </div>
+              <button 
+                onClick={() => {
+                  setDrillLevel('year');
+                  setDrillContext({});
+                }}
+                className="mt-4 px-3 py-1.5 text-[9px] font-black uppercase text-slate-400 hover:text-indigo-600 transition-all"
+              >
+                Reset
+              </button>
             </div>
           )}
         </div>
