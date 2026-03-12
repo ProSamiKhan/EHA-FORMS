@@ -61,21 +61,39 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
         const configDoc = await getDoc(doc(db, 'config', 'global_config'));
         const globalConfig = configDoc.data();
         const storedPassword = globalConfig?.superadminPassword;
+        const adminEmail = globalConfig?.adminEmail || config.adminEmail;
 
-        // If no password stored yet, allow default 'superadmin'
+        // Verify password locally first
+        let isMatch = false;
         if (!storedPassword) {
-          if (password === 'superadmin') {
-            onLogin('super_admin', 'superadmin');
-            return;
-          }
+          isMatch = password === 'superadmin';
         } else {
-          // Verify hashed password
-          const isMatch = bcrypt.compareSync(password, storedPassword);
-          if (isMatch) {
-            onLogin('super_admin', 'superadmin');
-            return;
-          }
+          isMatch = bcrypt.compareSync(password, storedPassword);
         }
+
+        if (isMatch) {
+          // Sign in to Firebase Auth using the admin email to get Firestore permissions
+          try {
+            await signInWithEmailAndPassword(auth, adminEmail, password);
+          } catch (authErr: any) {
+            // If user doesn't exist in Auth yet, create it
+            if (authErr.code === 'auth/user-not-found' || authErr.code === 'auth/invalid-credential') {
+              try {
+                await createUserWithEmailAndPassword(auth, adminEmail, password);
+              } catch (createErr: any) {
+                console.error("Failed to create superadmin auth:", createErr);
+                // Fallback to custom login if auth creation fails (though permissions will be missing)
+                onLogin('super_admin', 'superadmin');
+                return;
+              }
+            } else {
+              throw authErr;
+            }
+          }
+          onLogin('super_admin', 'superadmin');
+          return;
+        }
+        
         setError('Invalid superadmin credentials.');
         return;
       }

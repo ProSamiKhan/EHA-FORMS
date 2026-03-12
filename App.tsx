@@ -300,7 +300,7 @@ const App: React.FC = () => {
   const handleCustomLogin = (role: UserRole, username: string) => {
     setIsLoggedIn(true);
     setUserRole(role);
-    setCurrentUser({ displayName: username, email: username === 'superadmin' ? 'superadmin' : '' });
+    // We don't set currentUser here as onAuthStateChanged will handle it
   };
 
   if (!isLoggedIn) return <Login onLogin={handleCustomLogin} />;
@@ -440,6 +440,7 @@ const App: React.FC = () => {
                 config={config} 
                 onUpdate={updateAppConfig} 
                 currentUsername={currentUser?.displayName || currentUser?.email || 'User'}
+                userRole={userRole}
               />
             </motion.div>
           )}

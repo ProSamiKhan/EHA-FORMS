@@ -17,6 +17,7 @@ interface SettingsProps {
   config: AppConfig;
   onUpdate: (newConfig: AppConfig) => void;
   currentUsername: string;
+  userRole: UserRole | null;
 }
 
 const SectionHeader = ({ icon: Icon, title, subtitle }: { icon: any, title: string, subtitle: string }) => (
@@ -43,7 +44,7 @@ const InputWrapper = ({ label, icon: Icon, children }: { label: string, icon: an
   </div>
 );
 
-export const Settings: React.FC<SettingsProps> = ({ config, onUpdate, currentUsername }) => {
+export const Settings: React.FC<SettingsProps> = ({ config, onUpdate, currentUsername, userRole }) => {
   const [form, setForm] = useState<AppConfig>(config);
   const [saved, setSaved] = useState(false);
   const [isSavingBranding, setIsSavingBranding] = useState(false);
@@ -157,7 +158,7 @@ export const Settings: React.FC<SettingsProps> = ({ config, onUpdate, currentUse
     }
 
     try {
-      if (currentUsername === 'superadmin') {
+      if (userRole === 'super_admin') {
         // 1. Verify current global password from Firestore
         const configDoc = await getDoc(doc(db, 'config', 'global_config'));
         const globalConfig = configDoc.data();
@@ -181,6 +182,12 @@ export const Settings: React.FC<SettingsProps> = ({ config, onUpdate, currentUse
         await updateDoc(doc(db, 'config', 'global_config'), {
           superadminPassword: hashedPassword
         });
+
+        // 3. Also update Firebase Auth password for the current user
+        const user = auth.currentUser;
+        if (user) {
+          await updatePassword(user, passForm.new);
+        }
 
         setPassSuccess(true);
         setPassForm({ current: '', new: '', confirm: '' });
