@@ -1,0 +1,64 @@
+{
+  "entities": {
+    "UserAccount": {
+      "title": "User Account",
+      "description": "User account information for authentication and role-based access.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "username": { "type": "string", "description": "Display username" },
+        "email": { "type": "string", "description": "User email" },
+        "role": { "type": "string", "enum": ["super_admin", "admin", "viewer"], "description": "User role" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "username", "role"]
+    },
+    "Registration": {
+      "title": "Registration",
+      "description": "Student registration data.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "age": { "type": "number" },
+        "gender": { "type": "string" },
+        "city": { "type": "string" },
+        "state": { "type": "string" },
+        "course": { "type": "string" },
+        "admissionStatus": { "type": "string" },
+        "paymentStatus": { "type": "string" },
+        "amountPaid": { "type": "number" },
+        "totalAmount": { "type": "number" },
+        "paymentMethod": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "createdBy": { "type": "string" }
+      },
+      "required": ["name", "course", "admissionStatus"]
+    },
+    "AppConfig": {
+      "title": "App Configuration",
+      "description": "Global application settings.",
+      "type": "object",
+      "properties": {
+        "appName": { "type": "string" },
+        "appSubtitle": { "type": "string" },
+        "logoUrl": { "type": "string" },
+        "adminEmail": { "type": "string" }
+      }
+    }
+  },
+  "firestore": {
+    "/users/{uid}": {
+      "schema": "UserAccount",
+      "description": "User profile documents."
+    },
+    "/registrations/{id}": {
+      "schema": "Registration",
+      "description": "Student registration records."
+    },
+    "/config/global": {
+      "schema": "AppConfig",
+      "description": "Global application configuration."
+    }
+  }
+}

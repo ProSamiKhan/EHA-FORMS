@@ -8,6 +8,9 @@ import {
   ChevronRight, Info, AlertCircle, Loader2,
   Filter, ArrowUpDown, Menu, X
 } from 'lucide-react';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { collection, onSnapshot, query, orderBy, doc, getDoc, setDoc } from 'firebase/firestore';
+import { auth, db } from './services/firebase';
 import { ProcessingRecord, RegistrationData, UserRole, AppConfig } from './types';
 import { processRegistrationForm } from './services/geminiService';
 import { syncToGoogleSheets } from './services/sheetService';
@@ -21,6 +24,8 @@ import { Login } from './components/Login';
 const App: React.FC = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userRole, setUserRole] = useState<UserRole | null>(null);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [isAuthReady, setIsAuthReady] = useState(false);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'settings'>('dashboard');
   const [records, setRecords] = useState<ProcessingRecord[]>([]);
   const [isUploading, setIsUploading] = useState(false);
@@ -38,39 +43,81 @@ const App: React.FC = () => {
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Auth Listener
   useEffect(() => {
-    const savedRecords = localStorage.getItem('eha_ocr_records');
-    if (savedRecords) {
-      try {
-        const parsed = JSON.parse(savedRecords);
-        const normalized = parsed.map((r: any) => {
-          if (r.data && r.data.status === 'active') {
-            return { ...r, data: { ...r.data, status: 'confirm' } };
-          }
-          return r;
-        });
-        setRecords(normalized);
-      } catch (e) {
-        console.error("Failed to parse saved records");
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        setCurrentUser(user);
+        setIsLoggedIn(true);
+        
+        // Fetch user role from Firestore
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
+        if (userDoc.exists()) {
+          setUserRole(userDoc.data().role as UserRole);
+        } else {
+          // Default role for first time login (e.g. if it's the admin email)
+          const role = user.email === config.adminEmail ? 'super_admin' : 'viewer';
+          setUserRole(role);
+          // Create user doc
+          await setDoc(doc(db, 'users', user.uid), {
+            uid: user.uid,
+            username: user.displayName || user.email?.split('@')[0] || 'User',
+            email: user.email,
+            role: role,
+            createdAt: new Date().toISOString()
+          });
+        }
+      } else {
+        setCurrentUser(null);
+        setIsLoggedIn(false);
+        setUserRole(null);
       }
-    }
+      setIsAuthReady(true);
+    });
 
-    const savedConfig = localStorage.getItem('eha_app_config');
-    if (savedConfig) {
-      setConfig(JSON.parse(savedConfig));
-    }
-    
-    const session = sessionStorage.getItem('eha_session_v2');
-    if (session) {
-      const { role } = JSON.parse(session);
-      setUserRole(role);
-      setIsLoggedIn(true);
-    }
+    return () => unsubscribe();
+  }, [config.adminEmail]);
+
+  // Sync Config from Firestore
+  useEffect(() => {
+    const unsubscribe = onSnapshot(doc(db, 'config', 'global_config'), (doc) => {
+      if (doc.exists()) {
+        setConfig(doc.data() as AppConfig);
+      }
+    });
+    return () => unsubscribe();
   }, []);
 
+  // Sync Records from Firestore
   useEffect(() => {
-    localStorage.setItem('eha_ocr_records', JSON.stringify(records));
-  }, [records]);
+    if (!isLoggedIn || !currentUser) return;
+
+    const q = query(collection(db, 'registrations'), orderBy('timestamp', 'desc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const firestoreRecords: ProcessingRecord[] = snapshot.docs.map(doc => {
+        const data = doc.data();
+        const regData = data.data || data;
+        return {
+          id: doc.id,
+          timestamp: data.timestamp || Date.now(),
+          fileName: data.fileName || `Record - ${regData.name || 'Unknown'}`,
+          imageUrl: data.imageUrl || '',
+          data: regData as RegistrationData,
+          status: data.status || 'completed',
+          source: data.source || 'manual',
+          syncStatus: data.syncStatus || 'synced'
+        };
+      });
+      
+      // Merge with local OCR pending records if any
+      setRecords(prev => {
+        const pending = prev.filter(r => r.status !== 'completed');
+        return [...pending, ...firestoreRecords];
+      });
+    });
+
+    return () => unsubscribe();
+  }, [isLoggedIn, currentUser]);
 
   useEffect(() => {
     if (isDarkMode) {
@@ -84,21 +131,13 @@ const App: React.FC = () => {
     }
   }, [isDarkMode]);
 
-  const handleLogin = (role: UserRole, username: string) => {
-    setUserRole(role);
-    setIsLoggedIn(true);
-    sessionStorage.setItem('eha_session_v2', JSON.stringify({ role, username }));
-  };
-
-  const updateAppConfig = (newConfig: AppConfig) => {
+  const updateAppConfig = async (newConfig: AppConfig) => {
     setConfig(newConfig);
-    localStorage.setItem('eha_app_config', JSON.stringify(newConfig));
+    await setDoc(doc(db, 'config', 'global_config'), newConfig);
   };
 
-  const handleLogout = () => {
-    setIsLoggedIn(false);
-    setUserRole(null);
-    sessionStorage.removeItem('eha_session_v2');
+  const handleLogout = async () => {
+    await signOut(auth);
   };
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -200,28 +239,39 @@ const App: React.FC = () => {
 
   const handleManualSubmit = async (data: RegistrationData) => {
     setIsSyncing(true);
-    const success = await syncToGoogleSheets(data);
-    setIsSyncing(false);
     
-    if (success) {
-      // Add to local records just to keep track for the current session's dashboard
-      const id = uuidv4();
-      const newRecord: ProcessingRecord = {
+    try {
+      // Sync to Firestore
+      const id = editingRecord?.id || uuidv4();
+      const timestamp = Date.now();
+      
+      const recordToSave = {
         id,
-        timestamp: Date.now(),
-        fileName: `Manual Entry - ${data.name || 'Student'}`,
-        imageUrl: '',
-        data: data,
+        timestamp,
+        data,
         status: 'completed',
         source: 'manual',
         syncStatus: 'synced',
+        fileName: `Record - ${data.name}`
       };
-      setRecords(prev => [newRecord, ...prev]);
-      alert("Registration synced successfully to Google Sheets!");
-      setEditingRecord(null);
-      setIsManualModalOpen(false);
-    } else {
-      alert("Failed to sync to Google Sheets. Please check your connection.");
+
+      await setDoc(doc(db, 'registrations', id), recordToSave);
+
+      // Sync to Google Sheets
+      const success = await syncToGoogleSheets(data);
+      setIsSyncing(false);
+      
+      if (success) {
+        alert("Registration synced successfully!");
+        setEditingRecord(null);
+        setIsManualModalOpen(false);
+      } else {
+        alert("Synced to database, but failed to sync to Google Sheets.");
+      }
+    } catch (error) {
+      console.error("Firestore sync error:", error);
+      setIsSyncing(false);
+      alert("Failed to sync to database.");
     }
   };
 
@@ -239,7 +289,21 @@ const App: React.FC = () => {
     }
   };
 
-  if (!isLoggedIn) return <Login onLogin={handleLogin} />;
+  if (!isAuthReady) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">
+        <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
+      </div>
+    );
+  }
+
+  const handleCustomLogin = (role: UserRole, username: string) => {
+    setIsLoggedIn(true);
+    setUserRole(role);
+    setCurrentUser({ displayName: username, email: username === 'superadmin' ? 'superadmin' : '' });
+  };
+
+  if (!isLoggedIn) return <Login onLogin={handleCustomLogin} />;
 
   const NavButton = ({ tab, icon: Icon, label }: { tab: any, icon: any, label: string }) => (
     <button 
@@ -375,7 +439,7 @@ const App: React.FC = () => {
               <Settings 
                 config={config} 
                 onUpdate={updateAppConfig} 
-                currentUsername={sessionStorage.getItem('eha_session_v2') ? JSON.parse(sessionStorage.getItem('eha_session_v2')!).username : 'superadmin'}
+                currentUsername={currentUser?.displayName || currentUser?.email || 'User'}
               />
             </motion.div>
           )}

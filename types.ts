@@ -1,5 +1,5 @@
 
-export type UserRole = 'super_admin' | 'staff';
+export type UserRole = 'super_admin' | 'staff' | 'viewer';
 
 export interface AppConfig {
   appName: string;
@@ -16,6 +16,8 @@ export interface UserAccount {
 }
 
 export interface RegistrationData {
+  id?: string;
+  date?: string;
   admission_id: string;
   name: string;
   gender: string;

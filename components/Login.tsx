@@ -1,18 +1,23 @@
-
 import React, { useState, useEffect } from 'react';
-import { UserRole, AppConfig, UserAccount } from '../types';
+import { UserRole, AppConfig } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
-import { Lock, User, Eye, EyeOff, Sun, Moon, ShieldCheck, ArrowRight } from 'lucide-react';
+import { Lock, Eye, EyeOff, Sun, Moon, ShieldCheck, ArrowRight, User, Mail, Loader2 } from 'lucide-react';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import { auth, db } from '../services/firebase';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import bcrypt from 'bcryptjs';
 
 interface LoginProps {
   onLogin: (role: UserRole, username: string) => void;
 }
 
 export const Login: React.FC<LoginProps> = ({ onLogin }) => {
-  const [username, setUsername] = useState('');
+  const [identifier, setIdentifier] = useState(''); // Username or Email
   const [password, setPassword] = useState('');
+  const [isSignUp, setIsSignUp] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(() => {
     return localStorage.getItem('eha_theme') === 'dark';
   });
@@ -24,10 +29,17 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
   });
 
   useEffect(() => {
-    const savedConfig = localStorage.getItem('eha_app_config');
-    if (savedConfig) {
-      setConfig(JSON.parse(savedConfig));
-    }
+    const fetchConfig = async () => {
+      try {
+        const configDoc = await getDoc(doc(db, 'config', 'global_config'));
+        if (configDoc.exists()) {
+          setConfig(prev => ({ ...prev, ...configDoc.data() }));
+        }
+      } catch (err) {
+        console.error("Error fetching config:", err);
+      }
+    };
+    fetchConfig();
   }, []);
 
   useEffect(() => {
@@ -38,35 +50,55 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
     }
   }, [isDarkMode]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
+    setIsLoading(true);
     
-    const savedUsers = localStorage.getItem('eha_users');
-    let users: UserAccount[] = [];
-    
-    if (savedUsers) {
-      users = JSON.parse(savedUsers);
-    }
+    try {
+      // 1. Check for SuperAdmin (Custom Login)
+      if (identifier.toLowerCase() === 'superadmin') {
+        const configDoc = await getDoc(doc(db, 'config', 'global_config'));
+        const globalConfig = configDoc.data();
+        const storedPassword = globalConfig?.superadminPassword;
 
-    const customSuperAdmin = users.find(u => u.username === 'superadmin');
-    if (customSuperAdmin) {
-      if (username === 'superadmin' && password === customSuperAdmin.password) {
-        onLogin('super_admin', 'superadmin');
+        // If no password stored yet, allow default 'superadmin'
+        if (!storedPassword) {
+          if (password === 'superadmin') {
+            onLogin('super_admin', 'superadmin');
+            return;
+          }
+        } else {
+          // Verify hashed password
+          const isMatch = bcrypt.compareSync(password, storedPassword);
+          if (isMatch) {
+            onLogin('super_admin', 'superadmin');
+            return;
+          }
+        }
+        setError('Invalid superadmin credentials.');
         return;
       }
-    } else {
-      if (username === 'superadmin' && password === 'superadmin') {
-        onLogin('super_admin', 'superadmin');
-        return;
-      }
-    }
 
-    const foundUser = users.find(u => u.username === username && u.password === password);
-    
-    if (foundUser) {
-      onLogin(foundUser.role, foundUser.username);
-    } else {
-      setError('Invalid credentials. Please try again or contact administrator.');
+      // 2. Standard Firebase Auth for others
+      if (isSignUp) {
+        await createUserWithEmailAndPassword(auth, identifier, password);
+      } else {
+        await signInWithEmailAndPassword(auth, identifier, password);
+      }
+    } catch (err: any) {
+      console.error("Auth error:", err);
+      if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
+        setError('Invalid email or password.');
+      } else if (err.code === 'auth/email-already-in-use') {
+        setError('Email already in use.');
+      } else if (err.code === 'auth/weak-password') {
+        setError('Password should be at least 6 characters.');
+      } else {
+        setError('Authentication failed. Please try again.');
+      }
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -130,18 +162,22 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
               <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">
-                Account ID
+                Username or Email
               </label>
               <div className="relative group">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <User size={18} className="text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+                  {identifier.includes('@') ? (
+                    <Mail size={18} className="text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+                  ) : (
+                    <User size={18} className="text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+                  )}
                 </div>
                 <input
                   type="text"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
                   className="w-full pl-12 pr-5 py-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-2xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 dark:focus:border-indigo-600 outline-none transition-all font-semibold text-slate-900 dark:text-slate-100 placeholder:text-slate-300 dark:placeholder:text-slate-600"
-                  placeholder="Enter your username"
+                  placeholder="Enter username or email"
                   required
                 />
               </div>
@@ -192,11 +228,28 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
               whileHover={{ scale: 1.01 }}
               whileTap={{ scale: 0.98 }}
               type="submit"
-              className="w-full py-4.5 bg-slate-900 dark:bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-slate-200 dark:shadow-none hover:bg-black dark:hover:bg-indigo-700 transition-all flex items-center justify-center gap-3 mt-4"
+              disabled={isLoading}
+              className="w-full py-4.5 bg-slate-900 dark:bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-slate-200 dark:shadow-none hover:bg-black dark:hover:bg-indigo-700 transition-all flex items-center justify-center gap-3 mt-4 disabled:opacity-50"
             >
-              <span>Sign In to Portal</span>
-              <ArrowRight size={16} strokeWidth={3} />
+              {isLoading ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <>
+                  <span>{isSignUp ? 'Create Account' : 'Sign In to Portal'}</span>
+                  <ArrowRight size={16} strokeWidth={3} />
+                </>
+              )}
             </motion.button>
+
+            <div className="text-center mt-4">
+              <button
+                type="button"
+                onClick={() => setIsSignUp(!isSignUp)}
+                className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest hover:underline"
+              >
+                {isSignUp ? 'Already have an account? Sign In' : 'Need an account? Sign Up'}
+              </button>
+            </div>
           </form>
 
           <div className="mt-10 pt-10 border-t border-slate-50 dark:border-slate-800 text-center">
@@ -218,3 +271,4 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
     </div>
   );
 };
+

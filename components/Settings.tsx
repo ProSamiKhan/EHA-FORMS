@@ -8,6 +8,10 @@ import {
   ChevronRight, UserCircle2, ShieldCheck, Hash,
   Zap, Building2, MessageSquare, Briefcase
 } from 'lucide-react';
+import { db, auth } from '../services/firebase';
+import { doc, updateDoc, getDoc, collection, query, getDocs, deleteDoc, setDoc } from 'firebase/firestore';
+import { updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
+import bcrypt from 'bcryptjs';
 
 interface SettingsProps {
   config: AppConfig;
@@ -42,74 +46,171 @@ const InputWrapper = ({ label, icon: Icon, children }: { label: string, icon: an
 export const Settings: React.FC<SettingsProps> = ({ config, onUpdate, currentUsername }) => {
   const [form, setForm] = useState<AppConfig>(config);
   const [saved, setSaved] = useState(false);
+  const [isSavingBranding, setIsSavingBranding] = useState(false);
   
   const [users, setUsers] = useState<UserAccount[]>([]);
   const [newUser, setNewUser] = useState<UserAccount>({ username: '', password: '', role: 'staff' });
   const [userSaved, setUserSaved] = useState(false);
+  const [isLoadingUsers, setIsLoadingUsers] = useState(false);
 
   const [passForm, setPassForm] = useState({ current: '', new: '', confirm: '' });
   const [passError, setPassError] = useState('');
   const [passSuccess, setPassSuccess] = useState(false);
+  const [isChangingPass, setIsChangingPass] = useState(false);
 
   useEffect(() => {
-    const savedUsers = localStorage.getItem('eha_users');
-    if (savedUsers) {
-      setUsers(JSON.parse(savedUsers));
-    }
+    setForm(config);
+  }, [config]);
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      setIsLoadingUsers(true);
+      try {
+        const q = query(collection(db, 'users'));
+        const querySnapshot = await getDocs(q);
+        const usersList: UserAccount[] = [];
+        querySnapshot.forEach((doc) => {
+          const data = doc.data();
+          usersList.push({
+            username: data.username || doc.id,
+            password: '••••••••', // Don't show real passwords
+            role: data.role || 'staff'
+          });
+        });
+        setUsers(usersList);
+      } catch (err) {
+        console.error("Error fetching users:", err);
+      } finally {
+        setIsLoadingUsers(false);
+      }
+    };
+    fetchUsers();
   }, []);
 
-  const handleSaveBranding = () => {
-    onUpdate(form);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
-  };
-
-  const handleAddUser = () => {
-    if (!newUser.username || !newUser.password) return;
-    if (users.some(u => u.username === newUser.username) || newUser.username === 'superadmin') {
-      alert("Username already exists.");
-      return;
+  const handleSaveBranding = async () => {
+    setIsSavingBranding(true);
+    try {
+      await updateDoc(doc(db, 'config', 'global_config'), {
+        appName: form.appName,
+        appSubtitle: form.appSubtitle,
+        logoUrl: form.logoUrl,
+        adminEmail: form.adminEmail
+      });
+      onUpdate(form);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (err) {
+      console.error("Error saving branding:", err);
+      alert("Failed to save branding to cloud.");
+    } finally {
+      setIsSavingBranding(false);
     }
-    const updatedUsers = [...users, newUser];
-    setUsers(updatedUsers);
-    localStorage.setItem('eha_users', JSON.stringify(updatedUsers));
-    setNewUser({ username: '', password: '', role: 'staff' });
-    setUserSaved(true);
-    setTimeout(() => setUserSaved(false), 3000);
   };
 
-  const handleDeleteUser = (username: string) => {
-    if (username === 'superadmin') return alert("Cannot delete the primary superadmin account.");
+  const handleAddUser = async () => {
+    if (!newUser.username) return;
+    // Note: Creating users in Firebase Auth requires Admin SDK or client-side signup.
+    // For this demo, we'll just add the user record to Firestore.
+    // Real implementation would need a backend function to create Auth user.
+    try {
+      await setDoc(doc(db, 'users', newUser.username), {
+        username: newUser.username,
+        role: newUser.role,
+        createdAt: new Date().toISOString()
+      });
+      setUsers([...users, { ...newUser, password: '••••••••' }]);
+      setNewUser({ username: '', password: '', role: 'staff' });
+      setUserSaved(true);
+      setTimeout(() => setUserSaved(false), 3000);
+    } catch (err) {
+      console.error("Error adding user:", err);
+      alert("Failed to add user to cloud.");
+    }
+  };
+
+  const handleDeleteUser = async (username: string) => {
+    if (username === 'superadmin' || username === auth.currentUser?.email) return alert("Cannot delete your own account or primary admin.");
     if (window.confirm(`Are you sure you want to delete user account "${username}"?`)) {
-      const updatedUsers = users.filter(u => u.username !== username);
-      setUsers(updatedUsers);
-      localStorage.setItem('eha_users', JSON.stringify(updatedUsers));
+      try {
+        await deleteDoc(doc(db, 'users', username));
+        setUsers(users.filter(u => u.username !== username));
+      } catch (err) {
+        console.error("Error deleting user:", err);
+        alert("Failed to delete user from cloud.");
+      }
     }
   };
 
-  const handleChangePassword = (e: React.FormEvent) => {
+  const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setPassError('');
     setPassSuccess(false);
-    if (passForm.new !== passForm.confirm) return setPassError('New passwords do not match.');
-    if (passForm.new.length < 4) return setPassError('Password must be at least 4 characters.');
-    const savedUsers = localStorage.getItem('eha_users');
-    let usersList: UserAccount[] = savedUsers ? JSON.parse(savedUsers) : [];
-    let userIndex = usersList.findIndex(u => u.username === currentUsername);
-    let currentUser: UserAccount | undefined;
-    if (currentUsername === 'superadmin' && userIndex === -1) {
-      currentUser = { username: 'superadmin', password: 'superadmin', role: 'super_admin' };
-    } else {
-      currentUser = usersList[userIndex];
+    setIsChangingPass(true);
+
+    if (passForm.new !== passForm.confirm) {
+      setIsChangingPass(false);
+      return setPassError('New passwords do not match.');
     }
-    if (!currentUser || (passForm.current !== currentUser.password)) return setPassError('Current password is incorrect.');
-    if (userIndex > -1) usersList[userIndex].password = passForm.new;
-    else usersList.push({ username: 'superadmin', password: passForm.new, role: 'super_admin' });
-    localStorage.setItem('eha_users', JSON.stringify(usersList));
-    setUsers(usersList);
-    setPassSuccess(true);
-    setPassForm({ current: '', new: '', confirm: '' });
-    setTimeout(() => setPassSuccess(false), 5000);
+    if (passForm.new.length < 6) {
+      setIsChangingPass(false);
+      return setPassError('Password must be at least 6 characters.');
+    }
+
+    try {
+      if (currentUsername === 'superadmin') {
+        // 1. Verify current global password from Firestore
+        const configDoc = await getDoc(doc(db, 'config', 'global_config'));
+        const globalConfig = configDoc.data();
+        const storedPassword = globalConfig?.superadminPassword;
+
+        // Verify current password
+        let isMatch = false;
+        if (!storedPassword) {
+          isMatch = passForm.current === 'superadmin';
+        } else {
+          isMatch = bcrypt.compareSync(passForm.current, storedPassword);
+        }
+
+        if (!isMatch) {
+          setIsChangingPass(false);
+          return setPassError('Current global password is incorrect.');
+        }
+
+        // 2. Hash new password and update in Firestore
+        const hashedPassword = bcrypt.hashSync(passForm.new, 10);
+        await updateDoc(doc(db, 'config', 'global_config'), {
+          superadminPassword: hashedPassword
+        });
+
+        setPassSuccess(true);
+        setPassForm({ current: '', new: '', confirm: '' });
+      } else {
+        const user = auth.currentUser;
+        if (!user || !user.email) {
+          throw new Error("No authenticated user found.");
+        }
+
+        // Re-authenticate user before changing password
+        const credential = EmailAuthProvider.credential(user.email, passForm.current);
+        await reauthenticateWithCredential(user, credential);
+        
+        // Update password in Firebase Auth
+        await updatePassword(user, passForm.new);
+
+        setPassSuccess(true);
+        setPassForm({ current: '', new: '', confirm: '' });
+      }
+    } catch (err: any) {
+      console.error("Error changing password:", err);
+      if (err.code === 'auth/wrong-password') {
+        setPassError('Current password is incorrect.');
+      } else {
+        setPassError('Failed to update password globally. ' + (err.message || ''));
+      }
+    } finally {
+      setIsChangingPass(false);
+      setTimeout(() => setPassSuccess(false), 5000);
+    }
   };
 
   const inputClasses = "w-full px-5 py-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-2xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 dark:focus:border-indigo-600 outline-none transition-all font-bold text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-300 dark:placeholder:text-slate-700";
