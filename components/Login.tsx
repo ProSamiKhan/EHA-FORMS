@@ -103,6 +103,9 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
             }
           }
           onLogin('super_admin', 'superadmin');
+          if (auth.currentUser?.email !== adminEmail) {
+            alert("Warning: Cloud Sync Failed. You are logged in locally, but you may not have permission to update settings. Please ensure your Firebase Auth password matches your portal password.");
+          }
           return;
         }
         

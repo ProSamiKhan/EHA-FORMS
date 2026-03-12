@@ -212,7 +212,11 @@ export const Settings: React.FC<SettingsProps> = ({ config, onUpdate, currentUse
       if (err.code === 'auth/wrong-password') {
         setPassError('Current password is incorrect.');
       } else if (err.code === 'permission-denied' || err.message?.includes('permission-denied')) {
-        setPassError('Permission denied. Your cloud account might be out of sync. Try logging out and back in.');
+        if (userRole === 'super_admin') {
+          setPassError('Cloud Sync Error: Your browser session is not authorized to update the database. Please ensure you are using the correct Admin Email in Firebase Console and that your rules are deployed.');
+        } else {
+          setPassError('Permission denied. Your cloud account might be out of sync. Try logging out and back in.');
+        }
       } else if (err.code === 'auth/requires-recent-login') {
         setPassError('For security, please log out and log back in before changing your password.');
       } else {
