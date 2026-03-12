@@ -211,6 +211,10 @@ export const Settings: React.FC<SettingsProps> = ({ config, onUpdate, currentUse
       console.error("Error changing password:", err);
       if (err.code === 'auth/wrong-password') {
         setPassError('Current password is incorrect.');
+      } else if (err.code === 'permission-denied' || err.message?.includes('permission-denied')) {
+        setPassError('Permission denied. Your cloud account might be out of sync. Try logging out and back in.');
+      } else if (err.code === 'auth/requires-recent-login') {
+        setPassError('For security, please log out and log back in before changing your password.');
       } else {
         setPassError('Failed to update password globally. ' + (err.message || ''));
       }

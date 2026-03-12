@@ -89,17 +89,18 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
           } catch (authErr: any) {
             console.warn("Superadmin Firebase Auth sync failed:", authErr.code, authErr.message);
             
-            // If user doesn't exist, create it
             if (authErr.code === 'auth/user-not-found' || authErr.code === 'auth/invalid-credential') {
               try {
+                // Try to create the account if it doesn't exist
                 await createUserWithEmailAndPassword(auth, adminEmail, password);
               } catch (createErr: any) {
                 console.error("Failed to create superadmin auth account:", createErr);
               }
-            } 
-            // If password desync (email exists but password wrong in Auth), 
-            // we still let them in because the local (Firestore) password matched.
-            // They will have permission issues until they re-sync.
+            } else if (authErr.code === 'auth/wrong-password') {
+              // This means Firestore password and Auth password are out of sync
+              console.error("Firestore and Auth passwords are out of sync.");
+              // We still let them in, but they'll have permission issues
+            }
           }
           onLogin('super_admin', 'superadmin');
           return;
