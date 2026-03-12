@@ -23,6 +23,7 @@ import { Login } from './components/Login';
 
 const App: React.FC = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isCustomAuth, setIsCustomAuth] = useState(false);
   const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [isAuthReady, setIsAuthReady] = useState(false);
@@ -49,6 +50,7 @@ const App: React.FC = () => {
       if (user) {
         setCurrentUser(user);
         setIsLoggedIn(true);
+        setIsCustomAuth(false);
         
         // Fetch user role from Firestore
         const userDoc = await getDoc(doc(db, 'users', user.uid));
@@ -59,18 +61,24 @@ const App: React.FC = () => {
           const role = user.email === config.adminEmail ? 'super_admin' : 'viewer';
           setUserRole(role);
           // Create user doc
-          await setDoc(doc(db, 'users', user.uid), {
-            uid: user.uid,
-            username: user.displayName || user.email?.split('@')[0] || 'User',
-            email: user.email,
-            role: role,
-            createdAt: new Date().toISOString()
-          });
+          try {
+            await setDoc(doc(db, 'users', user.uid), {
+              uid: user.uid,
+              username: user.displayName || user.email?.split('@')[0] || 'User',
+              email: user.email,
+              role: role,
+              createdAt: new Date().toISOString()
+            });
+          } catch (err) {
+            console.error("Error creating user doc:", err);
+          }
         }
       } else {
         setCurrentUser(null);
-        setIsLoggedIn(false);
-        setUserRole(null);
+        if (!isCustomAuth) {
+          setIsLoggedIn(false);
+          setUserRole(null);
+        }
       }
       setIsAuthReady(true);
     });
@@ -137,6 +145,7 @@ const App: React.FC = () => {
   };
 
   const handleLogout = async () => {
+    setIsCustomAuth(false);
     await signOut(auth);
   };
 
@@ -298,6 +307,7 @@ const App: React.FC = () => {
   }
 
   const handleCustomLogin = (role: UserRole, username: string) => {
+    setIsCustomAuth(true);
     setIsLoggedIn(true);
     setUserRole(role);
     // We don't set currentUser here as onAuthStateChanged will handle it
