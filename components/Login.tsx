@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { UserRole, AppConfig } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { Lock, Eye, EyeOff, Sun, Moon, ShieldCheck, ArrowRight, User, Mail, Loader2 } from 'lucide-react';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { auth, db } from '../services/firebase';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import bcrypt from 'bcryptjs';
 
 interface LoginProps {
@@ -14,9 +14,9 @@ interface LoginProps {
 export const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [identifier, setIdentifier] = useState(''); // Username or Email
   const [password, setPassword] = useState('');
-  const [isSignUp, setIsSignUp] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(() => {
     return localStorage.getItem('eha_theme') === 'dark';
@@ -50,9 +50,31 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
     }
   }, [isDarkMode]);
 
+  const handleForgotPassword = async () => {
+    if (!identifier || !identifier.includes('@')) {
+      setError('Please enter your email address first.');
+      return;
+    }
+    
+    setIsLoading(true);
+    setError('');
+    setSuccessMessage('');
+    
+    try {
+      await sendPasswordResetEmail(auth, identifier);
+      setSuccessMessage('Password reset email sent! Check your inbox.');
+    } catch (err: any) {
+      console.error("Reset error:", err);
+      setError(err.message || 'Failed to send reset email.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setSuccessMessage('');
     setIsLoading(true);
     
     try {
@@ -64,19 +86,11 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
       }
 
       // Standard Firebase Auth for all users
-      if (isSignUp) {
-        await createUserWithEmailAndPassword(auth, identifier, password);
-      } else {
-        await signInWithEmailAndPassword(auth, identifier, password);
-      }
+      await signInWithEmailAndPassword(auth, identifier, password);
     } catch (err: any) {
       console.error("Auth error:", err);
       if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
         setError('Invalid email or password.');
-      } else if (err.code === 'auth/email-already-in-use') {
-        setError('Email already in use.');
-      } else if (err.code === 'auth/weak-password') {
-        setError('Password should be at least 6 characters.');
       } else if (err.code === 'auth/too-many-requests') {
         setError('Too many failed attempts. Please try again later.');
       } else {
@@ -207,6 +221,18 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                   </p>
                 </motion.div>
               )}
+              {successMessage && (
+                <motion.div 
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-900/20 rounded-xl p-3"
+                >
+                  <p className="text-emerald-600 dark:text-emerald-400 text-[11px] font-bold text-center leading-tight">
+                    {successMessage}
+                  </p>
+                </motion.div>
+              )}
             </AnimatePresence>
 
             <motion.button
@@ -220,7 +246,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 <Loader2 className="w-5 h-5 animate-spin" />
               ) : (
                 <>
-                  <span>{isSignUp ? 'Create Account' : 'Sign In to Portal'}</span>
+                  <span>Sign In to Portal</span>
                   <ArrowRight size={16} strokeWidth={3} />
                 </>
               )}
@@ -229,10 +255,10 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
             <div className="text-center mt-4">
               <button
                 type="button"
-                onClick={() => setIsSignUp(!isSignUp)}
+                onClick={handleForgotPassword}
                 className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest hover:underline"
               >
-                {isSignUp ? 'Already have an account? Sign In' : 'Need an account? Sign Up'}
+                Forgot Password?
               </button>
             </div>
           </form>
