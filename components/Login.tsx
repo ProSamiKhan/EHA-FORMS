@@ -56,6 +56,13 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
     setIsLoading(true);
     
     try {
+      // Check if Firebase is properly configured
+      if (!auth.app.options.apiKey) {
+        setError('Firebase is not configured. Please set your environment variables in Vercel/AI Studio.');
+        setIsLoading(false);
+        return;
+      }
+
       // 1. Check for SuperAdmin (Custom Login)
       if (identifier.toLowerCase() === 'superadmin') {
         let globalConfig: any = null;
