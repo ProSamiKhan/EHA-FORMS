@@ -63,64 +63,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
         return;
       }
 
-      // 1. Check for SuperAdmin (Custom Login)
-      if (identifier.toLowerCase() === 'superadmin') {
-        let globalConfig: any = null;
-        try {
-          const configDoc = await getDoc(doc(db, 'config', 'global_config'));
-          globalConfig = configDoc.data();
-        } catch (configErr) {
-          console.error("Error fetching config during login:", configErr);
-        }
-
-        const storedPassword = globalConfig?.superadminPassword;
-        const adminEmail = globalConfig?.adminEmail || config.adminEmail;
-
-        // Verify password locally first
-        let isMatch = false;
-        if (!storedPassword) {
-          isMatch = password === 'superadmin';
-        } else {
-          try {
-            isMatch = bcrypt.compareSync(password, storedPassword);
-          } catch (bcryptErr) {
-            console.error("Bcrypt error:", bcryptErr);
-            isMatch = password === 'superadmin'; // Fallback
-          }
-        }
-
-        if (isMatch) {
-          // Sign in to Firebase Auth using the admin email to get Firestore permissions
-          try {
-            await signInWithEmailAndPassword(auth, adminEmail, password);
-          } catch (authErr: any) {
-            console.warn("Superadmin Firebase Auth sync failed:", authErr.code, authErr.message);
-            
-            if (authErr.code === 'auth/user-not-found' || authErr.code === 'auth/invalid-credential') {
-              try {
-                // Try to create the account if it doesn't exist
-                await createUserWithEmailAndPassword(auth, adminEmail, password);
-              } catch (createErr: any) {
-                console.error("Failed to create superadmin auth account:", createErr);
-              }
-            } else if (authErr.code === 'auth/wrong-password') {
-              // This means Firestore password and Auth password are out of sync
-              console.error("Firestore and Auth passwords are out of sync.");
-              // We still let them in, but they'll have permission issues
-            }
-          }
-          onLogin('super_admin', 'superadmin');
-          if (auth.currentUser?.email !== adminEmail) {
-            alert("Warning: Cloud Sync Failed. You are logged in locally, but you may not have permission to update settings. Please ensure your Firebase Auth password matches your portal password.");
-          }
-          return;
-        }
-        
-        setError('Invalid superadmin password.');
-        return;
-      }
-
-      // 2. Standard Firebase Auth for others
+      // Standard Firebase Auth for all users
       if (isSignUp) {
         await createUserWithEmailAndPassword(auth, identifier, password);
       } else {
