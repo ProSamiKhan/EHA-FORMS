@@ -40,8 +40,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
   const [error, setError] = useState<string | null>(null);
   const [lastRefreshed, setLastRefreshed] = useState<number>(Date.now());
   const [viewingRecord, setViewingRecord] = useState<RegistrationData | null>(null);
+  const [viewingStudentForm, setViewingStudentForm] = useState<RegistrationData | null>(null);
   const [isMasterViewOpen, setIsMasterViewOpen] = useState(false);
   const modalRef = useRef<HTMLDivElement>(null);
+  const studentFormRef = useRef<HTMLDivElement>(null);
   const masterViewRef = useRef<HTMLDivElement>(null);
 
   const [isTimeRangeMenuOpen, setIsTimeRangeMenuOpen] = useState(false);
@@ -200,6 +202,60 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
     printWindow.document.close();
   };
 
+  const handleStudentFormDownload = async () => {
+    if (!studentFormRef.current) return;
+    try {
+      const dataUrl = await domToPng(studentFormRef.current, {
+        backgroundColor: '#ffffff',
+        scale: 3,
+        quality: 1,
+      });
+      const link = document.createElement('a');
+      link.download = `Student-Form-${viewingStudentForm?.admission_id || 'record'}.png`;
+      link.href = dataUrl;
+      link.click();
+    } catch (err) {
+      console.error('Download failed:', err);
+    }
+  };
+
+  const handleStudentFormPrint = () => {
+    if (!studentFormRef.current) return;
+    const printContent = studentFormRef.current.innerHTML;
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Student Form - ${viewingStudentForm?.admission_id}</title>
+          <script src="https://cdn.tailwindcss.com"></script>
+          <style>
+            @media print {
+              body { padding: 0; margin: 0; }
+              .no-print { display: none; }
+              @page { margin: 1cm; }
+            }
+          </style>
+        </head>
+        <body class="bg-white">
+          <div class="p-8">
+            ${printContent}
+          </div>
+          <script>
+            window.onload = () => {
+              setTimeout(() => {
+                window.print();
+                window.close();
+              }, 500);
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
   const normalizeData = (rawItems: any[]): RegistrationData[] => {
     return rawItems.map(item => {
       const row: any = {};
@@ -271,6 +327,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
         payment10_method: (row['payment10_method'] || row['payment 10 method'] || '').toLowerCase() as any || undefined,
         received_ac: String(row['received ac'] || row['received_ac'] || ''),
         discount: String(row['discount'] || '0'),
+        free: String(row['free'] || '0'),
         total_fees: String(row['total_fees'] || row['total fees'] || '20000'),
         remaining_amount: String(row['remaining amount'] || row['remaining_amount'] || '0'),
         status: (() => {
@@ -1793,6 +1850,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
                               </button>
                             )}
+                            <button onClick={() => setViewingStudentForm(data)} className="p-2 bg-slate-50 dark:bg-slate-800 text-slate-400 dark:text-slate-600 rounded-xl hover:bg-black dark:hover:bg-white hover:text-white dark:hover:text-black transition-all active:scale-90 group-hover:bg-slate-100 dark:group-hover:bg-slate-800 shadow-sm dark:shadow-none transition-colors" title="Student Form View">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
+                            </button>
                             <button onClick={() => setViewingRecord(data)} className="p-2 bg-slate-50 dark:bg-slate-800 text-slate-400 dark:text-slate-600 rounded-xl hover:bg-indigo-600 dark:hover:bg-indigo-500 hover:text-white transition-all active:scale-90 group-hover:bg-indigo-50 dark:group-hover:bg-indigo-900/30 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 shadow-sm dark:shadow-none transition-colors">
                               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0z"/><circle cx="12" cy="12" r="3"/></svg>
                             </button>
@@ -1832,6 +1892,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
                         <span className="text-[10px] font-bold uppercase">{data.city || 'Unknown'}</span>
                       </div>
                       <div className="flex items-center gap-2">
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); setViewingStudentForm(data); }}
+                          className="p-2 text-slate-400 hover:text-black"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
+                        </button>
                         {onEdit && (
                           <button 
                             onClick={(e) => { e.stopPropagation(); onEdit(data); }}
@@ -2020,6 +2086,160 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
                     </button>
                 </div>
             </div>
+        </div>
+      )}
+
+      {/* STUDENT PRINT FORM MODAL */}
+      {viewingStudentForm && (
+        <div className="fixed inset-0 z-[115] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-300 overflow-y-auto">
+          <div className="bg-white w-full max-w-4xl shadow-2xl flex flex-col my-8 rounded-2xl overflow-hidden">
+            <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 no-print">
+              <span className="text-xs font-black uppercase tracking-widest text-slate-500">Student Form Preview (B&W)</span>
+              <div className="flex gap-2">
+                <button 
+                  onClick={handleStudentFormPrint}
+                  className="px-4 py-2 bg-black text-white text-[10px] font-black uppercase rounded-lg hover:bg-slate-800 transition-colors"
+                >
+                  Print Form
+                </button>
+                <button 
+                  onClick={handleStudentFormDownload}
+                  className="px-4 py-2 bg-slate-200 text-black text-[10px] font-black uppercase rounded-lg hover:bg-slate-300 transition-colors"
+                >
+                  Download PNG
+                </button>
+                <button 
+                  onClick={() => setViewingStudentForm(null)}
+                  className="p-2 text-slate-400 hover:text-red-500 transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+            
+            <div className="overflow-y-auto p-4 sm:p-10 bg-slate-100/50">
+              <div ref={studentFormRef} className="bg-white text-black font-serif p-8 border-[3px] border-black shadow-sm mx-auto max-w-[800px]">
+                <div className="text-center border-b-[3px] border-black pb-6 mb-8">
+                  <h1 className="text-4xl font-black uppercase tracking-tighter mb-1">STUDENT ADMISSION FORM</h1>
+                  <p className="text-sm font-bold tracking-[0.3em] uppercase">English House Academy</p>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-y-6 gap-x-12">
+                  <div className="col-span-2 sm:col-span-1 border-b-2 border-black pb-2">
+                    <p className="text-[10px] font-black uppercase mb-1">Student ID / Admission ID</p>
+                    <p className="text-2xl font-black">{viewingStudentForm.admission_id}</p>
+                  </div>
+                  <div className="col-span-2 sm:col-span-1 border-b-2 border-black pb-2">
+                    <p className="text-[10px] font-black uppercase mb-1">Registration Date</p>
+                    <p className="text-2xl font-black">{formatDateClean(viewingStudentForm.payment1_date)}</p>
+                  </div>
+                  
+                  <div className="col-span-2 border-b-2 border-black pb-2">
+                    <p className="text-[10px] font-black uppercase mb-1">Student Full Name</p>
+                    <p className="text-3xl font-black uppercase">{viewingStudentForm.name}</p>
+                  </div>
+                  
+                  <div className="border-b-2 border-black pb-2">
+                    <p className="text-[10px] font-black uppercase mb-1">Gender</p>
+                    <p className="text-xl font-black uppercase">{viewingStudentForm.gender}</p>
+                  </div>
+                  <div className="border-b-2 border-black pb-2">
+                    <p className="text-[10px] font-black uppercase mb-1">Age</p>
+                    <p className="text-xl font-black uppercase">{viewingStudentForm.age}</p>
+                  </div>
+                  
+                  <div className="border-b-2 border-black pb-2">
+                    <p className="text-[10px] font-black uppercase mb-1">Qualification</p>
+                    <p className="text-xl font-black uppercase">{viewingStudentForm.qualification}</p>
+                  </div>
+                  <div className="border-b-2 border-black pb-2">
+                    <p className="text-[10px] font-black uppercase mb-1">Medium</p>
+                    <p className="text-xl font-black uppercase">{viewingStudentForm.medium}</p>
+                  </div>
+                  
+                  <div className="border-b-2 border-black pb-2">
+                    <p className="text-[10px] font-black uppercase mb-1">Contact Number</p>
+                    <p className="text-xl font-black uppercase">{viewingStudentForm.contact_no}</p>
+                  </div>
+                  <div className="border-b-2 border-black pb-2">
+                    <p className="text-[10px] font-black uppercase mb-1">WhatsApp Number</p>
+                    <p className="text-xl font-black uppercase">{viewingStudentForm.whatsapp_no}</p>
+                  </div>
+                  
+                  <div className="border-b-2 border-black pb-2">
+                    <p className="text-[10px] font-black uppercase mb-1">State</p>
+                    <p className="text-xl font-black uppercase">{viewingStudentForm.state}</p>
+                  </div>
+                  <div className="border-b-2 border-black pb-2">
+                    <p className="text-[10px] font-black uppercase mb-1">City</p>
+                    <p className="text-xl font-black uppercase">{viewingStudentForm.city}</p>
+                  </div>
+                </div>
+                
+                <div className="mt-12">
+                  <h3 className="text-lg font-black uppercase border-b-2 border-black mb-4 pb-1">Fee Details</h3>
+                  <div className="grid grid-cols-4 gap-4">
+                    <div className="border-2 border-black p-3 text-center">
+                      <p className="text-[8px] font-black uppercase mb-1">Total Fees</p>
+                      <p className="text-xl font-black">₹{viewingStudentForm.total_fees}</p>
+                    </div>
+                    <div className="border-2 border-black p-3 text-center">
+                      <p className="text-[8px] font-black uppercase mb-1">Discount</p>
+                      <p className="text-xl font-black">₹{viewingStudentForm.discount}</p>
+                    </div>
+                    <div className="border-2 border-black p-3 text-center">
+                      <p className="text-[8px] font-black uppercase mb-1">Free</p>
+                      <p className="text-xl font-black">₹{viewingStudentForm.free || '0'}</p>
+                    </div>
+                    <div className="border-2 border-black p-3 text-center bg-black text-white">
+                      <p className="text-[8px] font-black uppercase mb-1 text-slate-400">Balance</p>
+                      <p className="text-xl font-black">₹{viewingStudentForm.remaining_amount}</p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="mt-12">
+                  <h3 className="text-lg font-black uppercase border-b-2 border-black mb-4 pb-1">Payment Schedule (4 Installments)</h3>
+                  <div className="grid grid-cols-1 gap-2">
+                    {[1, 2, 3, 4].map(num => {
+                      const amt = (viewingStudentForm as any)[`payment${num}_amount`];
+                      const date = (viewingStudentForm as any)[`payment${num}_date`];
+                      const isPaid = amt && amt !== '0';
+                      
+                      return (
+                        <div key={num} className="flex border-2 border-black divide-x-2 divide-black">
+                          <div className="w-32 p-2 font-black text-xs uppercase flex items-center justify-center">Payment {num}</div>
+                          <div className="flex-1 p-2 flex justify-between items-center px-6">
+                            <span className="text-sm font-bold uppercase">{isPaid ? 'Amount Paid:' : 'Pending:'}</span>
+                            <span className="text-xl font-black">{isPaid ? `₹${amt}` : '—'}</span>
+                          </div>
+                          <div className="w-48 p-2 flex justify-between items-center px-4">
+                            <span className="text-[10px] font-bold uppercase">Date:</span>
+                            <span className="text-sm font-black">{isPaid ? formatDateClean(date) : '—'}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+                
+                <div className="mt-20 flex justify-between">
+                  <div className="text-center">
+                    <div className="w-48 border-b-2 border-black mb-2"></div>
+                    <p className="text-[10px] font-black uppercase">Student Signature</p>
+                  </div>
+                  <div className="text-center">
+                    <div className="w-48 border-b-2 border-black mb-2"></div>
+                    <p className="text-[10px] font-black uppercase">Authorized Stamp</p>
+                  </div>
+                </div>
+                
+                <div className="mt-12 text-center text-[8px] font-bold uppercase tracking-widest text-slate-400">
+                  This is a computer generated document. No physical signature required.
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

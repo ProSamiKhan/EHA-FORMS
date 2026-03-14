@@ -72,6 +72,7 @@ export interface RegistrationData {
   
   received_ac: string;
   discount: string;
+  free?: string;
   total_fees: string;
   remaining_amount: string;
   status: 'confirm' | 'cancelled' | 'pending';
