@@ -2091,115 +2091,155 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
 
       {/* STUDENT PRINT FORM MODAL */}
       {viewingStudentForm && (
-        <div className="fixed inset-0 z-[115] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-300 overflow-y-auto">
-          <div className="bg-white w-full max-w-4xl shadow-2xl flex flex-col my-8 rounded-2xl overflow-hidden">
-            <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 no-print">
-              <span className="text-xs font-black uppercase tracking-widest text-slate-500">Student Form Preview (B&W)</span>
+        <div className="fixed inset-0 z-[115] bg-black/90 backdrop-blur-sm flex items-center justify-center p-0 sm:p-4 animate-in fade-in duration-300">
+          <div className="bg-white w-full max-w-5xl h-full sm:h-auto sm:max-h-[95vh] flex flex-col sm:rounded-3xl shadow-2xl overflow-hidden border border-white/10">
+            {/* Modal Header - Always Visible */}
+            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/80 backdrop-blur-sm no-print">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+                </div>
+                <div>
+                  <h3 className="text-[10px] font-black text-slate-900 uppercase tracking-[0.2em]">Student Form Preview</h3>
+                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{viewingStudentForm.admission_id}</p>
+                </div>
+              </div>
               <div className="flex gap-2">
                 <button 
                   onClick={handleStudentFormPrint}
-                  className="px-4 py-2 bg-black text-white text-[10px] font-black uppercase rounded-lg hover:bg-slate-800 transition-colors"
+                  className="px-4 py-2 bg-black text-white text-[10px] font-black uppercase rounded-xl hover:bg-slate-800 transition-all active:scale-95 flex items-center gap-2"
                 >
-                  Print Form
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                  Print
                 </button>
                 <button 
                   onClick={handleStudentFormDownload}
-                  className="px-4 py-2 bg-slate-200 text-black text-[10px] font-black uppercase rounded-lg hover:bg-slate-300 transition-colors"
+                  className="px-4 py-2 bg-slate-200 text-black text-[10px] font-black uppercase rounded-xl hover:bg-slate-300 transition-all active:scale-95 flex items-center gap-2"
                 >
-                  Download PNG
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  PNG
                 </button>
                 <button 
                   onClick={() => setViewingStudentForm(null)}
-                  className="p-2 text-slate-400 hover:text-red-500 transition-colors"
+                  className="p-2 bg-slate-100 text-slate-400 hover:text-red-500 rounded-xl transition-all active:scale-95"
                 >
                   <X size={20} />
                 </button>
               </div>
             </div>
             
-            <div className="overflow-y-auto p-4 sm:p-10 bg-slate-100/50">
-              <div ref={studentFormRef} className="bg-white text-black font-serif p-8 border-[3px] border-black shadow-sm mx-auto max-w-[800px]">
-                <div className="text-center border-b-[3px] border-black pb-6 mb-8">
-                  <h1 className="text-4xl font-black uppercase tracking-tighter mb-1">STUDENT ADMISSION FORM</h1>
-                  <p className="text-sm font-bold tracking-[0.3em] uppercase">English House Academy</p>
+            {/* Scrollable Form Content */}
+            <div className="overflow-y-auto grow p-4 sm:p-12 bg-slate-100/30 custom-scrollbar">
+              <div 
+                ref={studentFormRef} 
+                className="bg-white text-black font-sans p-12 border-[4px] border-black shadow-2xl mx-auto w-[794px] min-h-[1123px] flex flex-col box-border"
+                style={{ width: '794px', minHeight: '1123px' }}
+              >
+                {/* Form Header */}
+                <div className="flex justify-between items-start border-b-[4px] border-black pb-8 mb-10">
+                  <div className="flex flex-col gap-4">
+                    <div className="h-12 flex items-center">
+                      <img 
+                        src="https://englishhouseacademy.in/wp-content/uploads/2022/03/187-X-43-px-EHA-LOGO-PNG.png" 
+                        alt="EHA Logo" 
+                        className="h-10 object-contain grayscale brightness-0"
+                        crossOrigin="anonymous"
+                        referrerPolicy="no-referrer"
+                      />
+                    </div>
+                    <div>
+                      <h1 className="text-4xl font-black uppercase tracking-tighter leading-none">STUDENT ADMISSION</h1>
+                      <p className="text-lg font-bold tracking-[0.4em] uppercase text-slate-500 mt-1">OFFICIAL RECORD</p>
+                    </div>
+                  </div>
+                  <div className="text-right flex flex-col gap-6">
+                    <div>
+                      <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Admission ID</p>
+                      <p className="text-2xl font-black bg-black text-white px-4 py-1 rounded-lg inline-block">{viewingStudentForm.admission_id}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Registration Date</p>
+                      <p className="text-xl font-black">{formatDateClean(viewingStudentForm.payment1_date)}</p>
+                    </div>
+                  </div>
                 </div>
                 
-                <div className="grid grid-cols-2 gap-y-6 gap-x-12">
-                  <div className="col-span-2 sm:col-span-1 border-b-2 border-black pb-2">
-                    <p className="text-[10px] font-black uppercase mb-1">Student ID / Admission ID</p>
-                    <p className="text-2xl font-black">{viewingStudentForm.admission_id}</p>
-                  </div>
-                  <div className="col-span-2 sm:col-span-1 border-b-2 border-black pb-2">
-                    <p className="text-[10px] font-black uppercase mb-1">Registration Date</p>
-                    <p className="text-2xl font-black">{formatDateClean(viewingStudentForm.payment1_date)}</p>
+                {/* Student Info Grid */}
+                <div className="grid grid-cols-2 gap-y-8 gap-x-12 mb-12">
+                  <div className="col-span-2 border-b-[3px] border-black pb-3">
+                    <p className="text-[11px] font-black uppercase text-slate-400 tracking-[0.2em] mb-1">Student Full Name</p>
+                    <p className="text-3xl font-black uppercase tracking-tight">{viewingStudentForm.name}</p>
                   </div>
                   
-                  <div className="col-span-2 border-b-2 border-black pb-2">
-                    <p className="text-[10px] font-black uppercase mb-1">Student Full Name</p>
-                    <p className="text-3xl font-black uppercase">{viewingStudentForm.name}</p>
-                  </div>
-                  
-                  <div className="border-b-2 border-black pb-2">
-                    <p className="text-[10px] font-black uppercase mb-1">Gender</p>
+                  <div className="border-b-[2px] border-black pb-1">
+                    <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Gender</p>
                     <p className="text-xl font-black uppercase">{viewingStudentForm.gender}</p>
                   </div>
-                  <div className="border-b-2 border-black pb-2">
-                    <p className="text-[10px] font-black uppercase mb-1">Age</p>
+                  <div className="border-b-[2px] border-black pb-1">
+                    <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Age</p>
                     <p className="text-xl font-black uppercase">{viewingStudentForm.age}</p>
                   </div>
                   
-                  <div className="border-b-2 border-black pb-2">
-                    <p className="text-[10px] font-black uppercase mb-1">Qualification</p>
+                  <div className="border-b-[2px] border-black pb-1">
+                    <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Qualification</p>
                     <p className="text-xl font-black uppercase">{viewingStudentForm.qualification}</p>
                   </div>
-                  <div className="border-b-2 border-black pb-2">
-                    <p className="text-[10px] font-black uppercase mb-1">Medium</p>
+                  <div className="border-b-[2px] border-black pb-1">
+                    <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Medium</p>
                     <p className="text-xl font-black uppercase">{viewingStudentForm.medium}</p>
                   </div>
                   
-                  <div className="border-b-2 border-black pb-2">
-                    <p className="text-[10px] font-black uppercase mb-1">Contact Number</p>
+                  <div className="border-b-[2px] border-black pb-1">
+                    <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Contact Number</p>
                     <p className="text-xl font-black uppercase">{viewingStudentForm.contact_no}</p>
                   </div>
-                  <div className="border-b-2 border-black pb-2">
-                    <p className="text-[10px] font-black uppercase mb-1">WhatsApp Number</p>
+                  <div className="border-b-[2px] border-black pb-1">
+                    <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">WhatsApp Number</p>
                     <p className="text-xl font-black uppercase">{viewingStudentForm.whatsapp_no}</p>
                   </div>
                   
-                  <div className="border-b-2 border-black pb-2">
-                    <p className="text-[10px] font-black uppercase mb-1">State</p>
+                  <div className="border-b-[2px] border-black pb-1">
+                    <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">State</p>
                     <p className="text-xl font-black uppercase">{viewingStudentForm.state}</p>
                   </div>
-                  <div className="border-b-2 border-black pb-2">
-                    <p className="text-[10px] font-black uppercase mb-1">City</p>
+                  <div className="border-b-[2px] border-black pb-1">
+                    <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">City</p>
                     <p className="text-xl font-black uppercase">{viewingStudentForm.city}</p>
                   </div>
                 </div>
                 
-                <div className="mt-12">
-                  <h3 className="text-lg font-black uppercase border-b-2 border-black mb-4 pb-1">Fee Details</h3>
+                {/* Fee Summary */}
+                <div className="mb-12">
+                  <h3 className="text-sm font-black uppercase tracking-[0.3em] text-slate-400 mb-4 flex items-center gap-3">
+                    FEE SUMMARY
+                    <div className="flex-1 h-px bg-slate-200"></div>
+                  </h3>
                   <div className="grid grid-cols-4 gap-4">
-                    <div className="border-2 border-black p-3 text-center">
-                      <p className="text-[8px] font-black uppercase mb-1">Total Fees</p>
+                    <div className="border-[3px] border-black p-4 flex flex-col justify-center">
+                      <p className="text-[9px] font-black uppercase text-slate-400 mb-1">Total Fees</p>
                       <p className="text-xl font-black">₹{viewingStudentForm.total_fees}</p>
                     </div>
-                    <div className="border-2 border-black p-3 text-center">
-                      <p className="text-[8px] font-black uppercase mb-1">Discount</p>
+                    <div className="border-[3px] border-black p-4 flex flex-col justify-center">
+                      <p className="text-[9px] font-black uppercase text-slate-400 mb-1">Discount</p>
                       <p className="text-xl font-black">₹{viewingStudentForm.discount}</p>
                     </div>
-                    <div className="border-2 border-black p-3 text-center">
-                      <p className="text-[8px] font-black uppercase mb-1">Free</p>
+                    <div className="border-[3px] border-black p-4 flex flex-col justify-center">
+                      <p className="text-[9px] font-black uppercase text-slate-400 mb-1">Free</p>
                       <p className="text-xl font-black">₹{viewingStudentForm.free || '0'}</p>
                     </div>
-                    <div className="border-2 border-black p-3 text-center bg-black text-white">
-                      <p className="text-[8px] font-black uppercase mb-1 text-slate-400">Balance</p>
-                      <p className="text-xl font-black">₹{viewingStudentForm.remaining_amount}</p>
+                    <div className="bg-black text-white p-4 flex flex-col justify-center">
+                      <p className="text-[9px] font-black uppercase text-slate-400 mb-1">Balance</p>
+                      <p className="text-2xl font-black">₹{viewingStudentForm.remaining_amount}</p>
                     </div>
                   </div>
                 </div>
                 
-                <div className="mt-12">
-                  <h3 className="text-lg font-black uppercase border-b-2 border-black mb-4 pb-1">Payment Schedule (4 Installments)</h3>
+                {/* Installments */}
+                <div className="grow">
+                  <h3 className="text-sm font-black uppercase tracking-[0.3em] text-slate-400 mb-4 flex items-center gap-3">
+                    PAYMENT SCHEDULE
+                    <div className="flex-1 h-px bg-slate-200"></div>
+                  </h3>
                   <div className="grid grid-cols-1 gap-2">
                     {[1, 2, 3, 4].map(num => {
                       const amt = (viewingStudentForm as any)[`payment${num}_amount`];
@@ -2207,15 +2247,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
                       const isPaid = amt && amt !== '0';
                       
                       return (
-                        <div key={num} className="flex border-2 border-black divide-x-2 divide-black">
-                          <div className="w-32 p-2 font-black text-xs uppercase flex items-center justify-center">Payment {num}</div>
-                          <div className="flex-1 p-2 flex justify-between items-center px-6">
-                            <span className="text-sm font-bold uppercase">{isPaid ? 'Amount Paid:' : 'Pending:'}</span>
-                            <span className="text-xl font-black">{isPaid ? `₹${amt}` : '—'}</span>
+                        <div key={num} className={`flex border-[3px] border-black ${isPaid ? 'bg-slate-50' : ''}`}>
+                          <div className="w-32 p-3 font-black text-[10px] uppercase flex items-center justify-center border-r-[3px] border-black bg-slate-100">
+                            Installment {num}
                           </div>
-                          <div className="w-48 p-2 flex justify-between items-center px-4">
-                            <span className="text-[10px] font-bold uppercase">Date:</span>
-                            <span className="text-sm font-black">{isPaid ? formatDateClean(date) : '—'}</span>
+                          <div className="flex-1 p-3 flex justify-between items-center px-8">
+                            <span className="text-[9px] font-black uppercase text-slate-400">{isPaid ? 'Amount Paid' : 'Status'}</span>
+                            <span className={`text-xl font-black ${!isPaid ? 'text-slate-300' : ''}`}>{isPaid ? `₹${amt}` : 'PENDING'}</span>
+                          </div>
+                          <div className="w-56 p-3 flex justify-between items-center px-6 border-l-[3px] border-black">
+                            <span className="text-[9px] font-black uppercase text-slate-400">Date</span>
+                            <span className={`text-base font-black ${!isPaid ? 'text-slate-300' : ''}`}>{isPaid ? formatDateClean(date) : '-- / -- / ----'}</span>
                           </div>
                         </div>
                       );
@@ -2223,19 +2265,22 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
                   </div>
                 </div>
                 
-                <div className="mt-20 flex justify-between">
+                {/* Footer Signatures */}
+                <div className="mt-16 flex justify-between items-end">
                   <div className="text-center">
-                    <div className="w-48 border-b-2 border-black mb-2"></div>
-                    <p className="text-[10px] font-black uppercase">Student Signature</p>
+                    <div className="w-56 border-b-[3px] border-black mb-2"></div>
+                    <p className="text-[10px] font-black uppercase tracking-widest">Student Signature</p>
                   </div>
                   <div className="text-center">
-                    <div className="w-48 border-b-2 border-black mb-2"></div>
-                    <p className="text-[10px] font-black uppercase">Authorized Stamp</p>
+                    <div className="w-56 border-b-[3px] border-black mb-2"></div>
+                    <p className="text-[10px] font-black uppercase tracking-widest">Authorized Stamp</p>
                   </div>
                 </div>
                 
-                <div className="mt-12 text-center text-[8px] font-bold uppercase tracking-widest text-slate-400">
-                  This is a computer generated document. No physical signature required.
+                <div className="mt-12 pt-6 border-t border-slate-100 text-center">
+                  <p className="text-[9px] font-bold uppercase tracking-[0.3em] text-slate-300">
+                    This is a computer generated document. English House Academy &copy; 2026
+                  </p>
                 </div>
               </div>
             </div>
