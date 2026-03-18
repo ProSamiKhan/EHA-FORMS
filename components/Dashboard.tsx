@@ -3,6 +3,7 @@ import React, { useMemo, useEffect, useState, useRef } from 'react';
 import { ProcessingRecord, RegistrationData, UserRole, AppConfig } from '../types';
 import { fetchAllRegistrations } from '../services/sheetService';
 import { domToPng } from 'modern-screenshot';
+import * as XLSX from 'xlsx';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   LineChart, Line, Cell, PieChart, Pie, AreaChart, Area, LabelList, Legend
@@ -937,6 +938,49 @@ const SidebarStat = ({ label, value, subValue, icon: Icon, color, onClick }: any
   </div>
 );
 
+const numberToWords = (num: number): string => {
+  if (num === 0) return "ZERO";
+  const singleDigits = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine"];
+  const teenDigits = ["Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"];
+  const doubleDigits = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
+
+  const convertToWords = (n: number): string => {
+    let res = "";
+    if (n >= 100) {
+      res += singleDigits[Math.floor(n / 100)] + " Hundred ";
+      n %= 100;
+    }
+    if (n >= 20) {
+      res += doubleDigits[Math.floor(n / 10)] + " ";
+      n %= 10;
+    }
+    if (n >= 10) {
+      res += teenDigits[n - 10] + " ";
+      n = 0;
+    }
+    if (n > 0) {
+      res += singleDigits[n] + " ";
+    }
+    return res;
+  };
+
+  let result = "";
+  let crores = Math.floor(num / 10000000);
+  num %= 10000000;
+  let lakhs = Math.floor(num / 100000);
+  num %= 100000;
+  let thousands = Math.floor(num / 1000);
+  num %= 1000;
+  let remaining = num;
+
+  if (crores > 0) result += convertToWords(crores) + "Crore ";
+  if (lakhs > 0) result += convertToWords(lakhs) + "Lakh ";
+  if (thousands > 0) result += convertToWords(thousands) + "Thousand ";
+  if (remaining > 0) result += convertToWords(remaining);
+
+  return result.trim().toUpperCase();
+};
+
 export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config, onEdit, onSeedData }) => {
   const [remoteData, setRemoteData] = useState<RegistrationData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -968,6 +1012,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
   ];
   const [dashboardSearchQuery, setDashboardSearchQuery] = useState('');
   const [masterViewSearchQuery, setMasterViewSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 50;
 
   const handleDownload = async () => {
     if (!modalRef.current) return;
@@ -1056,6 +1102,46 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
       link.click();
     } catch (err) {
       console.error('Master download failed:', err);
+    }
+  };
+
+  const handleMasterExcelDownload = () => {
+    try {
+      const dataToExport = sortedMasterData.map((record: RegistrationData) => {
+        // Calculate total paid
+        let totalPaid = 0;
+        for (let i = 1; i <= 10; i++) {
+          const amt = parseFloat((record as any)[`payment${i}_amount`]);
+          if (!isNaN(amt)) totalPaid += amt;
+        }
+
+        return {
+          'Admission ID': record.admission_id,
+          'Student Name': record.name,
+          'Admission Date': record.payment1_date,
+          'Contact No': record.contact_no,
+          'WhatsApp No': record.whatsapp_no,
+          'City': record.city,
+          'State': record.state,
+          'Age': record.age,
+          'Gender': record.gender,
+          'Total Fees': record.total_fees,
+          'Paid Amount': totalPaid,
+          'Remaining': record.remaining_amount,
+          'Admission Status': record.status,
+          'Payment Status': record.payment_status || 'N/A'
+        };
+      });
+
+      const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Admissions");
+      
+      // Generate filename with current date
+      const fileName = `Master_Records_${format(new Date(), 'dd_MM_yyyy')}.xlsx`;
+      XLSX.writeFile(workbook, fileName);
+    } catch (err) {
+      console.error('Excel download failed:', err);
     }
   };
 
@@ -1469,6 +1555,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
   const [filterPaymentStatus, setFilterPaymentStatus] = useState<string | null>(null);
   const [filterPaymentMethod, setFilterPaymentMethod] = useState<'cash' | 'account' | null>(null);
   const [filterAdmissionStatus, setFilterAdmissionStatus] = useState<string | null>(null);
+  const [filterAgeRange, setFilterAgeRange] = useState<string | null>(null);
   const [sortConfig, setSortConfig] = useState<{ key: keyof RegistrationData; direction: 'asc' | 'desc' } | null>(null);
 
   const requestSort = (key: keyof RegistrationData) => {
@@ -1631,16 +1718,32 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
         if (format(date, 'dd MMM') !== filterDate) return false;
       }
 
-      if (filterAdmissionStatus) {
-        const status = (d.status || 'confirm').toLowerCase();
-        if (filterAdmissionStatus === 'confirm') {
-          if (status !== 'confirm' && status !== 'active') return false;
-        } else {
-          if (status !== filterAdmissionStatus) return false;
-        }
+    if (filterAdmissionStatus) {
+      const status = (d.status || 'confirm').toLowerCase();
+      if (filterAdmissionStatus === 'confirm') {
+        if (status !== 'confirm' && status !== 'active') return false;
+      } else {
+        if (status !== filterAdmissionStatus) return false;
       }
+    }
 
-      if (dashboardSearchQuery) {
+    if (filterAgeRange) {
+      const age = parseInt(d.age) || 0;
+      let range = 'Unknown';
+      if (age < 13) range = 'Under 13';
+      else if (age <= 15) range = '13 to 15';
+      else if (age <= 16) range = 'under 16';
+      else if (age <= 18) range = '16 to 18';
+      else if (age <= 20) range = '18 to 20';
+      else if (age <= 22) range = '20 to 22';
+      else if (age <= 25) range = '22 to 25';
+      else if (age <= 30) range = '25 to 30';
+      else if (age <= 35) range = '30 to 35';
+      else range = '35+';
+      if (range !== filterAgeRange) return false;
+    }
+
+    if (dashboardSearchQuery) {
         const query = dashboardSearchQuery.toLowerCase();
         const nameMatch = (d.name || '').toLowerCase().includes(query);
         const idMatch = (d.admission_id || '').toLowerCase().includes(query);
@@ -1688,7 +1791,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
     });
   };
 
-  const filteredData = useMemo(() => getFilteredData(), [allSyncedData, timeRange, drillLevel, drillContext, customStart, customEnd, filterGender, filterState, filterCity, filterDate, filterPaymentStatus, filterAdmissionStatus, dashboardSearchQuery, filterPaymentMethod, activeFilters]);
+  const filteredData = useMemo(() => getFilteredData(), [allSyncedData, timeRange, drillLevel, drillContext, customStart, customEnd, filterGender, filterState, filterCity, filterDate, filterPaymentStatus, filterAdmissionStatus, dashboardSearchQuery, filterPaymentMethod, filterAgeRange, activeFilters]);
 
   const sortedMasterData = useMemo(() => {
     let sortableData = [...filteredData];
@@ -1944,8 +2047,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
     });
     return Object.entries(counts)
       .map(([name, count]) => ({ name, count }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 10);
+      .sort((a, b) => b.count - a.count);
   }, [filteredData]);
 
   const cityDistribution = useMemo(() => {
@@ -1956,11 +2058,45 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
     });
     return Object.entries(counts)
       .map(([name, count]) => ({ name, count }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 10);
+      .sort((a, b) => b.count - a.count);
   }, [filteredData]);
 
-  const COLORS = ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+  const ageDistribution = useMemo(() => {
+    const counts: Record<string, number> = {};
+    filteredData.forEach(d => {
+      const age = parseInt(d.age) || 0;
+      let range = 'Unknown';
+      if (age < 13) range = 'Under 13';
+      else if (age <= 15) range = '13 to 15';
+      else if (age <= 16) range = 'under 16';
+      else if (age <= 18) range = '16 to 18';
+      else if (age <= 20) range = '18 to 20';
+      else if (age <= 22) range = '20 to 22';
+      else if (age <= 25) range = '22 to 25';
+      else if (age <= 30) range = '25 to 30';
+      else if (age <= 35) range = '30 to 35';
+      else range = '35+';
+      counts[range] = (counts[range] || 0) + 1;
+    });
+    const order = [
+      'Under 13', '13 to 15', 'under 16', '16 to 18', '18 to 20', 
+      '20 to 22', '22 to 25', '25 to 30', '30 to 35', '35+', 'Unknown'
+    ];
+    return order
+      .map(name => ({ name, count: counts[name] || 0 }))
+      .filter(item => item.count > 0);
+  }, [filteredData]);
+
+  const paginatedData = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return sortedMasterData.slice(start, start + itemsPerPage);
+  }, [sortedMasterData, currentPage, itemsPerPage]);
+
+  const totalPages = Math.ceil(sortedMasterData.length / itemsPerPage);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [dashboardSearchQuery, activeFilters, timeRange, customStart, customEnd]);
 
   const handleGlobalTimeRangeChange = (range: TimeRange) => {
     setTimeRange(range);
@@ -1985,9 +2121,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
     setFilterPaymentStatus(null);
     setFilterPaymentMethod(null);
     setFilterAdmissionStatus(null);
+    setFilterAgeRange(null);
   };
 
-  const isFiltered = timeRange !== 'lifetime' || filterGender || filterState || filterCity || filterDate || filterPaymentStatus || filterAdmissionStatus || filterPaymentMethod || activeFilters.length > 0;
+  const isFiltered = timeRange !== 'lifetime' || filterGender || filterState || filterCity || filterDate || filterPaymentStatus || filterAdmissionStatus || filterPaymentMethod || filterAgeRange || activeFilters.length > 0;
 
   return (
     <div className="space-y-8 pb-10 transition-colors relative">
@@ -2154,10 +2291,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
               <Menu className="w-6 h-6 text-slate-600 dark:text-slate-300 group-hover:text-indigo-600 transition-colors" />
             </button>
             <div>
-              <h1 className="text-xl md:text-2xl font-black text-slate-900 dark:text-white tracking-tight">EHA Dashboard</h1>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+              <h1 className="text-4xl md:text-6xl font-black text-slate-900 dark:text-white tracking-tighter leading-none mb-2">EHA Dashboard</h1>
+              <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.3em] flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                System Operational
+                System Operational & Live
               </p>
             </div>
           </div>
@@ -2263,133 +2400,157 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
 
       {currentView === 'dashboard' ? (
         <>
-          {/* STAT CARDS */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-        <div 
-          onClick={() => { setFilterAdmissionStatus(null); setFilterPaymentStatus(null); setFilterGender(null); setFilterState(null); setFilterCity(null); setFilterDate(null); }}
-          className="bg-white dark:bg-slate-900 p-6 md:p-8 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm relative overflow-hidden group transition-colors cursor-pointer hover:border-indigo-500"
-        >
-          <div className="absolute top-0 right-0 w-24 md:w-32 h-24 md:h-32 bg-indigo-50 dark:bg-indigo-900/10 rounded-full -mr-12 md:-mr-16 -mt-12 md:-mt-16 group-hover:scale-110 transition-transform"></div>
-          <h3 className="text-slate-400 dark:text-slate-500 text-[10px] font-black uppercase tracking-widest mb-1 relative transition-colors">Admissions</h3>
-          <p className="text-3xl md:text-4xl font-black text-slate-900 dark:text-slate-100 relative transition-colors">{globalStats.total}</p>
-          <p className="mt-4 text-green-500 text-[10px] font-bold uppercase tracking-widest flex items-center gap-1 relative">
-            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span> {isLoading ? "Syncing..." : "Live Data"}
-          </p>
-        </div>
-
-        {userRole === 'super_admin' && (
-          <div className="bg-white dark:bg-slate-900 p-6 md:p-8 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm transition-colors">
-            <h3 className="text-slate-400 dark:text-slate-500 text-[10px] font-black uppercase tracking-widest mb-1 transition-colors">Total Revenue</h3>
-            <p className="text-2xl md:text-3xl font-black text-slate-900 dark:text-slate-100 tracking-tight transition-colors">₹{globalStats.revenue.toLocaleString()}</p>
-            
-            <div className="mt-4 grid grid-cols-2 gap-2">
-              <div 
-                onClick={() => setFilterPaymentMethod(filterPaymentMethod === 'cash' ? null : 'cash')}
-                className={`p-2 rounded-xl border cursor-pointer transition-all ${filterPaymentMethod === 'cash' ? 'bg-emerald-600 border-emerald-500' : 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-100 dark:border-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/20'}`}
-              >
-                <p className={`text-[8px] font-black uppercase tracking-widest mb-0.5 ${filterPaymentMethod === 'cash' ? 'text-emerald-100' : 'text-emerald-600 dark:text-emerald-400'}`}>Cash</p>
-                <p className={`text-xs font-black ${filterPaymentMethod === 'cash' ? 'text-white' : 'text-emerald-700 dark:text-emerald-300'}`}>₹{globalStats.cashRevenue.toLocaleString()}</p>
-              </div>
-              <div 
-                onClick={() => setFilterPaymentMethod(filterPaymentMethod === 'account' ? null : 'account')}
-                className={`p-2 rounded-xl border cursor-pointer transition-all ${filterPaymentMethod === 'account' ? 'bg-indigo-600 border-indigo-500' : 'bg-indigo-50 dark:bg-indigo-900/10 border-indigo-100 dark:border-indigo-900/20 hover:bg-indigo-100 dark:hover:bg-indigo-900/20'}`}
-              >
-                <p className={`text-[8px] font-black uppercase tracking-widest mb-0.5 ${filterPaymentMethod === 'account' ? 'text-indigo-100' : 'text-indigo-600 dark:text-indigo-400'}`}>EHA Account</p>
-                <p className={`text-xs font-black ${filterPaymentMethod === 'account' ? 'text-white' : 'text-indigo-700 dark:text-indigo-300'}`}>₹{globalStats.accountRevenue.toLocaleString()}</p>
+          {/* MAIN STATS ROW */}
+          <div className={`grid gap-4 md:gap-6 ${userRole === 'super_admin' ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1'}`}>
+            <div 
+              onClick={() => { setFilterAdmissionStatus(null); setFilterPaymentStatus(null); setFilterGender(null); setFilterState(null); setFilterCity(null); setFilterDate(null); setFilterAgeRange(null); }}
+              className="bg-white dark:bg-slate-900 p-6 md:p-10 rounded-[32px] md:rounded-[48px] border border-slate-100 dark:border-slate-800 shadow-sm relative overflow-hidden group transition-all cursor-pointer hover:border-indigo-500 hover:shadow-2xl hover:shadow-indigo-100 dark:hover:shadow-none"
+            >
+              <div className="absolute top-0 right-0 w-32 md:w-48 h-32 md:h-48 bg-indigo-50 dark:bg-indigo-900/10 rounded-full -mr-16 md:-mr-24 -mt-16 md:-mt-24 group-hover:scale-125 transition-transform duration-700"></div>
+              <h3 className="text-slate-400 dark:text-slate-500 text-[10px] md:text-[11px] font-black uppercase tracking-[0.2em] mb-2 md:mb-4 relative transition-colors">Total Admissions</h3>
+              <p className="text-5xl md:text-8xl font-black text-slate-900 dark:text-slate-100 relative transition-colors tracking-tighter leading-none">{globalStats.total}</p>
+              <div className="mt-4 md:mt-8 flex items-center gap-3 relative">
+                <div className="px-3 py-1 bg-green-50 dark:bg-green-900/20 rounded-full">
+                  <p className="text-green-600 dark:text-green-400 text-[8px] md:text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span> {isLoading ? "Syncing..." : "Live"}
+                  </p>
+                </div>
+                <span className="text-[8px] md:text-[9px] font-black text-slate-300 uppercase tracking-widest">Real-time Feed</span>
               </div>
             </div>
 
-            <div className="mt-6 pt-6 border-t border-slate-50 dark:border-slate-800 flex items-center justify-between transition-colors">
-              <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Growth Index</span>
-              <div className="w-8 h-8 rounded-lg bg-green-50 dark:bg-green-900/20 flex items-center justify-center text-green-600">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+            {userRole === 'super_admin' && (
+              <div className="bg-white dark:bg-slate-900 p-6 md:p-10 rounded-[32px] md:rounded-[48px] border border-slate-100 dark:border-slate-800 shadow-sm transition-all group hover:border-emerald-500">
+                <h3 className="text-slate-400 dark:text-slate-500 text-[10px] md:text-[11px] font-black uppercase tracking-[0.2em] mb-2 md:mb-4 transition-colors">Total Revenue</h3>
+                <div className="mb-4 md:mb-8">
+                  <p className="text-4xl md:text-6xl font-black text-slate-900 dark:text-slate-100 tracking-tighter leading-none transition-colors mb-3">₹{globalStats.revenue.toLocaleString()}</p>
+                  <p className="text-[10px] md:text-xs font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-[0.1em] leading-tight opacity-90 bg-emerald-50 dark:bg-emerald-900/20 px-3 py-1.5 rounded-lg inline-block">{numberToWords(globalStats.revenue)} ONLY</p>
+                </div>
+                
+                <div className="grid grid-cols-1 gap-2 md:gap-3">
+                  <div 
+                    onClick={() => setFilterPaymentMethod(filterPaymentMethod === 'cash' ? null : 'cash')}
+                    className={`p-3 md:p-4 rounded-xl md:rounded-2xl border cursor-pointer transition-all flex justify-between items-center ${filterPaymentMethod === 'cash' ? 'bg-emerald-600 border-emerald-500' : 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-100 dark:border-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/20'}`}
+                  >
+                    <div className="flex items-center gap-2 md:gap-3">
+                      <div className={`w-6 h-6 md:w-8 md:h-8 rounded-lg md:rounded-xl flex items-center justify-center ${filterPaymentMethod === 'cash' ? 'bg-white/20' : 'bg-emerald-600'}`}>
+                        <CreditCard className="w-3 h-3 md:w-4 md:h-4 text-white" />
+                      </div>
+                      <p className={`text-[8px] md:text-[10px] font-black uppercase tracking-widest ${filterPaymentMethod === 'cash' ? 'text-emerald-100' : 'text-emerald-600 dark:text-emerald-400'}`}>Cash Collection</p>
+                    </div>
+                    <p className={`text-sm md:text-lg font-black ${filterPaymentMethod === 'cash' ? 'text-white' : 'text-emerald-700 dark:text-emerald-300'}`}>₹{globalStats.cashRevenue.toLocaleString()}</p>
+                  </div>
+                  <div 
+                    onClick={() => setFilterPaymentMethod(filterPaymentMethod === 'account' ? null : 'account')}
+                    className={`p-3 md:p-4 rounded-xl md:rounded-2xl border cursor-pointer transition-all flex justify-between items-center ${filterPaymentMethod === 'account' ? 'bg-indigo-600 border-indigo-500' : 'bg-indigo-50 dark:bg-indigo-900/10 border-indigo-100 dark:border-indigo-900/20 hover:bg-indigo-100 dark:hover:bg-indigo-900/20'}`}
+                  >
+                    <div className="flex items-center gap-2 md:gap-3">
+                      <div className={`w-6 h-6 md:w-8 md:h-8 rounded-lg md:rounded-xl flex items-center justify-center ${filterPaymentMethod === 'account' ? 'bg-white/20' : 'bg-indigo-600'}`}>
+                        <Building2 className="w-3 h-3 md:w-4 md:h-4 text-white" />
+                      </div>
+                      <p className={`text-[8px] md:text-[10px] font-black uppercase tracking-widest ${filterPaymentMethod === 'account' ? 'text-indigo-100' : 'text-indigo-600 dark:text-indigo-400'}`}>EHA Account</p>
+                    </div>
+                    <p className={`text-sm md:text-lg font-black ${filterPaymentMethod === 'account' ? 'text-white' : 'text-indigo-700 dark:text-indigo-300'}`}>₹{globalStats.accountRevenue.toLocaleString()}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* STATUS CARDS ROW */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 mt-4 md:mt-6">
+            <div className="bg-white dark:bg-slate-900 p-6 md:p-10 rounded-[32px] md:rounded-[48px] border border-slate-100 dark:border-slate-800 shadow-sm transition-all hover:border-indigo-500">
+              <h3 className="text-slate-400 dark:text-slate-500 text-[10px] md:text-[11px] font-black uppercase tracking-[0.2em] mb-4 md:mb-8 transition-colors">Payment Status</h3>
+              <div className="space-y-2 md:space-y-4">
+                <div 
+                  onClick={() => setFilterPaymentStatus(filterPaymentStatus === 'fully_paid' ? null : 'fully_paid')}
+                  className={`flex justify-between items-center cursor-pointer p-2 md:p-3 rounded-xl md:rounded-2xl transition-all ${filterPaymentStatus === 'fully_paid' ? 'bg-indigo-50 dark:bg-indigo-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+                >
+                  <div className="flex items-center gap-2 md:gap-3">
+                    <div className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-indigo-600"></div>
+                    <span className="text-[9px] md:text-[10px] font-black text-slate-500 uppercase tracking-widest">Fully Paid</span>
+                  </div>
+                  <span className="text-sm md:text-lg font-black text-indigo-600 dark:text-indigo-400">{globalStats.fullyPaid}</span>
+                </div>
+                <div 
+                  onClick={() => setFilterPaymentStatus(filterPaymentStatus === 'partial' ? null : 'partial')}
+                  className={`flex justify-between items-center cursor-pointer p-2 md:p-3 rounded-xl md:rounded-2xl transition-all ${filterPaymentStatus === 'partial' ? 'bg-amber-50 dark:bg-amber-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+                >
+                  <div className="flex items-center gap-2 md:gap-3">
+                    <div className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-amber-600"></div>
+                    <span className="text-[9px] md:text-[10px] font-black text-slate-500 uppercase tracking-widest">Partial</span>
+                  </div>
+                  <span className="text-sm md:text-lg font-black text-amber-600 dark:text-amber-400">{globalStats.partialPaid}</span>
+                </div>
+                <div 
+                  onClick={() => setFilterPaymentStatus(filterPaymentStatus === 'discount' ? null : 'discount')}
+                  className={`flex justify-between items-center cursor-pointer p-2 md:p-3 rounded-xl md:rounded-2xl transition-all ${filterPaymentStatus === 'discount' ? 'bg-emerald-50 dark:bg-emerald-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+                >
+                  <div className="flex items-center gap-2 md:gap-3">
+                    <div className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-emerald-600"></div>
+                    <span className="text-[9px] md:text-[10px] font-black text-slate-500 uppercase tracking-widest">Scholarship</span>
+                  </div>
+                  <span className="text-sm md:text-lg font-black text-emerald-600 dark:text-emerald-400">{globalStats.discountCount}</span>
+                </div>
+                <div 
+                  onClick={() => setFilterPaymentStatus(filterPaymentStatus === 'refund' ? null : 'refund')}
+                  className={`flex justify-between items-center cursor-pointer p-2 md:p-3 rounded-xl md:rounded-2xl transition-all ${filterPaymentStatus === 'refund' ? 'bg-purple-50 dark:bg-purple-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+                >
+                  <div className="flex items-center gap-2 md:gap-3">
+                    <div className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-purple-600"></div>
+                    <span className="text-[9px] md:text-[10px] font-black text-slate-500 uppercase tracking-widest">Refunded</span>
+                  </div>
+                  <span className="text-sm md:text-lg font-black text-purple-600 dark:text-purple-400">{globalStats.refundCount}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white dark:bg-slate-900 p-6 md:p-10 rounded-[32px] md:rounded-[48px] border border-slate-100 dark:border-slate-800 shadow-sm transition-all hover:border-orange-500">
+              <h3 className="text-slate-400 dark:text-slate-500 text-[10px] md:text-[11px] font-black uppercase tracking-[0.2em] mb-4 md:mb-8 transition-colors">Admission Status</h3>
+              <div className="space-y-2 md:space-y-4">
+                <div 
+                  onClick={() => setFilterAdmissionStatus(filterAdmissionStatus === 'cancelled' ? null : 'cancelled')}
+                  className={`flex justify-between items-center cursor-pointer p-2 md:p-3 rounded-xl md:rounded-2xl transition-all ${filterAdmissionStatus === 'cancelled' ? 'bg-red-50 dark:bg-red-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+                >
+                  <div className="flex items-center gap-2 md:gap-3">
+                    <div className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-red-500"></div>
+                    <span className="text-[9px] md:text-[10px] font-black text-slate-500 uppercase tracking-widest">Cancelled</span>
+                  </div>
+                  <span className="text-sm md:text-lg font-black text-red-500">{globalStats.cancelledCount}</span>
+                </div>
+                <div 
+                  onClick={() => setFilterAdmissionStatus(filterAdmissionStatus === 'pending' ? null : 'pending')}
+                  className={`flex justify-between items-center cursor-pointer p-2 md:p-3 rounded-xl md:rounded-2xl transition-all ${filterAdmissionStatus === 'pending' ? 'bg-amber-50 dark:bg-amber-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+                >
+                  <div className="flex items-center gap-2 md:gap-3">
+                    <div className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-amber-500"></div>
+                    <span className="text-[9px] md:text-[10px] font-black text-slate-500 uppercase tracking-widest">Pending</span>
+                  </div>
+                  <span className="text-sm md:text-lg font-black text-amber-500">{globalStats.pendingCount}</span>
+                </div>
+                <div 
+                  onClick={() => setFilterAdmissionStatus(filterAdmissionStatus === 'stay only' ? null : 'stay only')}
+                  className={`flex justify-between items-center cursor-pointer p-2 md:p-3 rounded-xl md:rounded-2xl transition-all ${filterAdmissionStatus === 'stay only' ? 'bg-blue-50 dark:bg-blue-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+                >
+                  <div className="flex items-center gap-2 md:gap-3">
+                    <div className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-blue-500"></div>
+                    <span className="text-[9px] md:text-[10px] font-black text-slate-500 uppercase tracking-widest">Stay Only</span>
+                  </div>
+                  <span className="text-sm md:text-lg font-black text-blue-500">{globalStats.stayOnlyCount}</span>
+                </div>
+                <div 
+                  onClick={() => setFilterAdmissionStatus(filterAdmissionStatus === 'confirm' ? null : 'confirm')}
+                  className={`flex justify-between items-center pt-2 md:pt-4 border-t border-slate-50 dark:border-slate-800 cursor-pointer p-2 md:p-3 rounded-xl md:rounded-2xl transition-all ${filterAdmissionStatus === 'confirm' ? 'bg-indigo-50 dark:bg-indigo-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+                >
+                  <div className="flex items-center gap-2 md:gap-3">
+                    <div className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-indigo-600"></div>
+                    <span className="text-[9px] md:text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">Confirmed</span>
+                  </div>
+                  <span className="text-lg md:text-xl font-black text-indigo-600 dark:text-indigo-400">{globalStats.total - globalStats.cancelledCount - globalStats.pendingCount - globalStats.stayOnlyCount}</span>
+                </div>
               </div>
             </div>
           </div>
-        )}
-
-        <div className="bg-white dark:bg-slate-900 p-6 md:p-8 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm transition-colors">
-          <h3 className="text-slate-400 dark:text-slate-500 text-[10px] font-black uppercase tracking-widest mb-4 transition-colors">Payment Status</h3>
-          <div className="space-y-3">
-            <div 
-              onClick={() => setFilterPaymentStatus(filterPaymentStatus === 'fully_paid' ? null : 'fully_paid')}
-              className={`flex justify-between items-center cursor-pointer p-1.5 rounded-lg transition-all ${filterPaymentStatus === 'fully_paid' ? 'bg-indigo-50 dark:bg-indigo-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
-            >
-              <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Fully Paid</span>
-              <span className="text-[11px] font-black text-indigo-600 dark:text-indigo-400">{globalStats.fullyPaid}</span>
-            </div>
-            <div 
-              onClick={() => setFilterPaymentStatus(filterPaymentStatus === 'partial' ? null : 'partial')}
-              className={`flex justify-between items-center cursor-pointer p-1.5 rounded-lg transition-all ${filterPaymentStatus === 'partial' ? 'bg-amber-50 dark:bg-amber-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
-            >
-              <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Partial</span>
-              <span className="text-[11px] font-black text-amber-600 dark:text-amber-400">{globalStats.partialPaid}</span>
-            </div>
-            <div 
-              onClick={() => setFilterPaymentStatus(filterPaymentStatus === 'discount' ? null : 'discount')}
-              className={`flex justify-between items-center cursor-pointer p-1.5 rounded-lg transition-all ${filterPaymentStatus === 'discount' ? 'bg-emerald-50 dark:bg-emerald-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
-            >
-              <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Discount</span>
-              <span className="text-[11px] font-black text-emerald-600 dark:text-emerald-400">{globalStats.discountCount}</span>
-            </div>
-            <div 
-              onClick={() => setFilterPaymentStatus(filterPaymentStatus === 'free' ? null : 'free')}
-              className={`flex justify-between items-center cursor-pointer p-1.5 rounded-lg transition-all ${filterPaymentStatus === 'free' ? 'bg-slate-100 dark:bg-slate-800' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
-            >
-              <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Free</span>
-              <span className="text-[11px] font-black text-slate-400">{globalStats.freeCount}</span>
-            </div>
-            <div 
-              onClick={() => setFilterPaymentStatus(filterPaymentStatus === 'refund' ? null : 'refund')}
-              className={`flex justify-between items-center cursor-pointer p-1.5 rounded-lg transition-all ${filterPaymentStatus === 'refund' ? 'bg-purple-50 dark:bg-purple-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
-            >
-              <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Refund</span>
-              <span className="text-[11px] font-black text-purple-600 dark:text-purple-400">{globalStats.refundCount}</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-slate-900 p-6 md:p-8 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm transition-colors">
-          <h3 className="text-slate-400 dark:text-slate-500 text-[10px] font-black uppercase tracking-widest mb-4 transition-colors">Admission Status</h3>
-          <div className="space-y-3">
-            <div 
-              onClick={() => { setFilterAdmissionStatus(null); setFilterPaymentStatus(null); }}
-              className="flex justify-between items-center cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 p-1.5 rounded-lg transition-all"
-            >
-              <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Total</span>
-              <span className="text-[11px] font-black text-slate-900 dark:text-slate-100">{globalStats.total}</span>
-            </div>
-            <div 
-              onClick={() => setFilterAdmissionStatus(filterAdmissionStatus === 'cancelled' ? null : 'cancelled')}
-              className={`flex justify-between items-center cursor-pointer p-1.5 rounded-lg transition-all ${filterAdmissionStatus === 'cancelled' ? 'bg-red-50 dark:bg-red-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
-            >
-              <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Cancelled</span>
-              <span className="text-[11px] font-black text-red-500">{globalStats.cancelledCount}</span>
-            </div>
-            <div 
-              onClick={() => setFilterAdmissionStatus(filterAdmissionStatus === 'pending' ? null : 'pending')}
-              className={`flex justify-between items-center cursor-pointer p-1.5 rounded-lg transition-all ${filterAdmissionStatus === 'pending' ? 'bg-amber-50 dark:bg-amber-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
-            >
-              <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Pending</span>
-              <span className="text-[11px] font-black text-amber-500">{globalStats.pendingCount}</span>
-            </div>
-            <div 
-              onClick={() => setFilterAdmissionStatus(filterAdmissionStatus === 'stay only' ? null : 'stay only')}
-              className={`flex justify-between items-center cursor-pointer p-1.5 rounded-lg transition-all ${filterAdmissionStatus === 'stay only' ? 'bg-blue-50 dark:bg-blue-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
-            >
-              <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Stay Only</span>
-              <span className="text-[11px] font-black text-blue-500">{globalStats.stayOnlyCount}</span>
-            </div>
-            <div 
-              onClick={() => setFilterAdmissionStatus(filterAdmissionStatus === 'confirm' ? null : 'confirm')}
-              className={`flex justify-between items-center pt-2 border-t border-slate-50 dark:border-slate-800 cursor-pointer p-1.5 rounded-lg transition-all ${filterAdmissionStatus === 'confirm' ? 'bg-indigo-50 dark:bg-indigo-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
-            >
-              <span className="text-[9px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">Confirm</span>
-              <span className="text-[11px] font-black text-indigo-600 dark:text-indigo-400">{globalStats.total - globalStats.cancelledCount - globalStats.pendingCount - globalStats.stayOnlyCount}</span>
-            </div>
-          </div>
-        </div>
-      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="bg-white dark:bg-slate-900 p-6 md:p-8 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm transition-colors flex flex-col lg:col-span-1">
@@ -2698,30 +2859,30 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
         </div>
       </div>
 
-      {/* REGIONAL DISTRIBUTION - COMPACT */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm transition-colors">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">State Distribution</h3>
+      {/* REGIONAL & AGE DISTRIBUTION */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="bg-white dark:bg-slate-900 p-8 rounded-[48px] border border-slate-100 dark:border-slate-800 shadow-sm transition-colors">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">State Distribution</h3>
             {filterState && (
-              <button onClick={() => setFilterState(null)} className="text-[8px] font-black text-indigo-600 uppercase tracking-widest hover:underline">Reset</button>
+              <button onClick={() => setFilterState(null)} className="text-[9px] font-black text-indigo-600 uppercase tracking-widest hover:underline">View All</button>
             )}
           </div>
-          <div className="space-y-2 max-h-[200px] overflow-y-auto pr-2 custom-scrollbar">
+          <div className="space-y-3 max-h-[300px] overflow-y-auto pr-4 custom-scrollbar">
             {stateDistribution.map((item, idx) => (
               <div 
                 key={item.name} 
                 onClick={() => setFilterState(filterState === item.name ? null : item.name)}
-                className={`flex items-center justify-between p-2 rounded-xl cursor-pointer transition-all ${filterState === item.name ? 'bg-indigo-50 dark:bg-indigo-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'}`}
+                className={`flex items-center justify-between p-3 rounded-2xl cursor-pointer transition-all ${filterState === item.name ? 'bg-indigo-50 dark:bg-indigo-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'}`}
               >
-                <div className="flex-1 mr-4">
-                  <div className="flex justify-between text-[10px] font-black uppercase tracking-wider mb-1">
+                <div className="flex-1">
+                  <div className="flex justify-between text-[10px] font-black uppercase tracking-wider mb-2">
                     <span className="text-slate-700 dark:text-slate-300">{item.name}</span>
                     <span className="text-indigo-600 dark:text-indigo-400">{item.count}</span>
                   </div>
-                  <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                  <div className="w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                     <div 
-                      className="h-full bg-indigo-500 rounded-full transition-all duration-500" 
+                      className="h-full bg-indigo-500 rounded-full transition-all duration-700" 
                       style={{ width: `${(item.count / (stateDistribution[0]?.count || 1)) * 100}%` }}
                     ></div>
                   </div>
@@ -2731,29 +2892,60 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm transition-colors">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">City Distribution</h3>
+        <div className="bg-white dark:bg-slate-900 p-8 rounded-[48px] border border-slate-100 dark:border-slate-800 shadow-sm transition-colors">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">City Distribution</h3>
             {filterCity && (
-              <button onClick={() => setFilterCity(null)} className="text-[8px] font-black text-indigo-600 uppercase tracking-widest hover:underline">Reset</button>
+              <button onClick={() => setFilterCity(null)} className="text-[9px] font-black text-indigo-600 uppercase tracking-widest hover:underline">View All</button>
             )}
           </div>
-          <div className="space-y-2 max-h-[200px] overflow-y-auto pr-2 custom-scrollbar">
+          <div className="space-y-3 max-h-[300px] overflow-y-auto pr-4 custom-scrollbar">
             {cityDistribution.map((item, idx) => (
               <div 
                 key={item.name} 
                 onClick={() => setFilterCity(filterCity === item.name ? null : item.name)}
-                className={`flex items-center justify-between p-2 rounded-xl cursor-pointer transition-all ${filterCity === item.name ? 'bg-emerald-50 dark:bg-emerald-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'}`}
+                className={`flex items-center justify-between p-3 rounded-2xl cursor-pointer transition-all ${filterCity === item.name ? 'bg-emerald-50 dark:bg-emerald-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'}`}
               >
-                <div className="flex-1 mr-4">
-                  <div className="flex justify-between text-[10px] font-black uppercase tracking-wider mb-1">
+                <div className="flex-1">
+                  <div className="flex justify-between text-[10px] font-black uppercase tracking-wider mb-2">
                     <span className="text-slate-700 dark:text-slate-300">{item.name}</span>
                     <span className="text-emerald-600 dark:text-emerald-400">{item.count}</span>
                   </div>
-                  <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                  <div className="w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                     <div 
-                      className="h-full bg-emerald-500 rounded-full transition-all duration-500" 
+                      className="h-full bg-emerald-500 rounded-full transition-all duration-700" 
                       style={{ width: `${(item.count / (cityDistribution[0]?.count || 1)) * 100}%` }}
+                    ></div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-slate-900 p-8 rounded-[48px] border border-slate-100 dark:border-slate-800 shadow-sm transition-colors">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">Age Distribution</h3>
+            {filterAgeRange && (
+              <button onClick={() => setFilterAgeRange(null)} className="text-[9px] font-black text-indigo-600 uppercase tracking-widest hover:underline">View All</button>
+            )}
+          </div>
+          <div className="space-y-3 max-h-[300px] overflow-y-auto pr-4 custom-scrollbar">
+            {ageDistribution.map((item, idx) => (
+              <div 
+                key={item.name} 
+                onClick={() => setFilterAgeRange(filterAgeRange === item.name ? null : item.name)}
+                className={`flex items-center justify-between p-3 rounded-2xl cursor-pointer transition-all ${filterAgeRange === item.name ? 'bg-violet-50 dark:bg-violet-900/30' : 'bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+              >
+                <div className="flex-1">
+                  <div className="flex justify-between text-[10px] font-black uppercase tracking-wider mb-2">
+                    <span className="text-slate-700 dark:text-slate-300">{item.name}</span>
+                    <span className="text-violet-600 dark:text-violet-400">{item.count}</span>
+                  </div>
+                  <div className="w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-violet-500 rounded-full transition-all duration-700" 
+                      style={{ width: `${(item.count / (Math.max(...ageDistribution.map(a => a.count)) || 1)) * 100}%` }}
                     ></div>
                   </div>
                 </div>
@@ -2789,7 +2981,26 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
                     Master View
                   </button>
                 </div>
-                <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 bg-white dark:bg-slate-800 px-3 py-1 rounded-full shadow-sm dark:shadow-none transition-colors">{sortedMasterData.length} Records</span>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2 bg-white dark:bg-slate-800 px-3 py-1 rounded-full shadow-sm">
+                    <button 
+                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                      disabled={currentPage === 1}
+                      className="p-1 text-slate-400 hover:text-indigo-600 disabled:opacity-30 transition-colors"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                    </button>
+                    <span className="text-[10px] font-black text-slate-600 dark:text-slate-400 uppercase tracking-widest">Page {currentPage} of {totalPages || 1}</span>
+                    <button 
+                      onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                      disabled={currentPage === totalPages || totalPages === 0}
+                      className="p-1 text-slate-400 hover:text-indigo-600 disabled:opacity-30 transition-colors"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                    </button>
+                  </div>
+                  <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 bg-white dark:bg-slate-800 px-3 py-1 rounded-full shadow-sm dark:shadow-none transition-colors">{sortedMasterData.length} Records</span>
+                </div>
               </div>
 
               {/* Filter Bar (YouTube Style) */}
@@ -3054,7 +3265,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
                   </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50 dark:divide-slate-800/50">
-                  {sortedMasterData.map((data, idx) => (
+                  {paginatedData.map((data, idx) => (
                       <tr key={data.admission_id || idx} className="hover:bg-slate-50/30 dark:hover:bg-slate-800/30 transition-colors group">
                       <td className="px-4 md:px-8 py-4">
                           <button 
@@ -3105,7 +3316,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
 
               {/* Mobile Card View */}
               <div className="md:hidden space-y-4 p-4">
-                {sortedMasterData.map((data, idx) => (
+                {paginatedData.map((data, idx) => (
                   <div 
                     key={data.admission_id || idx}
                     onClick={() => setViewingRecord(data)}
@@ -3741,6 +3952,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                 Download Image
+              </button>
+              <button 
+                onClick={handleMasterExcelDownload}
+                className="flex-1 flex items-center justify-center gap-3 py-4 bg-emerald-600 text-white rounded-2xl font-black text-[11px] uppercase tracking-[0.15em] hover:bg-emerald-700 shadow-lg shadow-emerald-200 dark:shadow-none transition-all active:scale-95"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
+                Download Excel
               </button>
             </div>
           </div>
