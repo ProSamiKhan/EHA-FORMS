@@ -18,22 +18,22 @@
       "description": "Student registration data.",
       "type": "object",
       "properties": {
-        "id": { "type": "string" },
+        "admission_id": { "type": "string" },
         "name": { "type": "string" },
-        "age": { "type": "number" },
+        "age": { "type": "string" },
         "gender": { "type": "string" },
         "city": { "type": "string" },
         "state": { "type": "string" },
-        "course": { "type": "string" },
-        "admissionStatus": { "type": "string" },
-        "paymentStatus": { "type": "string" },
-        "amountPaid": { "type": "number" },
-        "totalAmount": { "type": "number" },
-        "paymentMethod": { "type": "string" },
-        "date": { "type": "string", "format": "date-time" },
-        "createdBy": { "type": "string" }
+        "qualification": { "type": "string" },
+        "medium": { "type": "string" },
+        "status": { "type": "string", "enum": ["confirm", "pending", "cancelled", "stay only"] },
+        "payment_status": { "type": "string", "enum": ["full paid", "partial", "unpaid", "refund"] },
+        "total_fees": { "type": "string" },
+        "remaining_amount": { "type": "string" },
+        "discount": { "type": "string" },
+        "date": { "type": "string" }
       },
-      "required": ["name", "course", "admissionStatus"]
+      "required": ["name", "admission_id", "status"]
     },
     "AppConfig": {
       "title": "App Configuration",

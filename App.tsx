@@ -347,13 +347,29 @@ const App: React.FC = () => {
     setRecords(prev => prev.map(r => r.id === id ? { ...r, data: newData, syncStatus: 'idle' } : r));
   };
 
-  const removeRecord = (id: string) => {
-    if (window.confirm("Are you sure you want to remove this record?")) {
-      setRecords(prev => {
-          const record = prev.find(r => r.id === id);
-          if (record && record.imageUrl) URL.revokeObjectURL(record.imageUrl);
-          return prev.filter(r => r.id !== id);
-      });
+  const removeRecord = async (id: string) => {
+    if (window.confirm("Are you sure you want to remove this record from the database?")) {
+      try {
+        // Delete from Firestore
+        await setDoc(doc(db, 'registrations', id), { 
+          status: 'deleted', 
+          deletedAt: Date.now() 
+        }, { merge: true });
+        
+        // Actually delete the document if preferred, but soft delete is safer.
+        // For this app, let's do a real delete to keep it clean as requested by user "DELETE KARDI HAI".
+        const { deleteDoc } = await import('firebase/firestore');
+        await deleteDoc(doc(db, 'registrations', id));
+
+        setRecords(prev => {
+            const record = prev.find(r => r.id === id);
+            if (record && record.imageUrl) URL.revokeObjectURL(record.imageUrl);
+            return prev.filter(r => r.id !== id);
+        });
+      } catch (error) {
+        console.error("Error deleting record:", error);
+        alert("Failed to delete record from database.");
+      }
     }
   };
 

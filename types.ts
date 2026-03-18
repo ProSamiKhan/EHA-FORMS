@@ -75,7 +75,8 @@ export interface RegistrationData {
   free?: string;
   total_fees: string;
   remaining_amount: string;
-  status: 'confirm' | 'cancelled' | 'pending';
+  status: 'confirm' | 'cancelled' | 'pending' | 'stay only';
+  payment_status?: 'full paid' | 'partial' | 'unpaid' | 'refund';
 }
 
 export interface ProcessingRecord {

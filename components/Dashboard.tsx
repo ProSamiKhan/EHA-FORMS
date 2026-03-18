@@ -13,7 +13,7 @@ import {
   eachMonthOfInterval, eachYearOfInterval, eachWeekOfInterval, eachDayOfInterval,
   endOfMonth, endOfYear, endOfWeek
 } from 'date-fns';
-import { Calendar, ChevronDown, X, MapPin, Edit2, ChevronRight, ArrowLeft, Menu, Users, CreditCard, PieChart as PieIcon, Filter, Plus, BarChart3, Zap, Building2 } from 'lucide-react';
+import { Calendar, ChevronDown, X, MapPin, Edit2, ChevronRight, ArrowLeft, Menu, Users, CreditCard, PieChart as PieIcon, Filter, Plus, BarChart3, Zap, Building2, GraduationCap, Languages } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { formatDateClean, parseDate } from '../services/utils';
 
@@ -231,51 +231,80 @@ const AnalyticsView = ({ title, data, type, onBack }: { title: string, data: any
   );
 };
 
-const CustomAnalyticsView = ({ records, onBack, onSeedData }: { records: ProcessingRecord[], onBack: () => void, onSeedData?: () => void }) => {
+const CustomAnalyticsView = ({ records, onBack, onSeedData, onRefresh, isRefreshing }: { records: RegistrationData[], onBack: () => void, onSeedData?: () => void, onRefresh: () => void, isRefreshing: boolean }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [activeDimension, setActiveDimension] = useState<'state' | 'city' | 'gender' | 'ageRange' | 'paymentStatus' | 'status'>('state');
+  const [activeDimension, setActiveDimension] = useState<'state' | 'city' | 'gender' | 'ageRange' | 'paymentStatus' | 'status' | 'qualification' | 'medium'>('state');
   const [filters, setFilters] = useState({
     state: 'All',
     city: 'All',
     gender: 'All',
     ageRange: 'All',
     paymentStatus: 'All',
-    status: 'All'
+    status: 'All',
+    qualification: 'All',
+    medium: 'All'
   });
 
-  const dimensions = [
-    { id: 'state', label: 'State', icon: MapPin },
-    { id: 'city', label: 'City', icon: MapPin },
-    { id: 'gender', label: 'Gender', icon: Users },
-    { id: 'ageRange', label: 'Age Group', icon: Calendar },
-    { id: 'paymentStatus', label: 'Payment', icon: CreditCard },
-    { id: 'status', label: 'Status', icon: Filter },
+  const dimensionCategories = [
+    {
+      label: 'Geographic',
+      dimensions: [
+        { id: 'state', label: 'State', icon: MapPin },
+        { id: 'city', label: 'City', icon: Building2 },
+      ]
+    },
+    {
+      label: 'Demographics',
+      dimensions: [
+        { id: 'gender', label: 'Gender', icon: Users },
+        { id: 'ageRange', label: 'Age Group', icon: Calendar },
+        { id: 'qualification', label: 'Qualification', icon: GraduationCap },
+        { id: 'medium', label: 'Medium', icon: Languages },
+      ]
+    },
+    {
+      label: 'Financials & Status',
+      dimensions: [
+        { id: 'paymentStatus', label: 'Payment', icon: CreditCard },
+        { id: 'status', label: 'Status', icon: Filter },
+      ]
+    }
   ];
+
+  const dimensions = dimensionCategories.flatMap(c => c.dimensions);
 
   const dimensionOptions = useMemo(() => {
     const options: Record<string, string[]> = {
       gender: ['All', 'Male', 'Female', 'Other'],
       ageRange: ['All', 'Under 13', '13-18', '19-25', 'Above 25'],
-      paymentStatus: ['All', 'Full Paid', 'Partial', 'Unpaid'],
-      status: ['All', 'Confirm', 'Pending', 'Cancelled'],
+      paymentStatus: ['All', 'Full Paid', 'Partial', 'Unpaid', 'Refund'],
+      status: ['All', 'Confirm', 'Pending', 'Cancelled', 'Stay Only'],
+      qualification: ['All'],
+      medium: ['All'],
     };
 
     const s = new Set<string>();
     const c = new Set<string>();
+    const q = new Set<string>();
+    const m = new Set<string>();
     let hasMissingState = false;
     let hasMissingCity = false;
 
     if (records) {
-      records.forEach(r => {
-        if (!r.data) return;
-        
-        const state = r.data.state?.trim();
+      records.forEach(d => {
+        const state = d.state?.trim();
         if (state) s.add(state);
         else hasMissingState = true;
 
-        const city = r.data.city?.trim();
+        const city = d.city?.trim();
         if (city) c.add(city);
         else hasMissingCity = true;
+
+        const qualification = d.qualification?.trim();
+        if (qualification) q.add(qualification);
+
+        const medium = d.medium?.trim();
+        if (medium) m.add(medium);
       });
     }
 
@@ -285,14 +314,14 @@ const CustomAnalyticsView = ({ records, onBack, onSeedData }: { records: Process
     options.city = ['All', ...Array.from(c).sort()];
     if (hasMissingCity) options.city.push('Not Specified');
 
+    options.qualification = ['All', ...Array.from(q).sort()];
+    options.medium = ['All', ...Array.from(m).sort()];
+
     return options;
   }, [records]);
 
   const filteredRecords = useMemo(() => {
-    return records.filter(r => {
-      if (!r.data) return false;
-      const d = r.data;
-      
+    return records.filter(d => {
       if (filters.state !== 'All') {
         const state = d.state?.trim() || 'Not Specified';
         if (state !== filters.state) return false;
@@ -312,13 +341,21 @@ const CustomAnalyticsView = ({ records, onBack, onSeedData }: { records: Process
         if (filters.ageRange === '19-25' && (age < 19 || age > 25)) return false;
         if (filters.ageRange === 'Above 25' && age <= 25) return false;
       }
+
+      if (filters.qualification !== 'All' && d.qualification?.toLowerCase() !== filters.qualification.toLowerCase()) return false;
+      if (filters.medium !== 'All' && d.medium?.toLowerCase() !== filters.medium.toLowerCase()) return false;
       
       if (filters.paymentStatus !== 'All') {
+        if (d.payment_status === 'refund' && filters.paymentStatus === 'Refund') return true;
+        if (d.payment_status === 'refund' && filters.paymentStatus !== 'Refund') return false;
+        if (d.payment_status !== 'refund' && filters.paymentStatus === 'Refund') return false;
+
         const remaining = parseFloat(d.remaining_amount) || 0;
         const total = parseFloat(d.total_fees) || 0;
-        if (filters.paymentStatus === 'Full Paid' && remaining > 0) return false;
-        if (filters.paymentStatus === 'Partial' && (remaining <= 0 || remaining >= total)) return false;
-        if (filters.paymentStatus === 'Unpaid' && remaining >= total && total > 0) return false;
+        if (filters.paymentStatus === 'Full Paid' && remaining <= 0) return true;
+        if (filters.paymentStatus === 'Partial' && (remaining > 0 && remaining < total)) return true;
+        if (filters.paymentStatus === 'Unpaid' && remaining >= total && total > 0) return true;
+        return false;
       }
 
       if (filters.status !== 'All' && d.status?.toLowerCase() !== filters.status.toLowerCase()) return false;
@@ -329,25 +366,30 @@ const CustomAnalyticsView = ({ records, onBack, onSeedData }: { records: Process
 
   const distributionData = useMemo(() => {
     const counts: Record<string, number> = {};
-    filteredRecords.forEach(r => {
-      if (!r.data) return;
+    filteredRecords.forEach(d => {
       let val = '';
-      if (activeDimension === 'state') val = r.data.state || 'Unknown';
-      else if (activeDimension === 'city') val = r.data.city || 'Unknown';
-      else if (activeDimension === 'gender') val = r.data.gender || 'Unknown';
-      else if (activeDimension === 'status') val = r.data.status || 'Unknown';
+      if (activeDimension === 'state') val = d.state || 'Unknown';
+      else if (activeDimension === 'city') val = d.city || 'Unknown';
+      else if (activeDimension === 'gender') val = d.gender || 'Unknown';
+      else if (activeDimension === 'status') val = d.status || 'Unknown';
+      else if (activeDimension === 'qualification') val = d.qualification || 'Unknown';
+      else if (activeDimension === 'medium') val = d.medium || 'Unknown';
       else if (activeDimension === 'ageRange') {
-        const age = parseInt(r.data.age) || 0;
+        const age = parseInt(d.age) || 0;
         if (age < 13) val = 'Under 13';
         else if (age <= 18) val = '13-18';
         else if (age <= 25) val = '19-25';
         else val = 'Above 25';
       } else if (activeDimension === 'paymentStatus') {
-        const remaining = parseFloat(r.data.remaining_amount) || 0;
-        const total = parseFloat(r.data.total_fees) || 0;
-        if (remaining <= 0) val = 'Full Paid';
-        else if (remaining < total) val = 'Partial';
-        else val = 'Unpaid';
+        if (d.payment_status === 'refund') {
+          val = 'Refund';
+        } else {
+          const remaining = parseFloat(d.remaining_amount) || 0;
+          const total = parseFloat(d.total_fees) || 0;
+          if (remaining <= 0) val = 'Full Paid';
+          else if (remaining < total) val = 'Partial';
+          else val = 'Unpaid';
+        }
       }
       counts[val] = (counts[val] || 0) + 1;
     });
@@ -361,11 +403,10 @@ const CustomAnalyticsView = ({ records, onBack, onSeedData }: { records: Process
     let totalFees = 0;
     let totalPaid = 0;
     let totalDiscount = 0;
-    filteredRecords.forEach(r => {
-      if (!r.data) return;
-      totalFees += parseFloat(r.data.total_fees) || 0;
-      totalDiscount += parseFloat(r.data.discount) || 0;
-      totalPaid += (parseFloat(r.data.total_fees) || 0) - (parseFloat(r.data.remaining_amount) || 0);
+    filteredRecords.forEach(d => {
+      totalFees += parseFloat(d.total_fees) || 0;
+      totalDiscount += parseFloat(d.discount) || 0;
+      totalPaid += (parseFloat(d.total_fees) || 0) - (parseFloat(d.remaining_amount) || 0);
     });
     return { totalFees, totalPaid, totalDiscount, count: filteredRecords.length };
   }, [filteredRecords]);
@@ -421,6 +462,14 @@ const CustomAnalyticsView = ({ records, onBack, onSeedData }: { records: Process
            </div>
            <div className="w-px h-10 bg-slate-100 dark:bg-slate-800 hidden sm:block"></div>
            <button 
+             onClick={onRefresh}
+             disabled={isRefreshing}
+             className={`px-6 py-3 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 text-slate-600 dark:text-slate-300 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800 transition-all flex items-center gap-2 ${isRefreshing ? 'opacity-50 cursor-not-allowed' : ''}`}
+           >
+             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={isRefreshing ? 'animate-spin' : ''}><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>
+             {isRefreshing ? 'Syncing...' : 'Refresh Data'}
+           </button>
+           <button 
              onClick={handleDownloadReport}
              className="px-6 py-3 bg-indigo-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-indigo-200 dark:shadow-none hover:bg-indigo-700 transition-all flex items-center gap-2"
            >
@@ -435,7 +484,7 @@ const CustomAnalyticsView = ({ records, onBack, onSeedData }: { records: Process
              Print
            </button>
            <button 
-             onClick={() => setFilters({ state: 'All', city: 'All', gender: 'All', ageRange: 'All', paymentStatus: 'All', status: 'All' })}
+             onClick={() => setFilters({ state: 'All', city: 'All', gender: 'All', ageRange: 'All', paymentStatus: 'All', status: 'All', qualification: 'All', medium: 'All' })}
              className="px-6 py-3 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-100 dark:hover:bg-slate-700 transition-all"
            >
              Clear All
@@ -446,27 +495,31 @@ const CustomAnalyticsView = ({ records, onBack, onSeedData }: { records: Process
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* LEFT COLUMN: DIMENSIONS & FILTERS */}
         <div className="lg:col-span-3 space-y-8">
-          <div className="space-y-4">
-            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Dimensions</h3>
-            <div className="flex flex-col gap-2">
-              {dimensions.map((dim) => (
-                <button
-                  key={dim.id}
-                  onClick={() => setActiveDimension(dim.id as any)}
-                  className={`flex items-center justify-between px-6 py-4 rounded-[24px] transition-all border font-black uppercase tracking-widest text-[10px] group ${
-                    activeDimension === dim.id 
-                      ? 'bg-indigo-600 border-indigo-600 text-white shadow-2xl shadow-indigo-200 dark:shadow-none translate-x-2' 
-                      : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 text-slate-500 hover:border-indigo-200 hover:text-indigo-600'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <dim.icon className={`w-4 h-4 ${activeDimension === dim.id ? 'text-white' : 'text-slate-400 group-hover:text-indigo-600'}`} />
-                    {dim.label}
-                  </div>
-                  {activeDimension === dim.id && <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></div>}
-                </button>
-              ))}
-            </div>
+          <div className="space-y-6">
+            {dimensionCategories.map((category) => (
+              <div key={category.label} className="space-y-4">
+                <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{category.label}</h3>
+                <div className="flex flex-col gap-2">
+                  {category.dimensions.map((dim) => (
+                    <button
+                      key={dim.id}
+                      onClick={() => setActiveDimension(dim.id as any)}
+                      className={`flex items-center justify-between px-6 py-4 rounded-[24px] transition-all border font-black uppercase tracking-widest text-[10px] group ${
+                        activeDimension === dim.id 
+                          ? 'bg-indigo-600 border-indigo-600 text-white shadow-2xl shadow-indigo-200 dark:shadow-none translate-x-2' 
+                          : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 text-slate-500 hover:border-indigo-200 hover:text-indigo-600'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <dim.icon className={`w-4 h-4 ${activeDimension === dim.id ? 'text-white' : 'text-slate-400 group-hover:text-indigo-600'}`} />
+                        {dim.label}
+                      </div>
+                      {activeDimension === dim.id && <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></div>}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
 
           <div className="bg-slate-50 dark:bg-slate-800/50 p-8 rounded-[40px] border border-slate-100 dark:border-slate-800">
@@ -725,11 +778,10 @@ const CustomAnalyticsView = ({ records, onBack, onSeedData }: { records: Process
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50 dark:divide-slate-800/50">
-                  {filteredRecords.slice(0, 50).map(r => {
-                    const d = r.data!;
+                  {filteredRecords.slice(0, 50).map(d => {
                     const remaining = parseFloat(d.remaining_amount) || 0;
                     return (
-                      <tr key={r.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors group">
+                      <tr key={d.admission_id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors group">
                         <td className="px-10 py-6">
                           <div className="flex items-center gap-4">
                             <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 font-black text-xs group-hover:bg-indigo-600 group-hover:text-white transition-all">
@@ -785,7 +837,7 @@ const CustomAnalyticsView = ({ records, onBack, onSeedData }: { records: Process
                   <h4 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-widest mb-2">No Matches Found</h4>
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.3em] opacity-50">Try adjusting your filters or search query</p>
                   <button 
-                    onClick={() => setFilters({ state: 'All', city: 'All', gender: 'All', ageRange: 'All', paymentStatus: 'All', status: 'All' })}
+                    onClick={() => setFilters({ state: 'All', city: 'All', gender: 'All', ageRange: 'All', paymentStatus: 'All', status: 'All', qualification: 'All', medium: 'All' })}
                     className="mt-8 px-8 py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all active:scale-95"
                   >
                     Reset All Filters
@@ -832,6 +884,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
   const [isMasterViewOpen, setIsMasterViewOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [currentView, setCurrentView] = useState<'dashboard' | 'states' | 'cities' | 'admissions' | 'custom'>('dashboard');
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const modalRef = useRef<HTMLDivElement>(null);
   const studentFormRef = useRef<HTMLDivElement>(null);
   const masterViewRef = useRef<HTMLDivElement>(null);
@@ -1120,31 +1173,37 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
         free: String(row['free'] || '0'),
         total_fees: String(row['total_fees'] || row['total fees'] || '20000'),
         remaining_amount: String(row['remaining amount'] || row['remaining_amount'] || '0'),
+        payment_status: (row['payment_status'] || row['payment status'] || '').toLowerCase() as any || undefined,
         status: (() => {
           const s = (row['status'] || 'confirm').toLowerCase();
-          return s === 'active' ? 'confirm' : s as 'confirm' | 'cancelled' | 'pending';
+          if (s === 'active') return 'confirm';
+          if (s === 'stay only' || s === 'stay_only') return 'stay only';
+          return s as 'confirm' | 'cancelled' | 'pending' | 'stay only';
         })()
       };
     });
   };
 
-  useEffect(() => {
-    const loadData = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const rawData = await fetchAllRegistrations();
-        if (Array.isArray(rawData)) {
-          setRemoteData(normalizeData(rawData));
-        } else if (rawData && (rawData as any).error) {
-          setError(`Cloud Error: ${(rawData as any).error}`);
-        }
-      } catch (err) {
-        setError("Sync Error: Could not fetch data from Google Sheets. Please ensure your Apps Script is deployed as a Web App with 'Anyone' access.");
-      } finally {
-        setIsLoading(false);
+  const loadData = async () => {
+    setIsLoading(true);
+    setError(null);
+    setIsRefreshing(true);
+    try {
+      const rawData = await fetchAllRegistrations();
+      if (Array.isArray(rawData)) {
+        setRemoteData(normalizeData(rawData));
+      } else if (rawData && (rawData as any).error) {
+        setError(`Cloud Error: ${(rawData as any).error}`);
       }
-    };
+    } catch (err) {
+      setError("Sync Error: Could not fetch data from Google Sheets. Please ensure your Apps Script is deployed as a Web App with 'Anyone' access.");
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
     loadData();
   }, [lastRefreshed]);
 
@@ -1168,10 +1227,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
   const filterMenuRef = useRef<HTMLDivElement>(null);
 
   const FILTER_CONFIG = [
-    { id: 'status', label: 'Status', options: ['confirm', 'pending', 'cancelled'] },
+    { id: 'status', label: 'Status', options: ['confirm', 'pending', 'cancelled', 'stay only'] },
+    { id: 'payment_status', label: 'Payment Status', options: ['full paid', 'partial', 'unpaid', 'refund'] },
     { id: 'gender', label: 'Gender', options: ['male', 'female', 'other'] },
     { id: 'age', label: 'Age', dynamic: true, custom: true },
-    { id: 'payment_amount', label: 'Payment Amount', dynamic: true },
+    { id: 'payment_amount', label: 'Payment Amount', dynamic: true, custom: true },
     { id: 'medium', label: 'Medium', options: ['english', 'hindi', 'urdu'] },
     { id: 'payment_method', label: 'Payment Method', options: ['cash', 'account'] },
     { id: 'state', label: 'State', dynamic: true },
@@ -1337,6 +1397,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
   const [customEnd, setCustomEnd] = useState<string>('');
   const [customAgeMin, setCustomAgeMin] = useState<string>('');
   const [customAgeMax, setCustomAgeMax] = useState<string>('');
+  const [customPaymentMin, setCustomPaymentMin] = useState<string>('');
+  const [customPaymentMax, setCustomPaymentMax] = useState<string>('');
   const [filterGender, setFilterGender] = useState<string | null>(null);
   const [filterState, setFilterState] = useState<string | null>(null);
   const [filterCity, setFilterCity] = useState<string | null>(null);
@@ -1425,12 +1487,34 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
             if ((d.age || '').trim() !== value.trim()) return false;
           }
         } else if (key === 'payment_amount') {
-          const targetAmt = parseFloat(value);
           let totalPaid = 0;
           for (let i = 1; i <= 10; i++) {
             totalPaid += parseFloat(String((d as any)[`payment${i}_amount`]).replace(/[^0-9.]/g, '')) || 0;
           }
-          if (totalPaid !== targetAmt) return false;
+          
+          if (value.includes('-')) {
+            const [min, max] = value.split('-').map(v => parseFloat(v));
+            if (totalPaid < min || totalPaid > max) return false;
+          } else {
+            const targetAmt = parseFloat(value);
+            if (totalPaid !== targetAmt) return false;
+          }
+        } else if (key === 'payment_status') {
+          const remaining = parseFloat(d.remaining_amount) || 0;
+          const total = parseFloat(d.total_fees) || 0;
+          const ps = (d.payment_status || '').toLowerCase();
+
+          if (value === 'refund') {
+            if (ps !== 'refund') return false;
+          } else if (ps === 'refund') {
+            return false;
+          } else if (value === 'full paid') {
+            if (remaining > 0) return false;
+          } else if (value === 'partial') {
+            if (remaining <= 0 || remaining >= total) return false;
+          } else if (value === 'unpaid') {
+            if (remaining < total || total <= 0) return false;
+          }
         } else if (key === 'medium') {
           if ((d.medium || '').trim().toLowerCase() !== value.toLowerCase()) return false;
         } else if (key === 'state') {
@@ -2713,7 +2797,43 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
                                   </div>
                                 )}
 
-                                {selectedFilterType !== 'age' && (
+                                {selectedFilterType === 'payment_amount' && (
+                                  <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-700 space-y-2">
+                                    <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Custom Range</p>
+                                    <div className="flex items-center gap-2">
+                                      <input 
+                                        type="number" 
+                                        placeholder="Min"
+                                        value={customPaymentMin}
+                                        onChange={(e) => setCustomPaymentMin(e.target.value)}
+                                        className="w-full px-2 py-2 sm:py-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded text-[11px] sm:text-[10px] font-bold outline-none focus:ring-1 focus:ring-indigo-500"
+                                      />
+                                      <span className="text-slate-300">-</span>
+                                      <input 
+                                        type="number" 
+                                        placeholder="Max"
+                                        value={customPaymentMax}
+                                        onChange={(e) => setCustomPaymentMax(e.target.value)}
+                                        className="w-full px-2 py-2 sm:py-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded text-[11px] sm:text-[10px] font-bold outline-none focus:ring-1 focus:ring-indigo-500"
+                                      />
+                                      <button 
+                                        onClick={() => {
+                                          if (customPaymentMin || customPaymentMax) {
+                                            addFilter('payment_amount', `${customPaymentMin || 0}-${customPaymentMax || 100000}`);
+                                            setCustomPaymentMin('');
+                                            setCustomPaymentMax('');
+                                            setIsFilterMenuOpen(false);
+                                          }
+                                        }}
+                                        className="p-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition-colors"
+                                      >
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {selectedFilterType !== 'age' && selectedFilterType !== 'payment_amount' && (
                                   <div className="max-h-[60vh] sm:max-h-48 overflow-y-auto custom-scrollbar">
                                     {(FILTER_CONFIG.find(c => c.id === selectedFilterType)?.dynamic 
                                       ? (dynamicOptions as any)[selectedFilterType] 
@@ -2963,9 +3083,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
         />
       ) : currentView === 'custom' ? (
         <CustomAnalyticsView 
-          records={records} 
+          records={remoteData} 
           onBack={() => setCurrentView('dashboard')} 
           onSeedData={onSeedData}
+          onRefresh={loadData}
+          isRefreshing={isRefreshing}
         />
       ) : (
         <AnalyticsView 

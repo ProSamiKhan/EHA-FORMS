@@ -39,7 +39,8 @@ const INITIAL_DATA: RegistrationData = {
   discount: '0',
   total_fees: String(TOTAL_FEES),
   remaining_amount: String(TOTAL_FEES),
-  status: 'confirm'
+  status: 'confirm',
+  payment_status: 'unpaid'
 };
 
 const INDIAN_STATES_AND_UTS = [
@@ -129,7 +130,16 @@ export const ManualEntryModal: React.FC<ManualEntryModalProps> = ({ isOpen, onCl
     const totalPaid = p1 + p2 + p3 + p4 + p5 + p6 + p7 + p8 + p9 + p10;
     const totalFees = parseFloat(formData.total_fees) || TOTAL_FEES;
     const remaining = totalFees - totalPaid - disc;
-    setFormData(prev => ({ ...prev, remaining_amount: String(remaining >= 0 ? remaining : 0) }));
+    
+    setFormData(prev => {
+      let newPaymentStatus = prev.payment_status;
+      if (prev.payment_status !== 'refund') {
+        if (remaining <= 0) newPaymentStatus = 'full paid';
+        else if (remaining < totalFees) newPaymentStatus = 'partial';
+        else newPaymentStatus = 'unpaid';
+      }
+      return { ...prev, remaining_amount: String(remaining >= 0 ? remaining : 0), payment_status: newPaymentStatus };
+    });
   }, [
     formData.payment1_amount, formData.payment2_amount, formData.payment3_amount, 
     formData.payment4_amount, formData.payment5_amount, formData.payment6_amount,
@@ -361,6 +371,26 @@ export const ManualEntryModal: React.FC<ManualEntryModalProps> = ({ isOpen, onCl
                   <option value="confirm">Confirm</option>
                   <option value="pending">Pending</option>
                   <option value="cancelled">Cancelled</option>
+                  <option value="stay only">Stay Only</option>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[9px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest ml-1 transition-colors">Payment Status</label>
+                <select 
+                  value={formData.payment_status || ''} 
+                  onChange={(e) => handleChange('payment_status', e.target.value)} 
+                  className={`w-full border rounded-xl px-4 py-2.5 text-sm font-black outline-none transition-colors ${
+                    formData.payment_status === 'refund' 
+                      ? 'bg-purple-50 border-purple-200 text-purple-600 dark:bg-purple-900/20 dark:border-purple-900/30 dark:text-purple-400' 
+                      : formData.payment_status === 'full paid'
+                        ? 'bg-emerald-50 border-emerald-200 text-emerald-600 dark:bg-emerald-900/20 dark:border-emerald-900/30 dark:text-emerald-400'
+                        : 'bg-slate-50 border-slate-200 text-slate-900 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100'
+                  }`}
+                >
+                  <option value="unpaid">Unpaid</option>
+                  <option value="partial">Partial</option>
+                  <option value="full paid">Full Paid</option>
+                  <option value="refund">Refund</option>
                 </select>
               </div>
             </div>
