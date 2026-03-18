@@ -231,7 +231,7 @@ const AnalyticsView = ({ title, data, type, onBack }: { title: string, data: any
   );
 };
 
-const CustomAnalyticsView = ({ records, onBack, onSeedData, onRefresh, isRefreshing }: { records: RegistrationData[], onBack: () => void, onSeedData?: () => void, onRefresh: () => void, isRefreshing: boolean }) => {
+const CustomAnalyticsView = ({ records, onBack, onSeedData, onRefresh, isRefreshing, onOpenMasterView }: { records: RegistrationData[], onBack: () => void, onSeedData?: () => void, onRefresh: () => void, isRefreshing: boolean, onOpenMasterView: () => void }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [activeDimension, setActiveDimension] = useState<'state' | 'city' | 'gender' | 'ageRange' | 'paymentStatus' | 'status' | 'qualification' | 'medium'>('state');
   const [filters, setFilters] = useState({
@@ -478,11 +478,11 @@ const CustomAnalyticsView = ({ records, onBack, onSeedData, onRefresh, isRefresh
              {isRefreshing ? 'Syncing...' : 'Refresh Data'}
            </button>
            <button 
-             onClick={handleDownloadReport}
+             onClick={onOpenMasterView}
              className="px-6 py-3 bg-indigo-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-indigo-200 dark:shadow-none hover:bg-indigo-700 transition-all flex items-center gap-2"
            >
-             <BarChart3 className="w-3.5 h-3.5" />
-             Download Report
+             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+             Master View
            </button>
            <button 
              onClick={() => window.print()}
@@ -723,8 +723,28 @@ const CustomAnalyticsView = ({ records, onBack, onSeedData, onRefresh, isRefresh
             <div className="space-y-8">
               <div className="bg-indigo-600 p-10 rounded-[48px] text-white shadow-2xl shadow-indigo-200 dark:shadow-none relative overflow-hidden group">
                 <div className="absolute bottom-0 left-0 w-full h-1 bg-white/20 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-700 origin-left"></div>
-                <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60">Filtered Results</span>
-                <h4 className="text-7xl font-black mt-4 tracking-tighter">{stats.count}</h4>
+                <div className="flex justify-between items-start">
+                  <div>
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60">Filtered Results</span>
+                    <h4 className="text-7xl font-black mt-4 tracking-tighter">{stats.count}</h4>
+                  </div>
+                  <div className="flex flex-col gap-2 no-print">
+                    <button 
+                      onClick={onOpenMasterView}
+                      className="p-3 bg-white/10 hover:bg-white/20 rounded-xl transition-all text-white"
+                      title="Master View"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                    </button>
+                    <button 
+                      onClick={() => window.print()}
+                      className="p-3 bg-white/10 hover:bg-white/20 rounded-xl transition-all text-white"
+                      title="Print"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></svg>
+                    </button>
+                  </div>
+                </div>
                 <p className="text-xs font-bold opacity-60 mt-1 uppercase tracking-widest">Students Matched</p>
                 
                 <div className="mt-10 pt-10 border-t border-white/10 space-y-6">
@@ -789,7 +809,21 @@ const CustomAnalyticsView = ({ records, onBack, onSeedData, onRefresh, isRefresh
                 <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Records</h3>
                 <p className="text-xl font-black text-slate-900 dark:text-white">Matching Students</p>
               </div>
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-4 no-print">
+                <button 
+                  onClick={onOpenMasterView}
+                  className="px-6 py-3 bg-indigo-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-indigo-200 dark:shadow-none hover:bg-indigo-700 transition-all flex items-center gap-2"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                  Master View
+                </button>
+                <button 
+                  onClick={() => window.print()}
+                  className="px-6 py-3 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 text-slate-600 dark:text-slate-300 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800 transition-all flex items-center gap-2"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></svg>
+                  Print
+                </button>
                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 dark:bg-slate-800 px-4 py-2 rounded-full">
                   Page 1 of {Math.ceil(filteredRecords.length / 50)}
                 </span>
@@ -3142,6 +3176,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
           onSeedData={onSeedData}
           onRefresh={loadData}
           isRefreshing={isRefreshing}
+          onOpenMasterView={() => setIsMasterViewOpen(true)}
         />
       ) : (
         <AnalyticsView 
