@@ -239,6 +239,8 @@ const CustomAnalyticsView = ({ records, onBack, onSeedData, onRefresh, isRefresh
     city: 'All',
     gender: 'All',
     ageRange: 'All',
+    ageMin: '',
+    ageMax: '',
     paymentStatus: 'All',
     status: 'All',
     qualification: 'All',
@@ -276,7 +278,7 @@ const CustomAnalyticsView = ({ records, onBack, onSeedData, onRefresh, isRefresh
   const dimensionOptions = useMemo(() => {
     const options: Record<string, string[]> = {
       gender: ['All', 'Male', 'Female', 'Other'],
-      ageRange: ['All', 'Under 13', '13-18', '19-25', 'Above 25'],
+      ageRange: ['All', 'Under 13', '13-18', '19-25', 'Above 25', 'Custom'],
       paymentStatus: ['All', 'Full Paid', 'Partial', 'Unpaid', 'Refund'],
       status: ['All', 'Confirm', 'Pending', 'Cancelled', 'Stay Only'],
       qualification: ['All'],
@@ -340,6 +342,12 @@ const CustomAnalyticsView = ({ records, onBack, onSeedData, onRefresh, isRefresh
         if (filters.ageRange === '13-18' && (age < 13 || age > 18)) return false;
         if (filters.ageRange === '19-25' && (age < 19 || age > 25)) return false;
         if (filters.ageRange === 'Above 25' && age <= 25) return false;
+        if (filters.ageRange === 'Custom') {
+          const min = parseInt(filters.ageMin);
+          const max = parseInt(filters.ageMax);
+          if (!isNaN(min) && age < min) return false;
+          if (!isNaN(max) && age > max) return false;
+        }
       }
 
       if (filters.qualification !== 'All' && d.qualification?.toLowerCase() !== filters.qualification.toLowerCase()) return false;
@@ -484,7 +492,7 @@ const CustomAnalyticsView = ({ records, onBack, onSeedData, onRefresh, isRefresh
              Print
            </button>
            <button 
-             onClick={() => setFilters({ state: 'All', city: 'All', gender: 'All', ageRange: 'All', paymentStatus: 'All', status: 'All', qualification: 'All', medium: 'All' })}
+             onClick={() => setFilters({ state: 'All', city: 'All', gender: 'All', ageRange: 'All', ageMin: '', ageMax: '', paymentStatus: 'All', status: 'All', qualification: 'All', medium: 'All' })}
              className="px-6 py-3 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-100 dark:hover:bg-slate-700 transition-all"
            >
              Clear All
@@ -562,19 +570,40 @@ const CustomAnalyticsView = ({ records, onBack, onSeedData, onRefresh, isRefresh
             
             <div className="flex items-center gap-2 px-4 py-2">
               {dimensionOptions[activeDimension]?.length > 0 ? (
-                dimensionOptions[activeDimension].map((opt) => (
-                  <button
-                    key={opt}
-                    onClick={() => setFilters(f => ({ ...f, [activeDimension]: opt }))}
-                    className={`px-6 py-3 rounded-2xl transition-all whitespace-nowrap border font-black uppercase tracking-widest text-[10px] ${
-                      filters[activeDimension as keyof typeof filters] === opt 
-                        ? 'bg-indigo-600 border-indigo-600 text-white shadow-xl shadow-indigo-100 dark:shadow-none' 
-                        : 'bg-slate-50 dark:bg-slate-800/50 border-transparent text-slate-500 hover:border-slate-200'
-                    }`}
-                  >
-                    {opt}
-                  </button>
-                ))
+                <>
+                  {dimensionOptions[activeDimension].map((opt) => (
+                    <button
+                      key={opt}
+                      onClick={() => setFilters(f => ({ ...f, [activeDimension]: opt }))}
+                      className={`px-6 py-3 rounded-2xl transition-all whitespace-nowrap border font-black uppercase tracking-widest text-[10px] ${
+                        filters[activeDimension as keyof typeof filters] === opt 
+                          ? 'bg-indigo-600 border-indigo-600 text-white shadow-xl shadow-indigo-100 dark:shadow-none' 
+                          : 'bg-slate-50 dark:bg-slate-800/50 border-transparent text-slate-500 hover:border-slate-200'
+                      }`}
+                    >
+                      {opt}
+                    </button>
+                  ))}
+                  {activeDimension === 'ageRange' && filters.ageRange === 'Custom' && (
+                    <div className="flex items-center gap-2 ml-4 px-4 py-2 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700">
+                      <input 
+                        type="number" 
+                        placeholder="Min Age"
+                        value={filters.ageMin}
+                        onChange={(e) => setFilters(f => ({ ...f, ageMin: e.target.value }))}
+                        className="w-20 px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-[10px] font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-sm dark:text-slate-100 dark:placeholder-slate-600"
+                      />
+                      <span className="text-[10px] font-black text-slate-400">TO</span>
+                      <input 
+                        type="number" 
+                        placeholder="Max Age"
+                        value={filters.ageMax}
+                        onChange={(e) => setFilters(f => ({ ...f, ageMax: e.target.value }))}
+                        className="w-20 px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-[10px] font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-sm dark:text-slate-100 dark:placeholder-slate-600"
+                      />
+                    </div>
+                  )}
+                </>
               ) : (
                 <div className="flex items-center gap-6 py-2">
                   <div className="flex items-center gap-3">
@@ -837,7 +866,7 @@ const CustomAnalyticsView = ({ records, onBack, onSeedData, onRefresh, isRefresh
                   <h4 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-widest mb-2">No Matches Found</h4>
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.3em] opacity-50">Try adjusting your filters or search query</p>
                   <button 
-                    onClick={() => setFilters({ state: 'All', city: 'All', gender: 'All', ageRange: 'All', paymentStatus: 'All', status: 'All', qualification: 'All', medium: 'All' })}
+                    onClick={() => setFilters({ state: 'All', city: 'All', gender: 'All', ageRange: 'All', ageMin: '', ageMax: '', paymentStatus: 'All', status: 'All', qualification: 'All', medium: 'All' })}
                     className="mt-8 px-8 py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all active:scale-95"
                   >
                     Reset All Filters
@@ -1603,6 +1632,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
           if (discount === 0) return false;
         } else if (filterPaymentStatus === 'free') {
           if (studentTotal > 0) return false;
+        } else if (filterPaymentStatus === 'refund') {
+          if ((d.payment_status || '').toLowerCase() !== 'refund') return false;
         }
       }
 
@@ -1788,15 +1819,20 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
     let accountRevenue = 0;
     let cancelledCount = 0;
     let pendingCount = 0;
+    let stayOnlyCount = 0;
     let fullyPaid = 0;
     let partialPaid = 0;
     let discountCount = 0;
     let freeCount = 0;
+    let refundCount = 0;
 
     data.forEach(d => {
       const status = (d.status || 'confirm').toLowerCase();
       const g = (d.gender || 'Other').trim().toLowerCase();
+      const ps = (d.payment_status || '').toLowerCase();
       
+      if (ps === 'refund') refundCount++;
+
       // Always add to total map
       genderMapTotal[g] = (genderMapTotal[g] || 0) + 1;
 
@@ -1808,8 +1844,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
         pendingCount++;
         return;
       }
+      if (status === 'stay only') {
+        stayOnlyCount++;
+        return;
+      }
       
-      // Only add to confirm map if not cancelled/pending
+      // Only add to confirm map if not cancelled/pending/stay only
       genderMapConfirm[g] = (genderMapConfirm[g] || 0) + 1;
       
       let studentTotal = 0;
@@ -1846,7 +1886,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
       else if (studentTotal >= target) fullyPaid++;
       else if (studentTotal > 0) partialPaid++;
     });
-    return { total, genderMapConfirm, genderMapTotal, revenue, cashRevenue, accountRevenue, cancelledCount, pendingCount, fullyPaid, partialPaid, discountCount, freeCount };
+    return { total, genderMapConfirm, genderMapTotal, revenue, cashRevenue, accountRevenue, cancelledCount, pendingCount, stayOnlyCount, fullyPaid, partialPaid, discountCount, freeCount, refundCount };
   };
 
   const globalStats = useMemo(() => getStats(filteredData), [filteredData]);
@@ -2265,6 +2305,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
               <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Free</span>
               <span className="text-[11px] font-black text-slate-400">{globalStats.freeCount}</span>
             </div>
+            <div 
+              onClick={() => setFilterPaymentStatus(filterPaymentStatus === 'refund' ? null : 'refund')}
+              className={`flex justify-between items-center cursor-pointer p-1.5 rounded-lg transition-all ${filterPaymentStatus === 'refund' ? 'bg-purple-50 dark:bg-purple-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+            >
+              <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Refund</span>
+              <span className="text-[11px] font-black text-purple-600 dark:text-purple-400">{globalStats.refundCount}</span>
+            </div>
           </div>
         </div>
 
@@ -2293,11 +2340,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
               <span className="text-[11px] font-black text-amber-500">{globalStats.pendingCount}</span>
             </div>
             <div 
+              onClick={() => setFilterAdmissionStatus(filterAdmissionStatus === 'stay only' ? null : 'stay only')}
+              className={`flex justify-between items-center cursor-pointer p-1.5 rounded-lg transition-all ${filterAdmissionStatus === 'stay only' ? 'bg-blue-50 dark:bg-blue-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+            >
+              <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Stay Only</span>
+              <span className="text-[11px] font-black text-blue-500">{globalStats.stayOnlyCount}</span>
+            </div>
+            <div 
               onClick={() => setFilterAdmissionStatus(filterAdmissionStatus === 'confirm' ? null : 'confirm')}
               className={`flex justify-between items-center pt-2 border-t border-slate-50 dark:border-slate-800 cursor-pointer p-1.5 rounded-lg transition-all ${filterAdmissionStatus === 'confirm' ? 'bg-indigo-50 dark:bg-indigo-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
             >
               <span className="text-[9px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">Confirm</span>
-              <span className="text-[11px] font-black text-indigo-600 dark:text-indigo-400">{globalStats.total - globalStats.cancelledCount - globalStats.pendingCount}</span>
+              <span className="text-[11px] font-black text-indigo-600 dark:text-indigo-400">{globalStats.total - globalStats.cancelledCount - globalStats.pendingCount - globalStats.stayOnlyCount}</span>
             </div>
           </div>
         </div>
