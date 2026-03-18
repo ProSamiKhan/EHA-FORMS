@@ -284,6 +284,65 @@ const App: React.FC = () => {
     }
   };
 
+  const handleSeedData = async () => {
+    if (!window.confirm("This will add 15 sample records to your database. Continue?")) return;
+    
+    setIsSyncing(true);
+    const sampleStudents = [
+      { name: 'Aarav Sharma', city: 'Mumbai', state: 'Maharashtra', gender: 'Male', age: '14', status: 'confirm', fees: 15000, paid: 15000 },
+      { name: 'Ananya Iyer', city: 'Chennai', state: 'Tamil Nadu', gender: 'Female', age: '16', status: 'confirm', fees: 12000, paid: 8000 },
+      { name: 'Vihaan Gupta', city: 'New Delhi', state: 'Delhi', gender: 'Male', age: '12', status: 'pending', fees: 10000, paid: 0 },
+      { name: 'Ishani Verma', city: 'Lucknow', state: 'Uttar Pradesh', gender: 'Female', age: '15', status: 'confirm', fees: 14000, paid: 14000 },
+      { name: 'Advait Kulkarni', city: 'Pune', state: 'Maharashtra', gender: 'Male', age: '17', status: 'confirm', fees: 18000, paid: 10000 },
+      { name: 'Saanvi Reddy', city: 'Bangalore', state: 'Karnataka', gender: 'Female', age: '13', status: 'confirm', fees: 11000, paid: 11000 },
+      { name: 'Kabir Singh', city: 'Nagpur', state: 'Maharashtra', gender: 'Male', age: '19', status: 'pending', fees: 16000, paid: 5000 },
+      { name: 'Myra Chatterjee', city: 'Kolkata', state: 'West Bengal', gender: 'Female', age: '22', status: 'confirm', fees: 20000, paid: 20000 },
+      { name: 'Arjun Malhotra', city: 'Kanpur', state: 'Uttar Pradesh', gender: 'Male', age: '18', status: 'cancelled', fees: 13000, paid: 0 },
+      { name: 'Zoya Khan', city: 'Mumbai', state: 'Maharashtra', gender: 'Female', age: '20', status: 'confirm', fees: 17000, paid: 17000 },
+      { name: 'Reyansh Deshmukh', city: 'Pune', state: 'Maharashtra', gender: 'Male', age: '11', status: 'confirm', fees: 9000, paid: 9000 },
+      { name: 'Kiara Joshi', city: 'New Delhi', state: 'Delhi', gender: 'Female', age: '24', status: 'pending', fees: 15000, paid: 7500 },
+      { name: 'Aryan Patel', city: 'Ahmedabad', state: 'Gujarat', gender: 'Male', age: '15', status: 'confirm', fees: 12500, paid: 12500 },
+      { name: 'Diya Nair', city: 'Kochi', state: 'Kerala', gender: 'Female', age: '16', status: 'confirm', fees: 13500, paid: 13500 },
+      { name: 'Ishaan Das', city: 'Guwahati', state: 'Assam', gender: 'Male', age: '14', status: 'confirm', fees: 11500, paid: 5000 }
+    ];
+
+    try {
+      for (const student of sampleStudents) {
+        const id = uuidv4();
+        const data: RegistrationData = {
+          name: student.name,
+          city: student.city,
+          state: student.state,
+          gender: student.gender,
+          age: student.age,
+          status: student.status,
+          total_fees: student.fees.toString(),
+          remaining_amount: (student.fees - student.paid).toString(),
+          admission_id: `EHA-${Math.floor(1000 + Math.random() * 9000)}`,
+          date: new Date().toISOString().split('T')[0]
+        } as any;
+
+        const recordToSave = {
+          id,
+          timestamp: Date.now(),
+          data,
+          status: 'completed',
+          source: 'manual',
+          syncStatus: 'synced',
+          fileName: `Sample - ${student.name}`
+        };
+
+        await setDoc(doc(db, 'registrations', id), recordToSave);
+      }
+      setIsSyncing(false);
+      alert("Sample data loaded successfully!");
+    } catch (error) {
+      console.error("Error seeding data:", error);
+      setIsSyncing(false);
+      alert("Failed to load sample data.");
+    }
+  };
+
   const updateRecordData = (id: string, newData: RegistrationData) => {
     setRecords(prev => prev.map(r => r.id === id ? { ...r, data: newData, syncStatus: 'idle' } : r));
   };
@@ -442,6 +501,7 @@ const App: React.FC = () => {
                   setEditingRecord(data);
                   setIsManualModalOpen(true);
                 }}
+                onSeedData={handleSeedData}
               />
             </motion.div>
           ) : (

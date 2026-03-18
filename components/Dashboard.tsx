@@ -13,7 +13,7 @@ import {
   eachMonthOfInterval, eachYearOfInterval, eachWeekOfInterval, eachDayOfInterval,
   endOfMonth, endOfYear, endOfWeek
 } from 'date-fns';
-import { Calendar, ChevronDown, X, MapPin, Edit2, ChevronRight, ArrowLeft } from 'lucide-react';
+import { Calendar, ChevronDown, X, MapPin, Edit2, ChevronRight, ArrowLeft, Menu, Users, CreditCard, PieChart as PieIcon, Filter, Plus, BarChart3, Zap, Building2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { formatDateClean, parseDate } from '../services/utils';
 
@@ -25,6 +25,7 @@ interface DashboardProps {
   userRole: UserRole | null;
   config: AppConfig;
   onEdit?: (record: RegistrationData) => void;
+  onSeedData?: () => void;
 }
 
 const DetailRow = ({ label, value, fullWidth = false }: { label: string, value: string, fullWidth?: boolean }) => (
@@ -34,7 +35,794 @@ const DetailRow = ({ label, value, fullWidth = false }: { label: string, value: 
   </div>
 );
 
-export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config, onEdit }) => {
+const AnalyticsView = ({ title, data, type, onBack }: { title: string, data: any, type: 'states' | 'cities' | 'admissions', onBack: () => void }) => {
+  const sortedData = useMemo(() => {
+    return Object.entries(data).sort((a: any, b: any) => b[1].total - a[1].total);
+  }, [data]);
+
+  const chartData = useMemo(() => {
+    return sortedData.slice(0, 15).map(([name, d]: any) => ({
+      name,
+      total: d.total,
+      paid: d.totalPaid,
+      balance: d.balance
+    }));
+  }, [sortedData]);
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="space-y-8"
+    >
+      <div className="flex items-center gap-4 mb-6">
+        <button 
+          onClick={onBack}
+          className="p-3 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl shadow-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition-all text-slate-600 dark:text-slate-400"
+        >
+          <ArrowLeft className="w-5 h-5" />
+        </button>
+        <div>
+          <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">{title}</h2>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">In-depth Data Analysis</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Main Chart */}
+        <div className="lg:col-span-2 bg-white dark:bg-slate-900 p-8 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm">
+          <div className="flex justify-between items-center mb-8">
+            <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest">Registration Overview</h3>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-indigo-600"></div>
+                <span className="text-[10px] font-bold text-slate-400 uppercase">Total</span>
+              </div>
+            </div>
+          </div>
+          <div className="h-[400px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                <XAxis 
+                  dataKey="name" 
+                  angle={-45} 
+                  textAnchor="end" 
+                  interval={0}
+                  tick={{ fontSize: 10, fontWeight: 700, fill: '#64748b' }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis 
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fontSize: 10, fontWeight: 700, fill: '#64748b' }}
+                />
+                <Tooltip 
+                  contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }}
+                />
+                <Bar dataKey="total" fill="#4f46e5" radius={[6, 6, 0, 0]} barSize={30} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Financial Summary */}
+        <div className="bg-white dark:bg-slate-900 p-8 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm">
+          <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest mb-8">Financial Distribution</h3>
+          <div className="h-[200px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={chartData.slice(0, 5)}
+                  dataKey="paid"
+                  nameKey="name"
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={80}
+                  paddingAngle={5}
+                >
+                  {chartData.map((entry: any, index: number) => (
+                    <Cell key={`cell-${index}`} fill={['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'][index % 5]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          
+          <div className="mt-8 pt-8 border-t border-slate-100 dark:border-slate-800">
+            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Top 5 Gender Split</h3>
+            <div className="space-y-3">
+              {sortedData.slice(0, 5).map(([name, d]: any) => {
+                const total = d.male + d.female;
+                const mPerc = total > 0 ? (d.male / total) * 100 : 0;
+                const fPerc = total > 0 ? (d.female / total) * 100 : 0;
+                return (
+                  <div key={name} className="space-y-1">
+                    <div className="flex justify-between text-[10px] font-bold">
+                      <span className="text-slate-600 dark:text-slate-400">{name}</span>
+                      <span className="text-slate-400">M: {d.male} | F: {d.female}</span>
+                    </div>
+                    <div className="flex h-1.5 rounded-full overflow-hidden bg-slate-100 dark:bg-slate-800">
+                      <div className="bg-blue-500 h-full" style={{ width: `${mPerc}%` }}></div>
+                      <div className="bg-pink-500 h-full" style={{ width: `${fPerc}%` }}></div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="mt-8 space-y-4">
+            <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800/50">
+              <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest block mb-1">Total Revenue</span>
+              <span className="text-xl font-black text-emerald-700 dark:text-emerald-300">₹{chartData.reduce((acc: number, curr: any) => acc + curr.paid, 0).toLocaleString()}</span>
+            </div>
+            <div className="p-4 rounded-2xl bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800/50">
+              <span className="text-[10px] font-black text-red-600 uppercase tracking-widest block mb-1">Pending Balance</span>
+              <span className="text-xl font-black text-red-700 dark:text-red-300">₹{chartData.reduce((acc: number, curr: any) => acc + curr.balance, 0).toLocaleString()}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Detailed List */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden">
+          <div className="p-8 border-b border-slate-100 dark:border-slate-800">
+            <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest">Detailed Breakdown</h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="bg-slate-50 dark:bg-slate-800/50">
+                  <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">{type === 'admissions' ? 'Month' : type === 'states' ? 'State' : 'City'}</th>
+                  <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Students</th>
+                  <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Male</th>
+                  <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Female</th>
+                  <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Revenue</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                {sortedData.map(([name, d]: any) => (
+                  <tr key={name} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                    <td className="px-8 py-4 text-sm font-bold text-slate-900 dark:text-white">{name}</td>
+                    <td className="px-8 py-4 text-sm font-black text-slate-600 dark:text-slate-400 text-center">{d.total}</td>
+                    <td className="px-8 py-4 text-sm font-bold text-blue-600 text-center">{d.male}</td>
+                    <td className="px-8 py-4 text-sm font-bold text-pink-600 text-center">{d.female}</td>
+                    <td className="px-8 py-4 text-sm font-black text-emerald-600 text-right">₹{d.totalPaid.toLocaleString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {type !== 'admissions' && (
+          <div className="bg-white dark:bg-slate-900 p-8 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm">
+            <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest mb-8">Age Demographics</h3>
+            <div className="space-y-6">
+              {sortedData.slice(0, 3).map(([name, d]: any) => {
+                const ageData = Object.entries(d.ages || {}).sort((a: any, b: any) => b[1] - a[1]).slice(0, 5);
+                return (
+                  <div key={name} className="space-y-3">
+                    <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">{name}</span>
+                    <div className="space-y-2">
+                      {ageData.map(([age, count]: any) => (
+                        <div key={age} className="flex items-center gap-3">
+                          <span className="text-[9px] font-bold text-slate-400 w-8">{age}</span>
+                          <div className="flex-1 h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                            <div className="bg-indigo-500 h-full" style={{ width: `${(count / d.total) * 100}%` }}></div>
+                          </div>
+                          <span className="text-[9px] font-black text-slate-600 dark:text-slate-400">{count}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+    </motion.div>
+  );
+};
+
+const CustomAnalyticsView = ({ records, onBack, onSeedData }: { records: ProcessingRecord[], onBack: () => void, onSeedData?: () => void }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [activeDimension, setActiveDimension] = useState<'state' | 'city' | 'gender' | 'ageRange' | 'paymentStatus' | 'status'>('state');
+  const [filters, setFilters] = useState({
+    state: 'All',
+    city: 'All',
+    gender: 'All',
+    ageRange: 'All',
+    paymentStatus: 'All',
+    status: 'All'
+  });
+
+  const dimensions = [
+    { id: 'state', label: 'State', icon: MapPin },
+    { id: 'city', label: 'City', icon: MapPin },
+    { id: 'gender', label: 'Gender', icon: Users },
+    { id: 'ageRange', label: 'Age Group', icon: Calendar },
+    { id: 'paymentStatus', label: 'Payment', icon: CreditCard },
+    { id: 'status', label: 'Status', icon: Filter },
+  ];
+
+  const dimensionOptions = useMemo(() => {
+    const options: Record<string, string[]> = {
+      gender: ['All', 'Male', 'Female', 'Other'],
+      ageRange: ['All', 'Under 13', '13-18', '19-25', 'Above 25'],
+      paymentStatus: ['All', 'Full Paid', 'Partial', 'Unpaid'],
+      status: ['All', 'Confirm', 'Pending', 'Cancelled'],
+    };
+
+    const s = new Set<string>();
+    const c = new Set<string>();
+    let hasMissingState = false;
+    let hasMissingCity = false;
+
+    if (records) {
+      records.forEach(r => {
+        if (!r.data) return;
+        
+        const state = r.data.state?.trim();
+        if (state) s.add(state);
+        else hasMissingState = true;
+
+        const city = r.data.city?.trim();
+        if (city) c.add(city);
+        else hasMissingCity = true;
+      });
+    }
+
+    options.state = ['All', ...Array.from(s).sort()];
+    if (hasMissingState) options.state.push('Not Specified');
+    
+    options.city = ['All', ...Array.from(c).sort()];
+    if (hasMissingCity) options.city.push('Not Specified');
+
+    return options;
+  }, [records]);
+
+  const filteredRecords = useMemo(() => {
+    return records.filter(r => {
+      if (!r.data) return false;
+      const d = r.data;
+      
+      if (filters.state !== 'All') {
+        const state = d.state?.trim() || 'Not Specified';
+        if (state !== filters.state) return false;
+      }
+      
+      if (filters.city !== 'All') {
+        const city = d.city?.trim() || 'Not Specified';
+        if (city !== filters.city) return false;
+      }
+
+      if (filters.gender !== 'All' && d.gender?.toLowerCase() !== filters.gender.toLowerCase()) return false;
+      
+      if (filters.ageRange !== 'All') {
+        const age = parseInt(d.age) || 0;
+        if (filters.ageRange === 'Under 13' && age >= 13) return false;
+        if (filters.ageRange === '13-18' && (age < 13 || age > 18)) return false;
+        if (filters.ageRange === '19-25' && (age < 19 || age > 25)) return false;
+        if (filters.ageRange === 'Above 25' && age <= 25) return false;
+      }
+      
+      if (filters.paymentStatus !== 'All') {
+        const remaining = parseFloat(d.remaining_amount) || 0;
+        const total = parseFloat(d.total_fees) || 0;
+        if (filters.paymentStatus === 'Full Paid' && remaining > 0) return false;
+        if (filters.paymentStatus === 'Partial' && (remaining <= 0 || remaining >= total)) return false;
+        if (filters.paymentStatus === 'Unpaid' && remaining >= total && total > 0) return false;
+      }
+
+      if (filters.status !== 'All' && d.status?.toLowerCase() !== filters.status.toLowerCase()) return false;
+
+      return true;
+    });
+  }, [records, filters]);
+
+  const distributionData = useMemo(() => {
+    const counts: Record<string, number> = {};
+    filteredRecords.forEach(r => {
+      if (!r.data) return;
+      let val = '';
+      if (activeDimension === 'state') val = r.data.state || 'Unknown';
+      else if (activeDimension === 'city') val = r.data.city || 'Unknown';
+      else if (activeDimension === 'gender') val = r.data.gender || 'Unknown';
+      else if (activeDimension === 'status') val = r.data.status || 'Unknown';
+      else if (activeDimension === 'ageRange') {
+        const age = parseInt(r.data.age) || 0;
+        if (age < 13) val = 'Under 13';
+        else if (age <= 18) val = '13-18';
+        else if (age <= 25) val = '19-25';
+        else val = 'Above 25';
+      } else if (activeDimension === 'paymentStatus') {
+        const remaining = parseFloat(r.data.remaining_amount) || 0;
+        const total = parseFloat(r.data.total_fees) || 0;
+        if (remaining <= 0) val = 'Full Paid';
+        else if (remaining < total) val = 'Partial';
+        else val = 'Unpaid';
+      }
+      counts[val] = (counts[val] || 0) + 1;
+    });
+
+    return Object.entries(counts)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count);
+  }, [filteredRecords, activeDimension]);
+
+  const stats = useMemo(() => {
+    let totalFees = 0;
+    let totalPaid = 0;
+    let totalDiscount = 0;
+    filteredRecords.forEach(r => {
+      if (!r.data) return;
+      totalFees += parseFloat(r.data.total_fees) || 0;
+      totalDiscount += parseFloat(r.data.discount) || 0;
+      totalPaid += (parseFloat(r.data.total_fees) || 0) - (parseFloat(r.data.remaining_amount) || 0);
+    });
+    return { totalFees, totalPaid, totalDiscount, count: filteredRecords.length };
+  }, [filteredRecords]);
+
+  const handleDownloadReport = async () => {
+    if (!containerRef.current) return;
+    try {
+      const dataUrl = await domToPng(containerRef.current, {
+        backgroundColor: '#ffffff',
+        scale: 2,
+        quality: 1,
+      });
+      const link = document.createElement('a');
+      link.download = `EHA-Explorer-Report-${format(new Date(), 'yyyy-MM-dd')}.png`;
+      link.href = dataUrl;
+      link.click();
+    } catch (err) {
+      console.error('Report download failed:', err);
+    }
+  };
+
+  return (
+    <motion.div 
+      ref={containerRef}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="space-y-8 pb-20 bg-white dark:bg-slate-950 p-8 rounded-[48px]"
+    >
+      {/* EDITORIAL HEADER */}
+      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 border-b border-slate-100 dark:border-slate-800 pb-8">
+        <div className="flex items-start gap-6">
+          <button 
+            onClick={onBack}
+            className="mt-1 p-4 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl shadow-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition-all text-slate-600 dark:text-slate-400 group no-print"
+          >
+            <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+          </button>
+          <div>
+            <h2 className="text-6xl lg:text-8xl font-black text-slate-900 dark:text-white tracking-tighter leading-none mb-4">
+              Explorer<span className="text-indigo-600">.</span>
+            </h2>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] flex items-center gap-3">
+              <span className="w-8 h-px bg-slate-200 dark:bg-slate-700"></span>
+              Multi-dimensional Data Analysis
+            </p>
+          </div>
+        </div>
+        
+        <div className="flex items-center gap-4 no-print">
+           <div className="text-right hidden sm:block">
+             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Records</p>
+             <p className="text-2xl font-black text-slate-900 dark:text-white">{records.length}</p>
+           </div>
+           <div className="w-px h-10 bg-slate-100 dark:bg-slate-800 hidden sm:block"></div>
+           <button 
+             onClick={handleDownloadReport}
+             className="px-6 py-3 bg-indigo-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-indigo-200 dark:shadow-none hover:bg-indigo-700 transition-all flex items-center gap-2"
+           >
+             <BarChart3 className="w-3.5 h-3.5" />
+             Download Report
+           </button>
+           <button 
+             onClick={() => window.print()}
+             className="px-6 py-3 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 text-slate-600 dark:text-slate-300 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800 transition-all flex items-center gap-2"
+           >
+             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></svg>
+             Print
+           </button>
+           <button 
+             onClick={() => setFilters({ state: 'All', city: 'All', gender: 'All', ageRange: 'All', paymentStatus: 'All', status: 'All' })}
+             className="px-6 py-3 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-100 dark:hover:bg-slate-700 transition-all"
+           >
+             Clear All
+           </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        {/* LEFT COLUMN: DIMENSIONS & FILTERS */}
+        <div className="lg:col-span-3 space-y-8">
+          <div className="space-y-4">
+            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Dimensions</h3>
+            <div className="flex flex-col gap-2">
+              {dimensions.map((dim) => (
+                <button
+                  key={dim.id}
+                  onClick={() => setActiveDimension(dim.id as any)}
+                  className={`flex items-center justify-between px-6 py-4 rounded-[24px] transition-all border font-black uppercase tracking-widest text-[10px] group ${
+                    activeDimension === dim.id 
+                      ? 'bg-indigo-600 border-indigo-600 text-white shadow-2xl shadow-indigo-200 dark:shadow-none translate-x-2' 
+                      : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 text-slate-500 hover:border-indigo-200 hover:text-indigo-600'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <dim.icon className={`w-4 h-4 ${activeDimension === dim.id ? 'text-white' : 'text-slate-400 group-hover:text-indigo-600'}`} />
+                    {dim.label}
+                  </div>
+                  {activeDimension === dim.id && <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></div>}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-slate-50 dark:bg-slate-800/50 p-8 rounded-[40px] border border-slate-100 dark:border-slate-800">
+            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6">Active Filters</h4>
+            <div className="space-y-3">
+              {Object.entries(filters).map(([key, val]) => val !== 'All' && (
+                <div key={key} className="flex items-center justify-between bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 group">
+                  <div className="flex flex-col">
+                    <span className="text-[9px] font-black text-indigo-600 uppercase mb-1">{key}</span>
+                    <span className="text-xs font-bold text-slate-800 dark:text-slate-100">{val}</span>
+                  </div>
+                  <button 
+                    onClick={() => setFilters(f => ({ ...f, [key]: 'All' }))} 
+                    className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition-all opacity-0 group-hover:opacity-100"
+                  >
+                    <X size={14} strokeWidth={3} />
+                  </button>
+                </div>
+              ))}
+              {Object.values(filters).every(v => v === 'All') && (
+                <div className="py-10 text-center">
+                  <Filter className="w-8 h-8 text-slate-200 mx-auto mb-3" />
+                  <p className="text-[10px] font-bold text-slate-400 italic">No active filters</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* RIGHT COLUMN: VISUALIZATION & DATA */}
+        <div className="lg:col-span-9 space-y-8">
+          {/* VALUE SELECTOR */}
+          <div className="bg-white dark:bg-slate-900 p-2 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm flex items-center gap-2 overflow-x-auto no-scrollbar">
+            <div className="px-6 py-4 border-r border-slate-50 dark:border-slate-800 flex items-center gap-3 shrink-0">
+              <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center">
+                <Filter className="w-4 h-4 text-indigo-600" />
+              </div>
+              <span className="text-[10px] font-black text-slate-900 dark:text-white uppercase tracking-widest">{activeDimension}</span>
+            </div>
+            
+            <div className="flex items-center gap-2 px-4 py-2">
+              {dimensionOptions[activeDimension]?.length > 0 ? (
+                dimensionOptions[activeDimension].map((opt) => (
+                  <button
+                    key={opt}
+                    onClick={() => setFilters(f => ({ ...f, [activeDimension]: opt }))}
+                    className={`px-6 py-3 rounded-2xl transition-all whitespace-nowrap border font-black uppercase tracking-widest text-[10px] ${
+                      filters[activeDimension as keyof typeof filters] === opt 
+                        ? 'bg-indigo-600 border-indigo-600 text-white shadow-xl shadow-indigo-100 dark:shadow-none' 
+                        : 'bg-slate-50 dark:bg-slate-800/50 border-transparent text-slate-500 hover:border-slate-200'
+                    }`}
+                  >
+                    {opt}
+                  </button>
+                ))
+              ) : (
+                <div className="flex items-center gap-6 py-2">
+                  <div className="flex items-center gap-3">
+                    <div className="w-2 h-2 rounded-full bg-orange-400 animate-pulse"></div>
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">No {activeDimension} data found</span>
+                  </div>
+                </div>
+              )}
+              {dimensionOptions[activeDimension]?.length === 1 && onSeedData && (
+                <button 
+                  onClick={onSeedData}
+                  className="px-6 py-3 bg-indigo-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-indigo-200 dark:shadow-none hover:bg-indigo-700 transition-all flex items-center gap-2 ml-4"
+                >
+                  <Plus className="w-3.5 h-3.5" strokeWidth={3} />
+                  Load Sample Data
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* FINANCIAL SUMMARY */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+            <div className="bg-white dark:bg-slate-900 p-8 rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-sm group hover:border-indigo-500 transition-all">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Average Fee</p>
+              <p className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">₹{Math.round(stats.totalFees / (stats.count || 1)).toLocaleString()}</p>
+              <div className="mt-4 flex items-center gap-2 text-[10px] font-bold text-indigo-600 uppercase tracking-widest">
+                <Zap className="w-3 h-3" />
+                Per Student
+              </div>
+            </div>
+            <div className="bg-white dark:bg-slate-900 p-8 rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-sm group hover:border-emerald-500 transition-all">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Total Discount</p>
+              <p className="text-3xl font-black text-emerald-600 tracking-tight">₹{stats.totalDiscount.toLocaleString()}</p>
+              <div className="mt-4 flex items-center gap-2 text-[10px] font-bold text-emerald-600 uppercase tracking-widest">
+                <Plus className="w-3 h-3" />
+                Scholarships
+              </div>
+            </div>
+            <div className="bg-white dark:bg-slate-900 p-8 rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-sm group hover:border-violet-500 transition-all">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Collection Efficiency</p>
+              <div className="flex items-end gap-3">
+                <p className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">
+                  {Math.round((stats.totalPaid / (stats.totalFees || 1)) * 100)}%
+                </p>
+                <div className="flex-1 h-2 bg-slate-100 dark:bg-slate-800 rounded-full mb-2 overflow-hidden">
+                  <div 
+                    className="h-full bg-violet-600 rounded-full transition-all duration-1000" 
+                    style={{ width: `${(stats.totalPaid / (stats.totalFees || 1)) * 100}%` }}
+                  ></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* STATS & CHART GRID */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2 bg-white dark:bg-slate-900 p-10 rounded-[48px] border border-slate-100 dark:border-slate-800 shadow-sm relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-50 dark:bg-indigo-900/10 rounded-full -mr-32 -mt-32 blur-3xl opacity-50"></div>
+              
+              <div className="flex justify-between items-center mb-10 relative z-10">
+                <div>
+                  <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Distribution</h3>
+                  <p className="text-2xl font-black text-slate-900 dark:text-white capitalize">{activeDimension.replace(/([A-Z])/g, ' $1')}</p>
+                </div>
+                <div className="flex flex-col items-end gap-2">
+                  <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 dark:bg-indigo-900/30 px-4 py-2 rounded-full border border-indigo-100 dark:border-indigo-800">
+                    {stats.count} Records Found
+                  </span>
+                  <div className="flex items-center gap-2 text-[9px] font-bold text-green-500 uppercase tracking-widest">
+                    <div className="w-1 h-1 rounded-full bg-green-500 animate-ping"></div>
+                    Real-time Analysis
+                  </div>
+                </div>
+              </div>
+
+              <div className="h-[350px] relative z-10">
+                {distributionData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={distributionData.slice(0, 15)} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                      <XAxis 
+                        dataKey="name" 
+                        tick={{ fontSize: 9, fontWeight: 900, fill: '#94a3b8' }}
+                        axisLine={false}
+                        tickLine={false}
+                        dy={10}
+                      />
+                      <YAxis 
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fontSize: 9, fontWeight: 900, fill: '#94a3b8' }}
+                      />
+                      <Tooltip 
+                        contentStyle={{ borderRadius: '24px', border: 'none', boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.15)', padding: '16px' }}
+                        cursor={{ fill: '#f8fafc' }}
+                      />
+                      <Bar dataKey="count" radius={[12, 12, 0, 0]} barSize={40}>
+                        {distributionData.map((entry, index) => (
+                          <Cell 
+                            key={`cell-${index}`} 
+                            fill={entry.name === filters[activeDimension as keyof typeof filters] ? '#4f46e5' : '#e2e8f0'} 
+                            fillOpacity={entry.name === filters[activeDimension as keyof typeof filters] ? 1 : 0.5}
+                          />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-full flex flex-col items-center justify-center text-slate-200">
+                    <BarChart3 className="w-16 h-16 mb-4 opacity-10" />
+                    <p className="text-sm font-black uppercase tracking-widest opacity-30">No Visualization Data</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-8">
+              <div className="bg-indigo-600 p-10 rounded-[48px] text-white shadow-2xl shadow-indigo-200 dark:shadow-none relative overflow-hidden group">
+                <div className="absolute bottom-0 left-0 w-full h-1 bg-white/20 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-700 origin-left"></div>
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60">Filtered Results</span>
+                <h4 className="text-7xl font-black mt-4 tracking-tighter">{stats.count}</h4>
+                <p className="text-xs font-bold opacity-60 mt-1 uppercase tracking-widest">Students Matched</p>
+                
+                <div className="mt-10 pt-10 border-t border-white/10 space-y-6">
+                  <div className="flex justify-between items-end">
+                    <div>
+                      <span className="text-[10px] font-black uppercase tracking-widest opacity-50 block mb-1">Total Revenue</span>
+                      <span className="text-2xl font-black text-emerald-300 tracking-tight">₹{stats.totalPaid.toLocaleString()}</span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-[10px] font-black uppercase tracking-widest opacity-50 block mb-1">Balance</span>
+                      <span className="text-2xl font-black text-orange-300 tracking-tight">₹{(stats.totalFees - stats.totalPaid).toLocaleString()}</span>
+                    </div>
+                  </div>
+                  
+                  <div className="w-full h-3 bg-white/10 rounded-full overflow-hidden">
+                    <motion.div 
+                      initial={{ width: 0 }}
+                      animate={{ width: `${(stats.totalPaid / (stats.totalFees || 1)) * 100}%` }}
+                      className="h-full bg-emerald-400 rounded-full"
+                    />
+                  </div>
+                </div>
+              </div>
+              
+              <div className="bg-white dark:bg-slate-900 p-8 rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-sm">
+                <div className="flex items-center justify-between mb-6">
+                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Financial Summary</h4>
+                  <Zap className="w-4 h-4 text-indigo-600" />
+                </div>
+                <div className="grid grid-cols-1 gap-4">
+                  <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800 flex justify-between items-center">
+                    <div>
+                      <p className="text-[9px] font-black text-slate-400 uppercase mb-1">Avg Fee</p>
+                      <p className="text-lg font-black text-slate-900 dark:text-white">₹{Math.round(stats.totalFees / (stats.count || 1)).toLocaleString()}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[9px] font-black text-slate-400 uppercase mb-1">Discount</p>
+                      <p className="text-sm font-black text-rose-500">₹{stats.totalDiscount.toLocaleString()}</p>
+                    </div>
+                  </div>
+                  <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800">
+                    <div className="flex justify-between items-center mb-2">
+                      <p className="text-[9px] font-black text-slate-400 uppercase">Collection Efficiency</p>
+                      <p className="text-sm font-black text-emerald-600">{Math.round((stats.totalPaid / (stats.totalFees || 1)) * 100)}%</p>
+                    </div>
+                    <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-emerald-500 rounded-full"
+                        style={{ width: `${(stats.totalPaid / (stats.totalFees || 1)) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* DATA TABLE */}
+          <div className="bg-white dark:bg-slate-900 rounded-[48px] border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden">
+            <div className="px-10 py-8 border-b border-slate-50 dark:border-slate-800/50 flex justify-between items-center">
+              <div>
+                <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Records</h3>
+                <p className="text-xl font-black text-slate-900 dark:text-white">Matching Students</p>
+              </div>
+              <div className="flex items-center gap-4">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 dark:bg-slate-800 px-4 py-2 rounded-full">
+                  Page 1 of {Math.ceil(filteredRecords.length / 50)}
+                </span>
+              </div>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="border-b border-slate-50 dark:border-slate-800/50">
+                    <th className="px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Student Profile</th>
+                    <th className="px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Location</th>
+                    <th className="px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Demographics</th>
+                    <th className="px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Financials</th>
+                    <th className="px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50 dark:divide-slate-800/50">
+                  {filteredRecords.slice(0, 50).map(r => {
+                    const d = r.data!;
+                    const remaining = parseFloat(d.remaining_amount) || 0;
+                    return (
+                      <tr key={r.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors group">
+                        <td className="px-10 py-6">
+                          <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 font-black text-xs group-hover:bg-indigo-600 group-hover:text-white transition-all">
+                              {d.name.charAt(0)}
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-sm font-black text-slate-900 dark:text-white">{d.name}</span>
+                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{d.admission_id}</span>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-10 py-6">
+                          <div className="flex flex-col">
+                            <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{d.city}</span>
+                            <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">{d.state}</span>
+                          </div>
+                        </td>
+                        <td className="px-10 py-6">
+                          <div className="flex items-center gap-3">
+                            <span className="text-[10px] font-black text-slate-500 uppercase bg-slate-50 dark:bg-slate-800 px-3 py-1 rounded-lg">{d.gender}</span>
+                            <span className="text-[10px] font-black text-slate-500 uppercase bg-slate-50 dark:bg-slate-800 px-3 py-1 rounded-lg">{d.age}Y</span>
+                          </div>
+                        </td>
+                        <td className="px-10 py-6">
+                          <div className="flex flex-col">
+                            <span className="text-sm font-black text-slate-900 dark:text-white tracking-tight">₹{(parseFloat(d.total_fees) - remaining).toLocaleString()}</span>
+                            <div className="flex items-center gap-2 mt-1">
+                              <div className={`w-1.5 h-1.5 rounded-full ${remaining > 0 ? 'bg-orange-500' : 'bg-emerald-500'}`}></div>
+                              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{remaining > 0 ? `₹${remaining.toLocaleString()} Left` : 'Paid'}</span>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-10 py-6">
+                          <span className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest ${
+                            d.status === 'confirm' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 
+                            d.status === 'pending' ? 'bg-orange-50 text-orange-600 border border-orange-100' : 
+                            'bg-rose-50 text-rose-600 border border-rose-100'
+                          }`}>
+                            {d.status}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              {filteredRecords.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-40 text-slate-300">
+                  <div className="w-32 h-32 bg-slate-50 dark:bg-slate-800/50 rounded-[40px] flex items-center justify-center mb-8 relative">
+                    <div className="absolute inset-0 bg-indigo-500/5 rounded-[40px] animate-pulse"></div>
+                    <Filter className="w-12 h-12 opacity-20" />
+                  </div>
+                  <h4 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-widest mb-2">No Matches Found</h4>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.3em] opacity-50">Try adjusting your filters or search query</p>
+                  <button 
+                    onClick={() => setFilters({ state: 'All', city: 'All', gender: 'All', ageRange: 'All', paymentStatus: 'All', status: 'All' })}
+                    className="mt-8 px-8 py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all active:scale-95"
+                  >
+                    Reset All Filters
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
+const SidebarStat = ({ label, value, subValue, icon: Icon, color, onClick }: any) => (
+  <div 
+    onClick={onClick}
+    className={`flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 transition-all ${onClick ? 'cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800' : ''}`}
+  >
+    <div className="flex items-center gap-3">
+      <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${color}`}>
+        <Icon className="w-4 h-4 text-white" />
+      </div>
+      <div className="flex flex-col">
+        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">{label}</span>
+        <span className="text-sm font-black text-slate-800 dark:text-slate-100 leading-none">{value}</span>
+      </div>
+    </div>
+    {subValue && (
+      <span className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-2 py-1 rounded-lg">
+        {subValue}
+      </span>
+    )}
+  </div>
+);
+
+export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config, onEdit, onSeedData }) => {
   const [remoteData, setRemoteData] = useState<RegistrationData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -42,6 +830,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
   const [viewingRecord, setViewingRecord] = useState<RegistrationData | null>(null);
   const [viewingStudentForm, setViewingStudentForm] = useState<RegistrationData | null>(null);
   const [isMasterViewOpen, setIsMasterViewOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [currentView, setCurrentView] = useState<'dashboard' | 'states' | 'cities' | 'admissions' | 'custom'>('dashboard');
   const modalRef = useRef<HTMLDivElement>(null);
   const studentFormRef = useRef<HTMLDivElement>(null);
   const masterViewRef = useRef<HTMLDivElement>(null);
@@ -450,6 +1240,82 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
     setDashboardSearchQuery('');
   };
 
+  const hierarchicalStats = useMemo(() => {
+    const stats: {
+      states: Record<string, any>;
+      cities: Record<string, any>;
+      admissions: Record<string, any>;
+      totalStates: number;
+      totalCities: number;
+    } = {
+      states: {},
+      cities: {},
+      admissions: {},
+      totalStates: 0,
+      totalCities: 0
+    };
+
+    allSyncedData.forEach(d => {
+      const state = (d.state || 'Unknown').trim();
+      const city = (d.city || 'Unknown').trim();
+      const gender = (d.gender || 'Other').trim().toLowerCase();
+      const age = (d.age || 'Unknown').trim();
+      
+      let totalFees = parseFloat(String(d.total_fees || '0').replace(/[^0-9.]/g, '')) || 0;
+      let totalPaid = 0;
+      for (let i = 1; i <= 10; i++) {
+        totalPaid += parseFloat(String((d as any)[`payment${i}_amount`]).replace(/[^0-9.]/g, '')) || 0;
+      }
+      let balance = totalFees - totalPaid;
+
+      // State Stats
+      if (!stats.states[state]) {
+        stats.states[state] = { total: 0, male: 0, female: 0, ages: {}, totalFees: 0, totalPaid: 0, balance: 0, cities: new Set() };
+      }
+      stats.states[state].total++;
+      if (gender === 'male') stats.states[state].male++;
+      else if (gender === 'female') stats.states[state].female++;
+      stats.states[state].ages[age] = (stats.states[state].ages[age] || 0) + 1;
+      stats.states[state].totalFees += totalFees;
+      stats.states[state].totalPaid += totalPaid;
+      stats.states[state].balance += balance;
+      stats.states[state].cities.add(city);
+
+      // City Stats
+      if (!stats.cities[city]) {
+        stats.cities[city] = { total: 0, male: 0, female: 0, ages: {}, totalFees: 0, totalPaid: 0, balance: 0, states: new Set() };
+      }
+      stats.cities[city].total++;
+      if (gender === 'male') stats.cities[city].male++;
+      else if (gender === 'female') stats.cities[city].female++;
+      stats.cities[city].ages[age] = (stats.cities[city].ages[age] || 0) + 1;
+      stats.cities[city].totalFees += totalFees;
+      stats.cities[city].totalPaid += totalPaid;
+      stats.cities[city].balance += balance;
+      stats.cities[city].states.add(state);
+
+      // Admission Stats (by Month)
+      const date = parseDate(d.payment1_date);
+      if (date) {
+        const monthYear = format(date, 'MMMM yyyy');
+        if (!stats.admissions[monthYear]) {
+          stats.admissions[monthYear] = { total: 0, male: 0, female: 0, totalFees: 0, totalPaid: 0, balance: 0 };
+        }
+        stats.admissions[monthYear].total++;
+        if (gender === 'male') stats.admissions[monthYear].male++;
+        else if (gender === 'female') stats.admissions[monthYear].female++;
+        stats.admissions[monthYear].totalFees += totalFees;
+        stats.admissions[monthYear].totalPaid += totalPaid;
+        stats.admissions[monthYear].balance += balance;
+      }
+    });
+
+    stats.totalStates = Object.keys(stats.states).length;
+    stats.totalCities = Object.keys(stats.cities).length;
+
+    return stats;
+  }, [allSyncedData]);
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (filterMenuRef.current && !filterMenuRef.current.contains(event.target as Node)) {
@@ -592,6 +1458,20 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
             }
           }
           if (!hasMethod) return false;
+        } else if (key === 'payment_status') {
+          let studentTotal = 0;
+          for (let i = 1; i <= 10; i++) {
+            studentTotal += parseFloat(String((d as any)[`payment${i}_amount`]).replace(/[^0-9.]/g, '')) || 0;
+          }
+          const discount = parseFloat(String(d.discount || '0')) || 0;
+          const totalFees = parseFloat(String(d.total_fees || '20000').replace(/[^0-9.]/g, '')) || 20000;
+          const target = totalFees - discount;
+          if (value === 'pending') {
+            if (studentTotal >= target) return false;
+          }
+        } else if (key === 'discount') {
+          const discount = parseFloat(String(d.discount || '0')) || 0;
+          if (value === 'yes' && discount === 0) return false;
         }
       }
 
@@ -952,7 +1832,154 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
   const isFiltered = timeRange !== 'lifetime' || filterGender || filterState || filterCity || filterDate || filterPaymentStatus || filterAdmissionStatus || filterPaymentMethod || activeFilters.length > 0;
 
   return (
-    <div className="space-y-8 pb-10 transition-colors">
+    <div className="space-y-8 pb-10 transition-colors relative">
+      <AnimatePresence>
+        {isSidebarOpen && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsSidebarOpen(false)}
+              className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100]"
+            />
+            {/* Sidebar */}
+            <motion.div
+              initial={{ x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="fixed inset-y-0 left-0 w-full max-w-[380px] bg-white dark:bg-slate-900 shadow-2xl z-[101] overflow-hidden flex flex-col"
+            >
+              <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-white dark:bg-slate-900">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-200 dark:shadow-none">
+                    <PieIcon className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-black text-slate-900 dark:text-white tracking-tight">Data Insights</h2>
+                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Hierarchical Explorer</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setIsSidebarOpen(false)}
+                  className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-slate-400 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-6 space-y-4 no-scrollbar">
+                <button 
+                  onClick={() => {
+                    setCurrentView('dashboard');
+                    setIsSidebarOpen(false);
+                  }}
+                  className={`w-full flex items-center justify-between p-4 rounded-2xl transition-all group ${currentView === 'dashboard' ? 'bg-indigo-600 text-white' : 'bg-slate-50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${currentView === 'dashboard' ? 'bg-white/20' : 'bg-indigo-600'}`}>
+                      <PieIcon className="w-5 h-5 text-white" />
+                    </div>
+                    <div className="text-left">
+                      <span className={`text-[10px] font-black uppercase tracking-widest block mb-1 ${currentView === 'dashboard' ? 'text-white/70' : 'text-slate-400'}`}>Main View</span>
+                      <span className="text-sm font-black">Dashboard</span>
+                    </div>
+                  </div>
+                  <ChevronRight className={`w-4 h-4 transition-transform group-hover:translate-x-1 ${currentView === 'dashboard' ? 'text-white/50' : 'text-slate-300'}`} />
+                </button>
+
+                <button 
+                  onClick={() => {
+                    setCurrentView('states');
+                    setIsSidebarOpen(false);
+                  }}
+                  className={`w-full flex items-center justify-between p-4 rounded-2xl transition-all group ${currentView === 'states' ? 'bg-indigo-600 text-white' : 'bg-slate-50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${currentView === 'states' ? 'bg-white/20' : 'bg-indigo-600'}`}>
+                      <MapPin className="w-5 h-5 text-white" />
+                    </div>
+                    <div className="text-left">
+                      <span className={`text-[10px] font-black uppercase tracking-widest block mb-1 ${currentView === 'states' ? 'text-white/70' : 'text-slate-400'}`}>Geographic</span>
+                      <span className="text-sm font-black">States Analytics</span>
+                    </div>
+                  </div>
+                  <ChevronRight className={`w-4 h-4 transition-transform group-hover:translate-x-1 ${currentView === 'states' ? 'text-white/50' : 'text-slate-300'}`} />
+                </button>
+
+                <button 
+                  onClick={() => {
+                    setCurrentView('cities');
+                    setIsSidebarOpen(false);
+                  }}
+                  className={`w-full flex items-center justify-between p-4 rounded-2xl transition-all group ${currentView === 'cities' ? 'bg-indigo-600 text-white' : 'bg-slate-50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${currentView === 'cities' ? 'bg-white/20' : 'bg-emerald-600'}`}>
+                      <Users className="w-5 h-5 text-white" />
+                    </div>
+                    <div className="text-left">
+                      <span className={`text-[10px] font-black uppercase tracking-widest block mb-1 ${currentView === 'cities' ? 'text-white/70' : 'text-slate-400'}`}>Regional</span>
+                      <span className="text-sm font-black">Cities Analytics</span>
+                    </div>
+                  </div>
+                  <ChevronRight className={`w-4 h-4 transition-transform group-hover:translate-x-1 ${currentView === 'cities' ? 'text-white/50' : 'text-slate-300'}`} />
+                </button>
+
+                <button 
+                  onClick={() => {
+                    setCurrentView('admissions');
+                    setIsSidebarOpen(false);
+                  }}
+                  className={`w-full flex items-center justify-between p-4 rounded-2xl transition-all group ${currentView === 'admissions' ? 'bg-indigo-600 text-white' : 'bg-slate-50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${currentView === 'admissions' ? 'bg-white/20' : 'bg-orange-600'}`}>
+                      <Calendar className="w-5 h-5 text-white" />
+                    </div>
+                    <div className="text-left">
+                      <span className={`text-[10px] font-black uppercase tracking-widest block mb-1 ${currentView === 'admissions' ? 'text-white/70' : 'text-slate-400'}`}>Temporal</span>
+                      <span className="text-sm font-black">Admissions Analytics</span>
+                    </div>
+                  </div>
+                  <ChevronRight className={`w-4 h-4 transition-transform group-hover:translate-x-1 ${currentView === 'admissions' ? 'text-white/50' : 'text-slate-300'}`} />
+                </button>
+
+                <button 
+                  onClick={() => {
+                    setCurrentView('custom');
+                    setIsSidebarOpen(false);
+                  }}
+                  className={`w-full flex items-center justify-between p-4 rounded-2xl transition-all group ${currentView === 'custom' ? 'bg-indigo-600 text-white' : 'bg-slate-50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${currentView === 'custom' ? 'bg-white/20' : 'bg-violet-600'}`}>
+                      <Filter className="w-5 h-5 text-white" />
+                    </div>
+                    <div className="text-left">
+                      <span className={`text-[10px] font-black uppercase tracking-widest block mb-1 ${currentView === 'custom' ? 'text-white/70' : 'text-slate-400'}`}>Advanced</span>
+                      <span className="text-sm font-black">Custom Filters</span>
+                    </div>
+                  </div>
+                  <ChevronRight className={`w-4 h-4 transition-transform group-hover:translate-x-1 ${currentView === 'custom' ? 'text-white/50' : 'text-slate-300'}`} />
+                </button>
+              </div>
+              
+              <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
+                <button 
+                  onClick={() => setIsSidebarOpen(false)}
+                  className="w-full py-3 bg-indigo-600 text-white text-[11px] font-black uppercase tracking-[0.2em] rounded-2xl shadow-lg shadow-indigo-200 dark:shadow-none hover:bg-indigo-700 transition-all"
+                >
+                  Close Explorer
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
       <style dangerouslySetInnerHTML={{ __html: `
         .recharts-wrapper:focus, .recharts-surface:focus, .recharts-bar-rectangle:focus, .recharts-layer:focus, .recharts-sector:focus {
           outline: none !important;
@@ -962,9 +1989,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-10">
         <div className="flex flex-col sm:flex-row sm:items-center gap-4">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-200 dark:shadow-none">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9h18v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9Z"/><path d="M3 9V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4"/></svg>
-            </div>
+            <button 
+              onClick={() => setIsSidebarOpen(true)}
+              className="w-12 h-12 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl flex items-center justify-center shadow-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition-all group"
+            >
+              <Menu className="w-6 h-6 text-slate-600 dark:text-slate-300 group-hover:text-indigo-600 transition-colors" />
+            </button>
             <div>
               <h1 className="text-xl md:text-2xl font-black text-slate-900 dark:text-white tracking-tight">EHA Dashboard</h1>
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
@@ -1073,8 +2103,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
         </div>
       </div>
 
-      {/* STAT CARDS */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+      {currentView === 'dashboard' ? (
+        <>
+          {/* STAT CARDS */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
         <div 
           onClick={() => { setFilterAdmissionStatus(null); setFilterPaymentStatus(null); setFilterGender(null); setFilterState(null); setFilterCity(null); setFilterDate(null); }}
           className="bg-white dark:bg-slate-900 p-6 md:p-8 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm relative overflow-hidden group transition-colors cursor-pointer hover:border-indigo-500"
@@ -1912,8 +2944,37 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
                   </div>
                 ))}
               </div>
+            </div>
           </div>
-      </div>
+        </>
+      ) : currentView === 'states' ? (
+        <AnalyticsView 
+          title="States Analytics" 
+          data={hierarchicalStats.states} 
+          type="states" 
+          onBack={() => setCurrentView('dashboard')} 
+        />
+      ) : currentView === 'cities' ? (
+        <AnalyticsView 
+          title="Cities Analytics" 
+          data={hierarchicalStats.cities} 
+          type="cities" 
+          onBack={() => setCurrentView('dashboard')} 
+        />
+      ) : currentView === 'custom' ? (
+        <CustomAnalyticsView 
+          records={records} 
+          onBack={() => setCurrentView('dashboard')} 
+          onSeedData={onSeedData}
+        />
+      ) : (
+        <AnalyticsView 
+          title="Admissions Analytics" 
+          data={hierarchicalStats.admissions} 
+          type="admissions" 
+          onBack={() => setCurrentView('dashboard')} 
+        />
+      )}
 
       {/* DETAIL MODAL */}
       {viewingRecord && (
