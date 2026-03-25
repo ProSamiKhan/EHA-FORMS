@@ -350,23 +350,43 @@ const App: React.FC = () => {
   const removeRecord = async (id: string, admissionId?: string) => {
     if (window.confirm("Are you sure you want to remove this record from the database and Google Sheets?")) {
       try {
-        // Delete from Firestore
-        const { deleteDoc } = await import('firebase/firestore');
-        await deleteDoc(doc(db, 'registrations', id));
+        let firestoreId = id;
+        
+        // If no Firestore ID was passed, try to find it in the current records by admission_id
+        if (!firestoreId && admissionId) {
+          const found = records.find(r => 
+            r.data?.admission_id === admissionId || 
+            (r as any).admission_id === admissionId
+          );
+          if (found) firestoreId = found.id;
+        }
 
-        // Delete from Google Sheets if admissionId is provided
+        // Delete from Firestore if we have an ID
+        if (firestoreId) {
+          const { deleteDoc, doc } = await import('firebase/firestore');
+          await deleteDoc(doc(db, 'registrations', firestoreId));
+          
+          setRecords(prev => {
+            const record = prev.find(r => r.id === firestoreId);
+            if (record && record.imageUrl) URL.revokeObjectURL(record.imageUrl);
+            return prev.filter(r => r.id !== firestoreId);
+          });
+        }
+
+        // Always attempt to delete from Google Sheets if admissionId is provided
         if (admissionId) {
           await deleteFromGoogleSheets(admissionId);
         }
 
-        setRecords(prev => {
-            const record = prev.find(r => r.id === id);
-            if (record && record.imageUrl) URL.revokeObjectURL(record.imageUrl);
-            return prev.filter(r => r.id !== id);
-        });
+        // If it was only in the sheet (no firestoreId), we should still trigger a refresh or local update
+        if (!firestoreId) {
+          // The Dashboard component handles remoteData, so we might need to notify it
+          // For now, we'll just rely on the user refreshing or the sheet sync
+        }
+
       } catch (error) {
         console.error("Error deleting record:", error);
-        alert("Failed to delete record.");
+        alert("Failed to delete record. Please try again.");
       }
     }
   };

@@ -3313,6 +3313,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
                                 onClick={() => {
                                   const firestoreId = records.find(r => r.data?.admission_id === data.admission_id)?.id;
                                   onDelete(firestoreId || '', data.admission_id);
+                                  // Update local remoteData state
+                                  setRemoteData(prev => prev.filter(r => r.admission_id !== data.admission_id));
                                 }}
                                 className="p-2 bg-red-50 dark:bg-red-900/20 text-red-400 dark:text-red-600 rounded-xl hover:bg-red-600 dark:hover:bg-red-500 hover:text-white transition-all active:scale-90 shadow-sm dark:shadow-none border border-slate-100 dark:border-slate-800"
                                 title="Delete Record"
@@ -3376,6 +3378,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
                               e.stopPropagation(); 
                               const firestoreId = records.find(r => r.data?.admission_id === data.admission_id)?.id;
                               onDelete(firestoreId || '', data.admission_id);
+                              // Update local remoteData state
+                              setRemoteData(prev => prev.filter(r => r.admission_id !== data.admission_id));
                             }}
                             className="p-2 text-red-400 hover:text-red-600"
                           >
