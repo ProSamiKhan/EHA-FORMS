@@ -13,7 +13,7 @@ import { collection, onSnapshot, query, orderBy, doc, getDoc, setDoc } from 'fir
 import { auth, db } from './services/firebase';
 import { ProcessingRecord, RegistrationData, UserRole, AppConfig } from './types';
 import { processRegistrationForm } from './services/geminiService';
-import { syncToGoogleSheets } from './services/sheetService';
+import { syncToGoogleSheets, deleteFromGoogleSheets } from './services/sheetService';
 import { formatDateClean } from './services/utils';
 import { ProcessingCard } from './components/ProcessingCard';
 import { ManualEntryModal } from './components/ManualEntryModal';
@@ -347,19 +347,17 @@ const App: React.FC = () => {
     setRecords(prev => prev.map(r => r.id === id ? { ...r, data: newData, syncStatus: 'idle' } : r));
   };
 
-  const removeRecord = async (id: string) => {
-    if (window.confirm("Are you sure you want to remove this record from the database?")) {
+  const removeRecord = async (id: string, admissionId?: string) => {
+    if (window.confirm("Are you sure you want to remove this record from the database and Google Sheets?")) {
       try {
         // Delete from Firestore
-        await setDoc(doc(db, 'registrations', id), { 
-          status: 'deleted', 
-          deletedAt: Date.now() 
-        }, { merge: true });
-        
-        // Actually delete the document if preferred, but soft delete is safer.
-        // For this app, let's do a real delete to keep it clean as requested by user "DELETE KARDI HAI".
         const { deleteDoc } = await import('firebase/firestore');
         await deleteDoc(doc(db, 'registrations', id));
+
+        // Delete from Google Sheets if admissionId is provided
+        if (admissionId) {
+          await deleteFromGoogleSheets(admissionId);
+        }
 
         setRecords(prev => {
             const record = prev.find(r => r.id === id);
@@ -368,7 +366,7 @@ const App: React.FC = () => {
         });
       } catch (error) {
         console.error("Error deleting record:", error);
-        alert("Failed to delete record from database.");
+        alert("Failed to delete record.");
       }
     }
   };
@@ -517,6 +515,7 @@ const App: React.FC = () => {
                   setEditingRecord(data);
                   setIsManualModalOpen(true);
                 }}
+                onDelete={removeRecord}
                 onSeedData={handleSeedData}
               />
             </motion.div>

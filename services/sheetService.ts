@@ -75,3 +75,34 @@ export const fetchAllRegistrations = async (): Promise<RegistrationData[]> => {
     throw error;
   }
 };
+
+/**
+ * Deletes a registration record from Google Sheets.
+ */
+export const deleteFromGoogleSheets = async (admissionId: string): Promise<boolean> => {
+  if (!GOOGLE_SHEET_WEBAPP_URL || GOOGLE_SHEET_WEBAPP_URL.includes("YOUR_APPS_SCRIPT")) {
+    console.error("SHEET_DELETE_ERROR: Invalid URL");
+    return false;
+  }
+
+  const payload = {
+    action: "delete",
+    admission_id: admissionId,
+  };
+
+  try {
+    await fetch(GOOGLE_SHEET_WEBAPP_URL, {
+      method: "POST",
+      mode: "no-cors",
+      cache: "no-cache",
+      headers: {
+        "Content-Type": "text/plain;charset=utf-8",
+      },
+      body: JSON.stringify(payload),
+    });
+    return true;
+  } catch (error) {
+    console.error("SHEET_DELETE_ERROR:", error);
+    return false;
+  }
+};

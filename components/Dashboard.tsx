@@ -26,6 +26,7 @@ interface DashboardProps {
   userRole: UserRole | null;
   config: AppConfig;
   onEdit?: (record: RegistrationData) => void;
+  onDelete?: (id: string, admissionId?: string) => void;
   onSeedData?: () => void;
 }
 
@@ -981,7 +982,7 @@ const numberToWords = (num: number): string => {
   return result.trim().toUpperCase();
 };
 
-export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config, onEdit, onSeedData }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config, onEdit, onDelete, onSeedData }) => {
   const [remoteData, setRemoteData] = useState<RegistrationData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -3307,6 +3308,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
                             <button onClick={() => setViewingRecord(data)} className="p-2 bg-slate-50 dark:bg-slate-800 text-slate-400 dark:text-slate-600 rounded-xl hover:bg-indigo-600 dark:hover:bg-indigo-500 hover:text-white transition-all active:scale-90 group-hover:bg-indigo-50 dark:group-hover:bg-indigo-900/30 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 shadow-sm dark:shadow-none transition-colors">
                               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0z"/><circle cx="12" cy="12" r="3"/></svg>
                             </button>
+                            {onDelete && (
+                              <button 
+                                onClick={() => {
+                                  const firestoreId = records.find(r => r.data?.admission_id === data.admission_id)?.id;
+                                  onDelete(firestoreId || '', data.admission_id);
+                                }}
+                                className="p-2 bg-red-50 dark:bg-red-900/20 text-red-400 dark:text-red-600 rounded-xl hover:bg-red-600 dark:hover:bg-red-500 hover:text-white transition-all active:scale-90 shadow-sm dark:shadow-none border border-slate-100 dark:border-slate-800"
+                                title="Delete Record"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                              </button>
+                            )}
                           </div>
                       </td>
                       </tr>
@@ -3355,6 +3368,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
                             className="p-2 text-slate-400 hover:text-indigo-600"
                           >
                             <Edit2 size={14} />
+                          </button>
+                        )}
+                        {onDelete && (
+                          <button 
+                            onClick={(e) => { 
+                              e.stopPropagation(); 
+                              const firestoreId = records.find(r => r.data?.admission_id === data.admission_id)?.id;
+                              onDelete(firestoreId || '', data.admission_id);
+                            }}
+                            className="p-2 text-red-400 hover:text-red-600"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
                           </button>
                         )}
                         <ChevronRight size={16} className="text-slate-300" />
