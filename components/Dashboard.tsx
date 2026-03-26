@@ -281,7 +281,7 @@ const CustomAnalyticsView = ({ records, onBack, onSeedData, onRefresh, isRefresh
     const options: Record<string, string[]> = {
       gender: ['All', 'Male', 'Female', 'Other'],
       ageRange: ['All', 'Under 13', '13-18', '19-25', 'Above 25', 'Custom'],
-      paymentStatus: ['All', 'Full Paid', 'Partial', 'Unpaid', 'Refund'],
+      paymentStatus: ['All', 'Full Paid', 'Partial', 'Unpaid', 'Refund', 'Discount', 'Free'],
       status: ['All', 'Confirm', 'Pending', 'Cancelled', 'Stay Only'],
       qualification: ['All'],
       medium: ['All'],
@@ -356,15 +356,26 @@ const CustomAnalyticsView = ({ records, onBack, onSeedData, onRefresh, isRefresh
       if (filters.medium !== 'All' && d.medium?.toLowerCase() !== filters.medium.toLowerCase()) return false;
       
       if (filters.paymentStatus !== 'All') {
-        if (d.payment_status === 'refund' && filters.paymentStatus === 'Refund') return true;
-        if (d.payment_status === 'refund' && filters.paymentStatus !== 'Refund') return false;
-        if (d.payment_status !== 'refund' && filters.paymentStatus === 'Refund') return false;
+        const ps = (d.payment_status || '').toLowerCase();
+        const discountVal = parseFloat(String(d.discount || '0')) || 0;
+        const freeVal = parseFloat(String(d.free || '0')) || 0;
+        const totalFeesVal = parseFloat(String(d.total_fees || '20000').replace(/[^0-9.]/g, '')) || 20000;
+        const remaining = parseFloat(String(d.remaining_amount || '0').replace(/[^0-9.]/g, '')) || 0;
 
-        const remaining = parseFloat(d.remaining_amount) || 0;
-        const total = parseFloat(d.total_fees) || 0;
-        if (filters.paymentStatus === 'Full Paid' && remaining <= 0) return true;
-        if (filters.paymentStatus === 'Partial' && (remaining > 0 && remaining < total)) return true;
-        if (filters.paymentStatus === 'Unpaid' && remaining >= total && total > 0) return true;
+        if (filters.paymentStatus === 'Refund') return ps === 'refund';
+        if (filters.paymentStatus === 'Free') return ps === 'free' || freeVal > 0 || (totalFeesVal === 0 && d.status !== 'cancelled');
+        if (filters.paymentStatus === 'Discount') {
+          const isFree = ps === 'free' || freeVal > 0 || totalFeesVal === 0;
+          return !isFree && (ps === 'discount' || discountVal > 0);
+        }
+        
+        const isFree = ps === 'free' || freeVal > 0 || totalFeesVal === 0;
+        const isDiscount = ps === 'discount' || discountVal > 0;
+        if (isFree || isDiscount) return false;
+
+        if (filters.paymentStatus === 'Full Paid') return remaining <= 0;
+        if (filters.paymentStatus === 'Partial') return remaining > 0 && remaining < totalFeesVal;
+        if (filters.paymentStatus === 'Unpaid') return remaining >= totalFeesVal && totalFeesVal > 0;
         return false;
       }
 
@@ -391,14 +402,24 @@ const CustomAnalyticsView = ({ records, onBack, onSeedData, onRefresh, isRefresh
         else if (age <= 25) val = '19-25';
         else val = 'Above 25';
       } else if (activeDimension === 'paymentStatus') {
-        if (d.payment_status === 'refund') {
+        const ps = (d.payment_status || '').toLowerCase();
+        const discountVal = parseFloat(String(d.discount || '0')) || 0;
+        const freeVal = parseFloat(String(d.free || '0')) || 0;
+        const totalFeesVal = parseFloat(String(d.total_fees || '20000').replace(/[^0-9.]/g, '')) || 20000;
+        const remaining = parseFloat(String(d.remaining_amount || '0').replace(/[^0-9.]/g, '')) || 0;
+
+        if (ps === 'refund') {
           val = 'Refund';
+        } else if (ps === 'free' || freeVal > 0 || (totalFeesVal === 0 && d.status !== 'cancelled')) {
+          val = 'Free';
+        } else if (ps === 'discount' || discountVal > 0) {
+          val = 'Discount';
+        } else if (remaining <= 0) {
+          val = 'Full Paid';
+        } else if (remaining < totalFeesVal) {
+          val = 'Partial';
         } else {
-          const remaining = parseFloat(d.remaining_amount) || 0;
-          const total = parseFloat(d.total_fees) || 0;
-          if (remaining <= 0) val = 'Full Paid';
-          else if (remaining < total) val = 'Partial';
-          else val = 'Unpaid';
+          val = 'Unpaid';
         }
       }
       counts[val] = (counts[val] || 0) + 1;
@@ -1127,6 +1148,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
           'Age': record.age,
           'Gender': record.gender,
           'Total Fees': record.total_fees,
+          'Discount': record.discount || '0',
+          'Free': record.free || '0',
           'Paid Amount': totalPaid,
           'Remaining': record.remaining_amount,
           'Admission Status': record.status,
@@ -1325,6 +1348,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
         free: String(row['free'] || '0'),
         total_fees: String(row['total_fees'] || row['total fees'] || '20000'),
         remaining_amount: String(row['remaining amount'] || row['remaining_amount'] || '0'),
+        notes: String(row['notes'] || ''),
+        refund_date: String(row['refund_date'] || row['refund date'] || ''),
         payment_status: (row['payment_status'] || row['payment status'] || '').toLowerCase() as any || undefined,
         status: (() => {
           const s = (row['status'] || 'confirm').toLowerCase();
@@ -1380,7 +1405,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
 
   const FILTER_CONFIG = [
     { id: 'status', label: 'Status', options: ['confirm', 'pending', 'cancelled', 'stay only'] },
-    { id: 'payment_status', label: 'Payment Status', options: ['full paid', 'partial', 'unpaid', 'refund'] },
+    { id: 'payment_status', label: 'Payment Status', options: ['full paid', 'partial', 'unpaid', 'refund', 'discount', 'free'] },
     { id: 'gender', label: 'Gender', options: ['male', 'female', 'other'] },
     { id: 'age', label: 'Age', dynamic: true, custom: true },
     { id: 'payment_amount', label: 'Payment Amount', dynamic: true, custom: true },
@@ -1760,20 +1785,30 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
         for (let i = 1; i <= 10; i++) {
           studentTotal += parseFloat(String((d as any)[`payment${i}_amount`]).replace(/[^0-9.]/g, '')) || 0;
         }
-        const discount = parseFloat(String(d.discount || '0')) || 0;
-        const totalFees = 20000;
-        const target = totalFees - discount;
+        const discountVal = parseFloat(String(d.discount || '0')) || 0;
+        const freeVal = parseFloat(String(d.free || '0')) || 0;
+        const totalFeesVal = parseFloat(String(d.total_fees || '20000').replace(/[^0-9.]/g, '')) || 20000;
+        const target = totalFeesVal - discountVal - freeVal;
+        const ps = (d.payment_status || '').toLowerCase();
 
-        if (filterPaymentStatus === 'fully_paid') {
-          if (studentTotal < target || studentTotal === 0) return false;
-        } else if (filterPaymentStatus === 'partial') {
-          if (studentTotal >= target || studentTotal === 0) return false;
-        } else if (filterPaymentStatus === 'discount') {
-          if (discount === 0) return false;
+        if (filterPaymentStatus === 'refund') {
+          if (ps !== 'refund') return false;
         } else if (filterPaymentStatus === 'free') {
-          if (studentTotal > 0) return false;
-        } else if (filterPaymentStatus === 'refund') {
-          if ((d.payment_status || '').toLowerCase() !== 'refund') return false;
+          if (ps !== 'free' && freeVal === 0 && totalFeesVal !== 0) return false;
+        } else if (filterPaymentStatus === 'discount') {
+          // Check if it's a discount student (and not free)
+          const isFree = ps === 'free' || freeVal > 0 || totalFeesVal === 0;
+          if (isFree || (ps !== 'discount' && discountVal === 0)) return false;
+        } else if (filterPaymentStatus === 'fully_paid') {
+          const isFree = ps === 'free' || freeVal > 0 || totalFeesVal === 0;
+          const isDiscount = ps === 'discount' || discountVal > 0;
+          if (isFree || isDiscount) return false;
+          if (ps !== 'full paid' && studentTotal < target) return false;
+        } else if (filterPaymentStatus === 'partial') {
+          const isFree = ps === 'free' || freeVal > 0 || totalFeesVal === 0;
+          const isDiscount = ps === 'discount' || discountVal > 0;
+          if (isFree || isDiscount) return false;
+          if (ps !== 'partial' && (studentTotal >= target || studentTotal === 0)) return false;
         }
       }
 
@@ -2015,28 +2050,21 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
       }
       revenue += studentTotal;
 
+      const discountVal = parseFloat(String(d.discount || '0')) || 0;
+      const freeVal = parseFloat(String(d.free || '0')) || 0;
+      const totalFeesVal = parseFloat(String(d.total_fees || '20000').replace(/[^0-9.]/g, '')) || 20000;
+      const target = totalFeesVal - discountVal - freeVal;
+
       if (ps === 'refund') {
         refundCount++;
-      } else if (ps === 'free') {
+      } else if (ps === 'free' || freeVal > 0 || (totalFeesVal === 0 && status !== 'cancelled')) {
         freeCount++;
-      } else if (ps === 'discount') {
+      } else if (ps === 'discount' || discountVal > 0) {
         discountCount++;
-      } else if (ps === 'full paid') {
+      } else if (ps === 'full paid' || (studentTotal >= target && target > 0)) {
         fullyPaid++;
-      } else if (ps === 'partial') {
+      } else if (ps === 'partial' || studentTotal > 0) {
         partialPaid++;
-      } else {
-        const discount = parseFloat(String(d.discount || '0')) || 0;
-        const totalFees = parseFloat(String(d.total_fees || '20000')) || 20000;
-        const target = totalFees - discount;
-
-        if (studentTotal >= target && target > 0) {
-          fullyPaid++;
-        } else if (studentTotal > 0) {
-          partialPaid++;
-        } else if (discount > 0) {
-          discountCount++;
-        }
       }
     });
     return { total, genderMapConfirm, genderMapTotal, revenue, cashRevenue, accountRevenue, cancelledCount, pendingCount, stayOnlyCount, fullyPaid, partialPaid, discountCount, freeCount, refundCount };
@@ -3536,6 +3564,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
                         <DetailRow label="City" value={viewingRecord.city} />
                         <DetailRow label="Total Fees" value={`₹${viewingRecord.total_fees}`} />
                         <DetailRow label="Discount Applied" value={`₹${viewingRecord.discount}`} />
+                        <DetailRow label="Free" value={`₹${viewingRecord.free}`} />
+                        {viewingRecord.refund_date && (
+                          <DetailRow label="Refund Date" value={formatDateClean(viewingRecord.refund_date)} />
+                        )}
                         {viewingRecord.notes && (
                           <div className="sm:col-span-2 mt-4 p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-800">
                             <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Notes</p>
@@ -3792,6 +3824,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
                   </div>
                 </div>
                 
+                {/* Notes */}
+                {viewingStudentForm.notes && (
+                  <div className="mb-12 border-[3px] border-black p-6">
+                    <h3 className="text-sm font-black uppercase tracking-[0.3em] text-slate-400 mb-4">NOTES</h3>
+                    <p className="text-base font-bold text-slate-800 leading-relaxed whitespace-pre-wrap italic">"{viewingStudentForm.notes}"</p>
+                  </div>
+                )}
+                
                 {/* Installments */}
                 <div className="grow">
                   <h3 className="text-sm font-black uppercase tracking-[0.3em] text-slate-400 mb-4 flex items-center gap-3">
@@ -3922,8 +3962,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
                     <th className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-black uppercase tracking-widest text-slate-500">State</th>
                     <th className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-black uppercase tracking-widest text-slate-500">Status</th>
                     <th className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-black uppercase tracking-widest text-slate-500">Paid</th>
+                    <th className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-black uppercase tracking-widest text-slate-500">Discount</th>
+                    <th className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-black uppercase tracking-widest text-slate-500">Free</th>
                     <th className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-black uppercase tracking-widest text-slate-500">Remaining</th>
-                    <th className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-black uppercase tracking-widest text-slate-500">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -3951,29 +3992,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
                           </span>
                         </td>
                         <td className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-black text-right text-emerald-600 dark:text-emerald-400">₹{studentTotal.toLocaleString()}</td>
+                        <td className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-black text-right text-blue-600 dark:text-blue-400">₹{data.discount}</td>
+                        <td className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-black text-right text-emerald-600 dark:text-emerald-400">₹{data.free}</td>
                         <td className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-black text-right text-slate-900 dark:text-white">₹{data.remaining_amount}</td>
-                        <td className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] text-center">
-                          <div className="flex items-center justify-center gap-2">
-                            <button 
-                              onClick={() => onEdit?.(data)}
-                              className="p-1.5 text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-colors"
-                              title="Edit Record"
-                            >
-                              <Edit2 size={14} />
-                            </button>
-                            <button 
-                              onClick={() => {
-                                // Find the firestore ID if available
-                                const record = records.find(r => r.data?.admission_id === data.admission_id);
-                                onDelete?.(record?.id || '', data.admission_id);
-                              }}
-                              className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
-                              title="Delete Record"
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
-                            </button>
-                          </div>
-                        </td>
                       </tr>
                     );
                   })}
@@ -4057,13 +4078,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                 Download Image
-              </button>
-              <button 
-                onClick={handleMasterExcelDownload}
-                className="flex-1 flex items-center justify-center gap-3 py-4 bg-emerald-600 text-white rounded-2xl font-black text-[11px] uppercase tracking-[0.15em] hover:bg-emerald-700 shadow-lg shadow-emerald-200 dark:shadow-none transition-all active:scale-95"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
-                Download Excel
               </button>
             </div>
           </div>
