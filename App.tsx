@@ -62,13 +62,13 @@ const App: React.FC = () => {
           setUserRole(role);
           // Create user doc
           try {
-            await setDoc(doc(db, 'users', user.uid), {
+            await setDoc(doc(db, 'users', user.uid), cleanObject({
               uid: user.uid,
               username: user.displayName || user.email?.split('@')[0] || 'User',
               email: user.email,
               role: role,
               createdAt: new Date().toISOString()
-            });
+            }));
           } catch (err) {
             console.error("Error creating user doc:", err);
           }
@@ -110,7 +110,7 @@ const App: React.FC = () => {
           timestamp: data.timestamp || Date.now(),
           fileName: data.fileName || `Record - ${regData.name || 'Unknown'}`,
           imageUrl: data.imageUrl || '',
-          data: regData as RegistrationData,
+          data: { ...regData, id: doc.id } as RegistrationData,
           status: data.status || 'completed',
           source: data.source || 'manual',
           syncStatus: data.syncStatus || 'synced'
@@ -141,7 +141,7 @@ const App: React.FC = () => {
 
   const updateAppConfig = async (newConfig: AppConfig) => {
     setConfig(newConfig);
-    await setDoc(doc(db, 'config', 'global_config'), newConfig);
+    await setDoc(doc(db, 'config', 'global_config'), cleanObject(newConfig));
   };
 
   const handleLogout = async () => {
@@ -246,6 +246,18 @@ const App: React.FC = () => {
     setRecords(prev => prev.map(r => r.id === id ? { ...r, syncStatus: success ? 'synced' : 'failed', syncedAt: success ? Date.now() : undefined } : r));
   };
 
+  const cleanObject = (obj: any): any => {
+    const newObj = { ...obj };
+    Object.keys(newObj).forEach(key => {
+      if (newObj[key] === undefined) {
+        delete newObj[key];
+      } else if (newObj[key] !== null && typeof newObj[key] === 'object' && !Array.isArray(newObj[key])) {
+        newObj[key] = cleanObject(newObj[key]);
+      }
+    });
+    return newObj;
+  };
+
   const handleManualSubmit = async (data: RegistrationData) => {
     setIsSyncing(true);
     
@@ -254,20 +266,21 @@ const App: React.FC = () => {
       const id = editingRecord?.id || uuidv4();
       const timestamp = Date.now();
       
-      const recordToSave = {
+      const dataWithId = { ...data, id };
+      const recordToSave = cleanObject({
         id,
         timestamp,
-        data,
+        data: dataWithId,
         status: 'completed',
         source: 'manual',
         syncStatus: 'synced',
         fileName: `Record - ${data.name}`
-      };
+      });
 
       await setDoc(doc(db, 'registrations', id), recordToSave);
 
       // Sync to Google Sheets
-      const success = await syncToGoogleSheets(data);
+      const success = await syncToGoogleSheets(dataWithId);
       setIsSyncing(false);
       
       if (success) {
@@ -322,7 +335,7 @@ const App: React.FC = () => {
           date: new Date().toISOString().split('T')[0]
         } as any;
 
-        const recordToSave = {
+        const recordToSave = cleanObject({
           id,
           timestamp: Date.now(),
           data,
@@ -330,7 +343,7 @@ const App: React.FC = () => {
           source: 'manual',
           syncStatus: 'synced',
           fileName: `Sample - ${student.name}`
-        };
+        });
 
         await setDoc(doc(db, 'registrations', id), recordToSave);
       }

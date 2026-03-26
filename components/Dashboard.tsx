@@ -1130,7 +1130,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
           'Paid Amount': totalPaid,
           'Remaining': record.remaining_amount,
           'Admission Status': record.status,
-          'Payment Status': record.payment_status || 'N/A'
+          'Payment Status': record.payment_status || 'N/A',
+          'Refund Date': record.refund_date || '-',
+          'Notes': record.notes || '-'
         };
       });
 
@@ -1969,13 +1971,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
       const g = (d.gender || 'Other').trim().toLowerCase();
       const ps = (d.payment_status || '').toLowerCase();
       
-      if (ps === 'refund') refundCount++;
-
       // Always add to total map
       genderMapTotal[g] = (genderMapTotal[g] || 0) + 1;
 
       if (status === 'cancelled') {
         cancelledCount++;
+        if (ps === 'refund') refundCount++;
         return;
       }
       if (status === 'pending') {
@@ -2014,15 +2015,29 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
       }
       revenue += studentTotal;
 
-      const discount = parseFloat(String(d.discount || '0')) || 0;
-      if (discount > 0) discountCount++;
+      if (ps === 'refund') {
+        refundCount++;
+      } else if (ps === 'free') {
+        freeCount++;
+      } else if (ps === 'discount') {
+        discountCount++;
+      } else if (ps === 'full paid') {
+        fullyPaid++;
+      } else if (ps === 'partial') {
+        partialPaid++;
+      } else {
+        const discount = parseFloat(String(d.discount || '0')) || 0;
+        const totalFees = parseFloat(String(d.total_fees || '20000')) || 20000;
+        const target = totalFees - discount;
 
-      const totalFees = 20000;
-      const target = totalFees - discount;
-
-      if (studentTotal === 0) freeCount++;
-      else if (studentTotal >= target) fullyPaid++;
-      else if (studentTotal > 0) partialPaid++;
+        if (studentTotal >= target && target > 0) {
+          fullyPaid++;
+        } else if (studentTotal > 0) {
+          partialPaid++;
+        } else if (discount > 0) {
+          discountCount++;
+        }
+      }
     });
     return { total, genderMapConfirm, genderMapTotal, revenue, cashRevenue, accountRevenue, cancelledCount, pendingCount, stayOnlyCount, fullyPaid, partialPaid, discountCount, freeCount, refundCount };
   };
@@ -2458,100 +2473,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
             )}
           </div>
 
-          {/* STATUS CARDS ROW */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 mt-4 md:mt-6">
-            <div className="bg-white dark:bg-slate-900 p-6 md:p-10 rounded-[32px] md:rounded-[48px] border border-slate-100 dark:border-slate-800 shadow-sm transition-all hover:border-indigo-500">
-              <h3 className="text-slate-400 dark:text-slate-500 text-xs md:text-sm font-black uppercase tracking-[0.2em] mb-4 md:mb-8 transition-colors">Payment Status</h3>
-              <div className="space-y-3 md:space-y-6">
-                <div 
-                  onClick={() => setFilterPaymentStatus(filterPaymentStatus === 'fully_paid' ? null : 'fully_paid')}
-                  className={`flex justify-between items-center cursor-pointer p-3 md:p-4 rounded-xl md:rounded-2xl transition-all ${filterPaymentStatus === 'fully_paid' ? 'bg-indigo-50 dark:bg-indigo-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
-                >
-                  <div className="flex items-center gap-3 md:gap-4">
-                    <div className="w-2 h-2 md:w-3 md:h-3 rounded-full bg-indigo-600"></div>
-                    <span className="text-sm md:text-base font-black text-slate-500 uppercase tracking-widest">Fully Paid</span>
-                  </div>
-                  <span className="text-2xl md:text-4xl font-black text-indigo-600 dark:text-indigo-400">{globalStats.fullyPaid}</span>
-                </div>
-                <div 
-                  onClick={() => setFilterPaymentStatus(filterPaymentStatus === 'partial' ? null : 'partial')}
-                  className={`flex justify-between items-center cursor-pointer p-3 md:p-4 rounded-xl md:rounded-2xl transition-all ${filterPaymentStatus === 'partial' ? 'bg-amber-50 dark:bg-amber-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
-                >
-                  <div className="flex items-center gap-3 md:gap-4">
-                    <div className="w-2 h-2 md:w-3 md:h-3 rounded-full bg-amber-600"></div>
-                    <span className="text-sm md:text-base font-black text-slate-500 uppercase tracking-widest">Partial</span>
-                  </div>
-                  <span className="text-2xl md:text-4xl font-black text-amber-600 dark:text-amber-400">{globalStats.partialPaid}</span>
-                </div>
-                <div 
-                  onClick={() => setFilterPaymentStatus(filterPaymentStatus === 'discount' ? null : 'discount')}
-                  className={`flex justify-between items-center cursor-pointer p-3 md:p-4 rounded-xl md:rounded-2xl transition-all ${filterPaymentStatus === 'discount' ? 'bg-emerald-50 dark:bg-emerald-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
-                >
-                  <div className="flex items-center gap-3 md:gap-4">
-                    <div className="w-2 h-2 md:w-3 md:h-3 rounded-full bg-emerald-600"></div>
-                    <span className="text-sm md:text-base font-black text-slate-500 uppercase tracking-widest">Free</span>
-                  </div>
-                  <span className="text-2xl md:text-4xl font-black text-emerald-600 dark:text-emerald-400">{globalStats.discountCount}</span>
-                </div>
-                <div 
-                  onClick={() => setFilterPaymentStatus(filterPaymentStatus === 'refund' ? null : 'refund')}
-                  className={`flex justify-between items-center cursor-pointer p-3 md:p-4 rounded-xl md:rounded-2xl transition-all ${filterPaymentStatus === 'refund' ? 'bg-purple-50 dark:bg-purple-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
-                >
-                  <div className="flex items-center gap-3 md:gap-4">
-                    <div className="w-2 h-2 md:w-3 md:h-3 rounded-full bg-purple-600"></div>
-                    <span className="text-sm md:text-base font-black text-slate-500 uppercase tracking-widest">Refunded</span>
-                  </div>
-                  <span className="text-2xl md:text-4xl font-black text-purple-600 dark:text-purple-400">{globalStats.refundCount}</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white dark:bg-slate-900 p-6 md:p-10 rounded-[32px] md:rounded-[48px] border border-slate-100 dark:border-slate-800 shadow-sm transition-all hover:border-orange-500">
-              <h3 className="text-slate-400 dark:text-slate-500 text-xs md:text-sm font-black uppercase tracking-[0.2em] mb-4 md:mb-8 transition-colors">Admission Status</h3>
-              <div className="space-y-3 md:space-y-6">
-                <div 
-                  onClick={() => setFilterAdmissionStatus(filterAdmissionStatus === 'cancelled' ? null : 'cancelled')}
-                  className={`flex justify-between items-center cursor-pointer p-3 md:p-4 rounded-xl md:rounded-2xl transition-all ${filterAdmissionStatus === 'cancelled' ? 'bg-red-50 dark:bg-red-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
-                >
-                  <div className="flex items-center gap-3 md:gap-4">
-                    <div className="w-2 h-2 md:w-3 md:h-3 rounded-full bg-red-500"></div>
-                    <span className="text-sm md:text-base font-black text-slate-500 uppercase tracking-widest">Cancelled</span>
-                  </div>
-                  <span className="text-2xl md:text-4xl font-black text-red-500">{globalStats.cancelledCount}</span>
-                </div>
-                <div 
-                  onClick={() => setFilterAdmissionStatus(filterAdmissionStatus === 'pending' ? null : 'pending')}
-                  className={`flex justify-between items-center cursor-pointer p-3 md:p-4 rounded-xl md:rounded-2xl transition-all ${filterAdmissionStatus === 'pending' ? 'bg-amber-50 dark:bg-amber-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
-                >
-                  <div className="flex items-center gap-3 md:gap-4">
-                    <div className="w-2 h-2 md:w-3 md:h-3 rounded-full bg-amber-500"></div>
-                    <span className="text-sm md:text-base font-black text-slate-500 uppercase tracking-widest">Pending</span>
-                  </div>
-                  <span className="text-2xl md:text-4xl font-black text-amber-500">{globalStats.pendingCount}</span>
-                </div>
-                <div 
-                  onClick={() => setFilterAdmissionStatus(filterAdmissionStatus === 'stay only' ? null : 'stay only')}
-                  className={`flex justify-between items-center cursor-pointer p-3 md:p-4 rounded-xl md:rounded-2xl transition-all ${filterAdmissionStatus === 'stay only' ? 'bg-blue-50 dark:bg-blue-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
-                >
-                  <div className="flex items-center gap-3 md:gap-4">
-                    <div className="w-2 h-2 md:w-3 md:h-3 rounded-full bg-blue-500"></div>
-                    <span className="text-sm md:text-base font-black text-slate-500 uppercase tracking-widest">Stay Only</span>
-                  </div>
-                  <span className="text-2xl md:text-4xl font-black text-blue-500">{globalStats.stayOnlyCount}</span>
-                </div>
-                <div 
-                  onClick={() => setFilterAdmissionStatus(filterAdmissionStatus === 'confirm' ? null : 'confirm')}
-                  className={`flex justify-between items-center pt-4 md:pt-8 border-t border-slate-50 dark:border-slate-800 cursor-pointer p-3 md:p-4 rounded-xl md:rounded-2xl transition-all ${filterAdmissionStatus === 'confirm' ? 'bg-indigo-50 dark:bg-indigo-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
-                >
-                  <div className="flex items-center gap-3 md:gap-4">
-                    <div className="w-2 h-2 md:w-3 md:h-3 rounded-full bg-indigo-600"></div>
-                    <span className="text-sm md:text-base font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">Confirmed</span>
-                  </div>
-                  <span className="text-3xl md:text-5xl font-black text-indigo-600 dark:text-indigo-400">{globalStats.total - globalStats.cancelledCount - globalStats.pendingCount - globalStats.stayOnlyCount}</span>
-                </div>
-              </div>
-            </div>
-          </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="bg-white dark:bg-slate-900 p-6 md:p-8 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm transition-colors flex flex-col lg:col-span-1">
@@ -2956,6 +2877,111 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
         </div>
       </div>
 
+      {/* STATUS CARDS ROW */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-10 mt-8 md:mt-12">
+        <div className="bg-white dark:bg-slate-900 p-8 md:p-14 rounded-[48px] md:rounded-[64px] border border-slate-100 dark:border-slate-800 shadow-sm transition-all hover:border-indigo-500 hover:shadow-2xl hover:shadow-indigo-100 dark:hover:shadow-none">
+          <h3 className="text-slate-400 dark:text-slate-500 text-sm md:text-lg font-black uppercase tracking-[0.25em] mb-8 md:mb-12 transition-colors">Payment Status</h3>
+          <div className="space-y-4 md:space-y-8">
+            <div 
+              onClick={() => setFilterPaymentStatus(filterPaymentStatus === 'fully_paid' ? null : 'fully_paid')}
+              className={`flex justify-between items-center cursor-pointer p-4 md:p-6 rounded-2xl md:rounded-3xl transition-all ${filterPaymentStatus === 'fully_paid' ? 'bg-indigo-50 dark:bg-indigo-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+            >
+              <div className="flex items-center gap-4 md:gap-6">
+                <div className="w-3 h-3 md:w-5 md:h-5 rounded-full bg-indigo-600 shadow-lg shadow-indigo-200"></div>
+                <span className="text-base md:text-xl font-black text-slate-600 dark:text-slate-400 uppercase tracking-widest">Fully Paid</span>
+              </div>
+              <span className="text-4xl md:text-6xl font-black text-indigo-600 dark:text-indigo-400">{globalStats.fullyPaid}</span>
+            </div>
+            <div 
+              onClick={() => setFilterPaymentStatus(filterPaymentStatus === 'partial' ? null : 'partial')}
+              className={`flex justify-between items-center cursor-pointer p-4 md:p-6 rounded-2xl md:rounded-3xl transition-all ${filterPaymentStatus === 'partial' ? 'bg-amber-50 dark:bg-amber-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+            >
+              <div className="flex items-center gap-4 md:gap-6">
+                <div className="w-3 h-3 md:w-5 md:h-5 rounded-full bg-amber-600 shadow-lg shadow-amber-200"></div>
+                <span className="text-base md:text-xl font-black text-slate-600 dark:text-slate-400 uppercase tracking-widest">Partial</span>
+              </div>
+              <span className="text-4xl md:text-6xl font-black text-amber-600 dark:text-amber-400">{globalStats.partialPaid}</span>
+            </div>
+            <div 
+              onClick={() => setFilterPaymentStatus(filterPaymentStatus === 'discount' ? null : 'discount')}
+              className={`flex justify-between items-center cursor-pointer p-4 md:p-6 rounded-2xl md:rounded-3xl transition-all ${filterPaymentStatus === 'discount' ? 'bg-blue-50 dark:bg-blue-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+            >
+              <div className="flex items-center gap-4 md:gap-6">
+                <div className="w-3 h-3 md:w-5 md:h-5 rounded-full bg-blue-600 shadow-lg shadow-blue-200"></div>
+                <span className="text-base md:text-xl font-black text-slate-600 dark:text-slate-400 uppercase tracking-widest">Discount</span>
+              </div>
+              <span className="text-4xl md:text-6xl font-black text-blue-600 dark:text-blue-400">{globalStats.discountCount}</span>
+            </div>
+            <div 
+              onClick={() => setFilterPaymentStatus(filterPaymentStatus === 'free' ? null : 'free')}
+              className={`flex justify-between items-center cursor-pointer p-4 md:p-6 rounded-2xl md:rounded-3xl transition-all ${filterPaymentStatus === 'free' ? 'bg-emerald-50 dark:bg-emerald-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+            >
+              <div className="flex items-center gap-4 md:gap-6">
+                <div className="w-3 h-3 md:w-5 md:h-5 rounded-full bg-emerald-600 shadow-lg shadow-emerald-200"></div>
+                <span className="text-base md:text-xl font-black text-slate-600 dark:text-slate-400 uppercase tracking-widest">Free</span>
+              </div>
+              <span className="text-4xl md:text-6xl font-black text-emerald-600 dark:text-emerald-400">{globalStats.freeCount}</span>
+            </div>
+            <div 
+              onClick={() => setFilterPaymentStatus(filterPaymentStatus === 'refund' ? null : 'refund')}
+              className={`flex justify-between items-center cursor-pointer p-4 md:p-6 rounded-2xl md:rounded-3xl transition-all ${filterPaymentStatus === 'refund' ? 'bg-purple-50 dark:bg-purple-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+            >
+              <div className="flex items-center gap-4 md:gap-6">
+                <div className="w-3 h-3 md:w-5 md:h-5 rounded-full bg-purple-600 shadow-lg shadow-purple-200"></div>
+                <span className="text-base md:text-xl font-black text-slate-600 dark:text-slate-400 uppercase tracking-widest">Refunded</span>
+              </div>
+              <span className="text-4xl md:text-6xl font-black text-purple-600 dark:text-purple-400">{globalStats.refundCount}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-slate-900 p-8 md:p-14 rounded-[48px] md:rounded-[64px] border border-slate-100 dark:border-slate-800 shadow-sm transition-all hover:border-orange-500 hover:shadow-2xl hover:shadow-orange-100 dark:hover:shadow-none">
+          <h3 className="text-slate-400 dark:text-slate-500 text-sm md:text-lg font-black uppercase tracking-[0.25em] mb-8 md:mb-12 transition-colors">Admission Status</h3>
+          <div className="space-y-4 md:space-y-8">
+            <div 
+              onClick={() => setFilterAdmissionStatus(filterAdmissionStatus === 'cancelled' ? null : 'cancelled')}
+              className={`flex justify-between items-center cursor-pointer p-4 md:p-6 rounded-2xl md:rounded-3xl transition-all ${filterAdmissionStatus === 'cancelled' ? 'bg-red-50 dark:bg-red-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+            >
+              <div className="flex items-center gap-4 md:gap-6">
+                <div className="w-3 h-3 md:w-5 md:h-5 rounded-full bg-red-500 shadow-lg shadow-red-200"></div>
+                <span className="text-base md:text-xl font-black text-slate-600 dark:text-slate-400 uppercase tracking-widest">Cancelled</span>
+              </div>
+              <span className="text-4xl md:text-6xl font-black text-red-500">{globalStats.cancelledCount}</span>
+            </div>
+            <div 
+              onClick={() => setFilterAdmissionStatus(filterAdmissionStatus === 'pending' ? null : 'pending')}
+              className={`flex justify-between items-center cursor-pointer p-4 md:p-6 rounded-2xl md:rounded-3xl transition-all ${filterAdmissionStatus === 'pending' ? 'bg-amber-50 dark:bg-amber-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+            >
+              <div className="flex items-center gap-4 md:gap-6">
+                <div className="w-3 h-3 md:w-5 md:h-5 rounded-full bg-amber-500 shadow-lg shadow-amber-200"></div>
+                <span className="text-base md:text-xl font-black text-slate-600 dark:text-slate-400 uppercase tracking-widest">Pending</span>
+              </div>
+              <span className="text-4xl md:text-6xl font-black text-amber-500">{globalStats.pendingCount}</span>
+            </div>
+            <div 
+              onClick={() => setFilterAdmissionStatus(filterAdmissionStatus === 'stay only' ? null : 'stay only')}
+              className={`flex justify-between items-center cursor-pointer p-4 md:p-6 rounded-2xl md:rounded-3xl transition-all ${filterAdmissionStatus === 'stay only' ? 'bg-blue-50 dark:bg-blue-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+            >
+              <div className="flex items-center gap-4 md:gap-6">
+                <div className="w-3 h-3 md:w-5 md:h-5 rounded-full bg-blue-500 shadow-lg shadow-blue-200"></div>
+                <span className="text-base md:text-xl font-black text-slate-600 dark:text-slate-400 uppercase tracking-widest">Stay Only</span>
+              </div>
+              <span className="text-4xl md:text-6xl font-black text-blue-500">{globalStats.stayOnlyCount}</span>
+            </div>
+            <div 
+              onClick={() => setFilterAdmissionStatus(filterAdmissionStatus === 'confirm' ? null : 'confirm')}
+              className={`flex justify-between items-center pt-8 md:pt-12 border-t border-slate-50 dark:border-slate-800 cursor-pointer p-4 md:p-6 rounded-2xl md:rounded-3xl transition-all ${filterAdmissionStatus === 'confirm' ? 'bg-indigo-50 dark:bg-indigo-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+            >
+              <div className="flex items-center gap-4 md:gap-6">
+                <div className="w-3 h-3 md:w-5 md:h-5 rounded-full bg-indigo-600 shadow-lg shadow-indigo-200"></div>
+                <span className="text-base md:text-xl font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">Confirmed</span>
+              </div>
+              <span className="text-5xl md:text-8xl font-black text-indigo-600 dark:text-indigo-400">{globalStats.total - globalStats.cancelledCount - globalStats.pendingCount - globalStats.stayOnlyCount}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* DATA TABLE */}
       <div className="bg-white dark:bg-slate-900 rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden flex flex-col min-h-[500px] transition-colors">
           <div className="px-4 md:px-8 py-6 border-b border-slate-50 dark:border-slate-800/50 flex flex-col gap-4 bg-slate-50/50 dark:bg-slate-800/20 transition-colors">
@@ -3262,6 +3288,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
                           )}
                         </div>
                       </th>
+                      <th 
+                        onClick={() => requestSort('notes')}
+                        className="px-4 md:px-8 py-4 text-[10px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-wider cursor-pointer hover:text-indigo-600 transition-colors hidden lg:table-cell"
+                      >
+                        <div className="flex items-center gap-1">
+                          Notes
+                          {sortConfig?.key === 'notes' && (
+                            <span className="text-indigo-500">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+                          )}
+                        </div>
+                      </th>
                       <th className="px-4 md:px-8 py-4 text-[10px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-wider text-right">Action</th>
                   </tr>
                   </thead>
@@ -3291,6 +3328,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
                           }`}>
                             {data.status}
                           </span>
+                      </td>
+                      <td className="px-4 md:px-8 py-4 text-[10px] font-bold text-slate-500 dark:text-slate-600 uppercase transition-colors hidden lg:table-cell max-w-[150px] truncate">
+                        {data.notes || '—'}
                       </td>
                       <td className="px-4 md:px-8 py-4 text-right">
                           <div className="flex items-center justify-end gap-2">
@@ -3496,6 +3536,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
                         <DetailRow label="City" value={viewingRecord.city} />
                         <DetailRow label="Total Fees" value={`₹${viewingRecord.total_fees}`} />
                         <DetailRow label="Discount Applied" value={`₹${viewingRecord.discount}`} />
+                        {viewingRecord.notes && (
+                          <div className="sm:col-span-2 mt-4 p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-800">
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Notes</p>
+                            <p className="text-xs font-bold text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">{viewingRecord.notes}</p>
+                          </div>
+                        )}
                       </div>
                       
                       {/* Payment History Section */}
@@ -3877,6 +3923,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
                     <th className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-black uppercase tracking-widest text-slate-500">Status</th>
                     <th className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-black uppercase tracking-widest text-slate-500">Paid</th>
                     <th className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-black uppercase tracking-widest text-slate-500">Remaining</th>
+                    <th className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-black uppercase tracking-widest text-slate-500">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -3905,6 +3952,28 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
                         </td>
                         <td className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-black text-right text-emerald-600 dark:text-emerald-400">₹{studentTotal.toLocaleString()}</td>
                         <td className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] font-black text-right text-slate-900 dark:text-white">₹{data.remaining_amount}</td>
+                        <td className="border border-slate-200 dark:border-slate-800 p-3 text-[10px] text-center">
+                          <div className="flex items-center justify-center gap-2">
+                            <button 
+                              onClick={() => onEdit?.(data)}
+                              className="p-1.5 text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-colors"
+                              title="Edit Record"
+                            >
+                              <Edit2 size={14} />
+                            </button>
+                            <button 
+                              onClick={() => {
+                                // Find the firestore ID if available
+                                const record = records.find(r => r.data?.admission_id === data.admission_id);
+                                onDelete?.(record?.id || '', data.admission_id);
+                              }}
+                              className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
+                              title="Delete Record"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                            </button>
+                          </div>
+                        </td>
                       </tr>
                     );
                   })}
@@ -3968,6 +4037,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
 
             {/* Actions */}
             <div className="p-6 bg-slate-50 dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row gap-4">
+              <button 
+                onClick={handleMasterExcelDownload}
+                className="flex-1 flex items-center justify-center gap-3 py-4 bg-emerald-600 text-white rounded-2xl font-black text-[11px] uppercase tracking-[0.15em] hover:bg-emerald-700 shadow-lg shadow-emerald-200 dark:shadow-none transition-all active:scale-95"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h2"/><path d="M8 17h2"/><path d="M14 13h2"/><path d="M14 17h2"/></svg>
+                Excel Export
+              </button>
               <button 
                 onClick={handleMasterPrint}
                 className="flex-1 flex items-center justify-center gap-3 py-4 bg-indigo-600 text-white rounded-2xl font-black text-[11px] uppercase tracking-[0.15em] hover:bg-indigo-700 shadow-lg shadow-indigo-200 dark:shadow-none transition-all active:scale-95"

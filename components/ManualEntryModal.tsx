@@ -39,6 +39,8 @@ const INITIAL_DATA: RegistrationData = {
   discount: '0',
   total_fees: String(TOTAL_FEES),
   remaining_amount: String(TOTAL_FEES),
+  notes: '',
+  refund_date: '',
   status: 'confirm',
   payment_status: 'unpaid'
 };
@@ -133,7 +135,7 @@ export const ManualEntryModal: React.FC<ManualEntryModalProps> = ({ isOpen, onCl
     
     setFormData(prev => {
       let newPaymentStatus = prev.payment_status;
-      if (prev.payment_status !== 'refund') {
+      if (prev.payment_status !== 'refund' && prev.payment_status !== 'discount' && prev.payment_status !== 'free') {
         if (remaining <= 0) newPaymentStatus = 'full paid';
         else if (remaining < totalFees) newPaymentStatus = 'partial';
         else newPaymentStatus = 'unpaid';
@@ -384,14 +386,42 @@ export const ManualEntryModal: React.FC<ManualEntryModalProps> = ({ isOpen, onCl
                       ? 'bg-purple-50 border-purple-200 text-purple-600 dark:bg-purple-900/20 dark:border-purple-900/30 dark:text-purple-400' 
                       : formData.payment_status === 'full paid'
                         ? 'bg-emerald-50 border-emerald-200 text-emerald-600 dark:bg-emerald-900/20 dark:border-emerald-900/30 dark:text-emerald-400'
-                        : 'bg-slate-50 border-slate-200 text-slate-900 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100'
+                        : formData.payment_status === 'discount'
+                          ? 'bg-blue-50 border-blue-200 text-blue-600 dark:bg-blue-900/20 dark:border-blue-900/30 dark:text-blue-400'
+                          : formData.payment_status === 'free'
+                            ? 'bg-indigo-50 border-indigo-200 text-indigo-600 dark:bg-indigo-900/20 dark:border-indigo-900/30 dark:text-indigo-400'
+                            : 'bg-slate-50 border-slate-200 text-slate-900 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100'
                   }`}
                 >
                   <option value="unpaid">Unpaid</option>
                   <option value="partial">Partial</option>
                   <option value="full paid">Full Paid</option>
+                  <option value="discount">Discount</option>
+                  <option value="free">Free</option>
                   <option value="refund">Refund</option>
                 </select>
+              </div>
+
+              {formData.status === 'cancelled' && formData.payment_status === 'refund' && (
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest ml-1 transition-colors">Refund Date</label>
+                  <input 
+                    type="date" 
+                    value={toInputDate(formData.refund_date || '')} 
+                    onChange={(e) => handleChange('refund_date', fromInputDate(e.target.value))} 
+                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-bold outline-none dark:text-slate-100 transition-colors" 
+                  />
+                </div>
+              )}
+
+              <div className="space-y-1">
+                <label className="text-[9px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest ml-1 transition-colors">Notes</label>
+                <textarea 
+                  value={formData.notes || ''} 
+                  onChange={(e) => handleChange('notes', e.target.value)} 
+                  placeholder="Add any additional notes here..." 
+                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-500 dark:text-slate-100 transition-colors min-h-[100px]" 
+                />
               </div>
             </div>
 
