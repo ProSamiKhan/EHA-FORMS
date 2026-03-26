@@ -641,7 +641,7 @@ const CustomAnalyticsView = ({ records, onBack, onSeedData, onRefresh, isRefresh
               <p className="text-3xl font-black text-emerald-600 tracking-tight">₹{stats.totalDiscount.toLocaleString()}</p>
               <div className="mt-4 flex items-center gap-2 text-[10px] font-bold text-emerald-600 uppercase tracking-widest">
                 <Plus className="w-3 h-3" />
-                Scholarships
+                Free
               </div>
             </div>
             <div className="bg-white dark:bg-slate-900 p-8 rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-sm group hover:border-violet-500 transition-all">
@@ -2461,93 +2461,93 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
           {/* STATUS CARDS ROW */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 mt-4 md:mt-6">
             <div className="bg-white dark:bg-slate-900 p-6 md:p-10 rounded-[32px] md:rounded-[48px] border border-slate-100 dark:border-slate-800 shadow-sm transition-all hover:border-indigo-500">
-              <h3 className="text-slate-400 dark:text-slate-500 text-[10px] md:text-[11px] font-black uppercase tracking-[0.2em] mb-4 md:mb-8 transition-colors">Payment Status</h3>
-              <div className="space-y-2 md:space-y-4">
+              <h3 className="text-slate-400 dark:text-slate-500 text-xs md:text-sm font-black uppercase tracking-[0.2em] mb-4 md:mb-8 transition-colors">Payment Status</h3>
+              <div className="space-y-3 md:space-y-6">
                 <div 
                   onClick={() => setFilterPaymentStatus(filterPaymentStatus === 'fully_paid' ? null : 'fully_paid')}
-                  className={`flex justify-between items-center cursor-pointer p-2 md:p-3 rounded-xl md:rounded-2xl transition-all ${filterPaymentStatus === 'fully_paid' ? 'bg-indigo-50 dark:bg-indigo-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+                  className={`flex justify-between items-center cursor-pointer p-3 md:p-4 rounded-xl md:rounded-2xl transition-all ${filterPaymentStatus === 'fully_paid' ? 'bg-indigo-50 dark:bg-indigo-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
                 >
-                  <div className="flex items-center gap-2 md:gap-3">
-                    <div className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-indigo-600"></div>
-                    <span className="text-[9px] md:text-[10px] font-black text-slate-500 uppercase tracking-widest">Fully Paid</span>
+                  <div className="flex items-center gap-3 md:gap-4">
+                    <div className="w-2 h-2 md:w-3 md:h-3 rounded-full bg-indigo-600"></div>
+                    <span className="text-sm md:text-base font-black text-slate-500 uppercase tracking-widest">Fully Paid</span>
                   </div>
-                  <span className="text-sm md:text-lg font-black text-indigo-600 dark:text-indigo-400">{globalStats.fullyPaid}</span>
+                  <span className="text-2xl md:text-4xl font-black text-indigo-600 dark:text-indigo-400">{globalStats.fullyPaid}</span>
                 </div>
                 <div 
                   onClick={() => setFilterPaymentStatus(filterPaymentStatus === 'partial' ? null : 'partial')}
-                  className={`flex justify-between items-center cursor-pointer p-2 md:p-3 rounded-xl md:rounded-2xl transition-all ${filterPaymentStatus === 'partial' ? 'bg-amber-50 dark:bg-amber-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+                  className={`flex justify-between items-center cursor-pointer p-3 md:p-4 rounded-xl md:rounded-2xl transition-all ${filterPaymentStatus === 'partial' ? 'bg-amber-50 dark:bg-amber-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
                 >
-                  <div className="flex items-center gap-2 md:gap-3">
-                    <div className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-amber-600"></div>
-                    <span className="text-[9px] md:text-[10px] font-black text-slate-500 uppercase tracking-widest">Partial</span>
+                  <div className="flex items-center gap-3 md:gap-4">
+                    <div className="w-2 h-2 md:w-3 md:h-3 rounded-full bg-amber-600"></div>
+                    <span className="text-sm md:text-base font-black text-slate-500 uppercase tracking-widest">Partial</span>
                   </div>
-                  <span className="text-sm md:text-lg font-black text-amber-600 dark:text-amber-400">{globalStats.partialPaid}</span>
+                  <span className="text-2xl md:text-4xl font-black text-amber-600 dark:text-amber-400">{globalStats.partialPaid}</span>
                 </div>
                 <div 
                   onClick={() => setFilterPaymentStatus(filterPaymentStatus === 'discount' ? null : 'discount')}
-                  className={`flex justify-between items-center cursor-pointer p-2 md:p-3 rounded-xl md:rounded-2xl transition-all ${filterPaymentStatus === 'discount' ? 'bg-emerald-50 dark:bg-emerald-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+                  className={`flex justify-between items-center cursor-pointer p-3 md:p-4 rounded-xl md:rounded-2xl transition-all ${filterPaymentStatus === 'discount' ? 'bg-emerald-50 dark:bg-emerald-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
                 >
-                  <div className="flex items-center gap-2 md:gap-3">
-                    <div className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-emerald-600"></div>
-                    <span className="text-[9px] md:text-[10px] font-black text-slate-500 uppercase tracking-widest">Scholarship</span>
+                  <div className="flex items-center gap-3 md:gap-4">
+                    <div className="w-2 h-2 md:w-3 md:h-3 rounded-full bg-emerald-600"></div>
+                    <span className="text-sm md:text-base font-black text-slate-500 uppercase tracking-widest">Free</span>
                   </div>
-                  <span className="text-sm md:text-lg font-black text-emerald-600 dark:text-emerald-400">{globalStats.discountCount}</span>
+                  <span className="text-2xl md:text-4xl font-black text-emerald-600 dark:text-emerald-400">{globalStats.discountCount}</span>
                 </div>
                 <div 
                   onClick={() => setFilterPaymentStatus(filterPaymentStatus === 'refund' ? null : 'refund')}
-                  className={`flex justify-between items-center cursor-pointer p-2 md:p-3 rounded-xl md:rounded-2xl transition-all ${filterPaymentStatus === 'refund' ? 'bg-purple-50 dark:bg-purple-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+                  className={`flex justify-between items-center cursor-pointer p-3 md:p-4 rounded-xl md:rounded-2xl transition-all ${filterPaymentStatus === 'refund' ? 'bg-purple-50 dark:bg-purple-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
                 >
-                  <div className="flex items-center gap-2 md:gap-3">
-                    <div className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-purple-600"></div>
-                    <span className="text-[9px] md:text-[10px] font-black text-slate-500 uppercase tracking-widest">Refunded</span>
+                  <div className="flex items-center gap-3 md:gap-4">
+                    <div className="w-2 h-2 md:w-3 md:h-3 rounded-full bg-purple-600"></div>
+                    <span className="text-sm md:text-base font-black text-slate-500 uppercase tracking-widest">Refunded</span>
                   </div>
-                  <span className="text-sm md:text-lg font-black text-purple-600 dark:text-purple-400">{globalStats.refundCount}</span>
+                  <span className="text-2xl md:text-4xl font-black text-purple-600 dark:text-purple-400">{globalStats.refundCount}</span>
                 </div>
               </div>
             </div>
 
             <div className="bg-white dark:bg-slate-900 p-6 md:p-10 rounded-[32px] md:rounded-[48px] border border-slate-100 dark:border-slate-800 shadow-sm transition-all hover:border-orange-500">
-              <h3 className="text-slate-400 dark:text-slate-500 text-[10px] md:text-[11px] font-black uppercase tracking-[0.2em] mb-4 md:mb-8 transition-colors">Admission Status</h3>
-              <div className="space-y-2 md:space-y-4">
+              <h3 className="text-slate-400 dark:text-slate-500 text-xs md:text-sm font-black uppercase tracking-[0.2em] mb-4 md:mb-8 transition-colors">Admission Status</h3>
+              <div className="space-y-3 md:space-y-6">
                 <div 
                   onClick={() => setFilterAdmissionStatus(filterAdmissionStatus === 'cancelled' ? null : 'cancelled')}
-                  className={`flex justify-between items-center cursor-pointer p-2 md:p-3 rounded-xl md:rounded-2xl transition-all ${filterAdmissionStatus === 'cancelled' ? 'bg-red-50 dark:bg-red-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+                  className={`flex justify-between items-center cursor-pointer p-3 md:p-4 rounded-xl md:rounded-2xl transition-all ${filterAdmissionStatus === 'cancelled' ? 'bg-red-50 dark:bg-red-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
                 >
-                  <div className="flex items-center gap-2 md:gap-3">
-                    <div className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-red-500"></div>
-                    <span className="text-[9px] md:text-[10px] font-black text-slate-500 uppercase tracking-widest">Cancelled</span>
+                  <div className="flex items-center gap-3 md:gap-4">
+                    <div className="w-2 h-2 md:w-3 md:h-3 rounded-full bg-red-500"></div>
+                    <span className="text-sm md:text-base font-black text-slate-500 uppercase tracking-widest">Cancelled</span>
                   </div>
-                  <span className="text-sm md:text-lg font-black text-red-500">{globalStats.cancelledCount}</span>
+                  <span className="text-2xl md:text-4xl font-black text-red-500">{globalStats.cancelledCount}</span>
                 </div>
                 <div 
                   onClick={() => setFilterAdmissionStatus(filterAdmissionStatus === 'pending' ? null : 'pending')}
-                  className={`flex justify-between items-center cursor-pointer p-2 md:p-3 rounded-xl md:rounded-2xl transition-all ${filterAdmissionStatus === 'pending' ? 'bg-amber-50 dark:bg-amber-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+                  className={`flex justify-between items-center cursor-pointer p-3 md:p-4 rounded-xl md:rounded-2xl transition-all ${filterAdmissionStatus === 'pending' ? 'bg-amber-50 dark:bg-amber-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
                 >
-                  <div className="flex items-center gap-2 md:gap-3">
-                    <div className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-amber-500"></div>
-                    <span className="text-[9px] md:text-[10px] font-black text-slate-500 uppercase tracking-widest">Pending</span>
+                  <div className="flex items-center gap-3 md:gap-4">
+                    <div className="w-2 h-2 md:w-3 md:h-3 rounded-full bg-amber-500"></div>
+                    <span className="text-sm md:text-base font-black text-slate-500 uppercase tracking-widest">Pending</span>
                   </div>
-                  <span className="text-sm md:text-lg font-black text-amber-500">{globalStats.pendingCount}</span>
+                  <span className="text-2xl md:text-4xl font-black text-amber-500">{globalStats.pendingCount}</span>
                 </div>
                 <div 
                   onClick={() => setFilterAdmissionStatus(filterAdmissionStatus === 'stay only' ? null : 'stay only')}
-                  className={`flex justify-between items-center cursor-pointer p-2 md:p-3 rounded-xl md:rounded-2xl transition-all ${filterAdmissionStatus === 'stay only' ? 'bg-blue-50 dark:bg-blue-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+                  className={`flex justify-between items-center cursor-pointer p-3 md:p-4 rounded-xl md:rounded-2xl transition-all ${filterAdmissionStatus === 'stay only' ? 'bg-blue-50 dark:bg-blue-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
                 >
-                  <div className="flex items-center gap-2 md:gap-3">
-                    <div className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-blue-500"></div>
-                    <span className="text-[9px] md:text-[10px] font-black text-slate-500 uppercase tracking-widest">Stay Only</span>
+                  <div className="flex items-center gap-3 md:gap-4">
+                    <div className="w-2 h-2 md:w-3 md:h-3 rounded-full bg-blue-500"></div>
+                    <span className="text-sm md:text-base font-black text-slate-500 uppercase tracking-widest">Stay Only</span>
                   </div>
-                  <span className="text-sm md:text-lg font-black text-blue-500">{globalStats.stayOnlyCount}</span>
+                  <span className="text-2xl md:text-4xl font-black text-blue-500">{globalStats.stayOnlyCount}</span>
                 </div>
                 <div 
                   onClick={() => setFilterAdmissionStatus(filterAdmissionStatus === 'confirm' ? null : 'confirm')}
-                  className={`flex justify-between items-center pt-2 md:pt-4 border-t border-slate-50 dark:border-slate-800 cursor-pointer p-2 md:p-3 rounded-xl md:rounded-2xl transition-all ${filterAdmissionStatus === 'confirm' ? 'bg-indigo-50 dark:bg-indigo-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+                  className={`flex justify-between items-center pt-4 md:pt-8 border-t border-slate-50 dark:border-slate-800 cursor-pointer p-3 md:p-4 rounded-xl md:rounded-2xl transition-all ${filterAdmissionStatus === 'confirm' ? 'bg-indigo-50 dark:bg-indigo-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
                 >
-                  <div className="flex items-center gap-2 md:gap-3">
-                    <div className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-indigo-600"></div>
-                    <span className="text-[9px] md:text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">Confirmed</span>
+                  <div className="flex items-center gap-3 md:gap-4">
+                    <div className="w-2 h-2 md:w-3 md:h-3 rounded-full bg-indigo-600"></div>
+                    <span className="text-sm md:text-base font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">Confirmed</span>
                   </div>
-                  <span className="text-lg md:text-xl font-black text-indigo-600 dark:text-indigo-400">{globalStats.total - globalStats.cancelledCount - globalStats.pendingCount - globalStats.stayOnlyCount}</span>
+                  <span className="text-3xl md:text-5xl font-black text-indigo-600 dark:text-indigo-400">{globalStats.total - globalStats.cancelledCount - globalStats.pendingCount - globalStats.stayOnlyCount}</span>
                 </div>
               </div>
             </div>
