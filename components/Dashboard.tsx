@@ -3771,11 +3771,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
                   </div>
                   <div className="text-right flex flex-col gap-6">
                     <div>
-                      <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Admission ID</p>
+                      <p className="text-[12px] font-black uppercase text-black tracking-widest mb-1">Admission ID</p>
                       <p className="text-2xl font-black bg-black text-white px-4 py-1 rounded-lg inline-block">{viewingStudentForm.admission_id}</p>
                     </div>
                     <div>
-                      <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Registration Date</p>
+                      <p className="text-[12px] font-black uppercase text-black tracking-widest mb-1">Registration Date</p>
                       <p className="text-xl font-black">{formatDateClean(viewingStudentForm.payment1_date)}</p>
                     </div>
                   </div>
@@ -3784,68 +3784,68 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
                 {/* Student Info Grid */}
                 <div className="grid grid-cols-2 gap-y-8 gap-x-12 mb-12">
                   <div className="col-span-2 border-b-[3px] border-black pb-3">
-                    <p className="text-[11px] font-black uppercase text-slate-400 tracking-[0.2em] mb-1">Student Full Name</p>
+                    <p className="text-[13px] font-black uppercase text-black tracking-[0.2em] mb-1">Student Full Name</p>
                     <p className="text-3xl font-black uppercase tracking-tight">{viewingStudentForm.name}</p>
                   </div>
                   
                   <div className="border-b-[2px] border-black pb-1">
-                    <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Gender</p>
+                    <p className="text-[12px] font-black uppercase text-black tracking-widest mb-1">Gender</p>
                     <p className="text-xl font-black uppercase">{viewingStudentForm.gender}</p>
                   </div>
                   <div className="border-b-[2px] border-black pb-1">
-                    <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Age</p>
+                    <p className="text-[12px] font-black uppercase text-black tracking-widest mb-1">Age</p>
                     <p className="text-xl font-black uppercase">{viewingStudentForm.age}</p>
                   </div>
                   
                   <div className="border-b-[2px] border-black pb-1">
-                    <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Qualification</p>
+                    <p className="text-[12px] font-black uppercase text-black tracking-widest mb-1">Qualification</p>
                     <p className="text-xl font-black uppercase">{viewingStudentForm.qualification}</p>
                   </div>
                   <div className="border-b-[2px] border-black pb-1">
-                    <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Medium</p>
+                    <p className="text-[12px] font-black uppercase text-black tracking-widest mb-1">Medium</p>
                     <p className="text-xl font-black uppercase">{viewingStudentForm.medium}</p>
                   </div>
                   
                   <div className="border-b-[2px] border-black pb-1">
-                    <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Contact Number</p>
+                    <p className="text-[12px] font-black uppercase text-black tracking-widest mb-1">Contact Number</p>
                     <p className="text-xl font-black uppercase">{viewingStudentForm.contact_no}</p>
                   </div>
                   <div className="border-b-[2px] border-black pb-1">
-                    <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">WhatsApp Number</p>
+                    <p className="text-[12px] font-black uppercase text-black tracking-widest mb-1">WhatsApp Number</p>
                     <p className="text-xl font-black uppercase">{viewingStudentForm.whatsapp_no}</p>
                   </div>
                   
                   <div className="border-b-[2px] border-black pb-1">
-                    <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">State</p>
+                    <p className="text-[12px] font-black uppercase text-black tracking-widest mb-1">State</p>
                     <p className="text-xl font-black uppercase">{viewingStudentForm.state}</p>
                   </div>
                   <div className="border-b-[2px] border-black pb-1">
-                    <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">City</p>
+                    <p className="text-[12px] font-black uppercase text-black tracking-widest mb-1">City</p>
                     <p className="text-xl font-black uppercase">{viewingStudentForm.city}</p>
                   </div>
                 </div>
                 
                 {/* Fee Summary */}
                 <div className="mb-12">
-                  <h3 className="text-sm font-black uppercase tracking-[0.3em] text-slate-400 mb-4 flex items-center gap-3">
+                  <h3 className="text-base font-black uppercase tracking-[0.3em] text-black mb-4 flex items-center gap-3">
                     FEE SUMMARY
-                    <div className="flex-1 h-px bg-slate-200"></div>
+                    <div className="flex-1 h-px bg-black"></div>
                   </h3>
                   <div className="grid grid-cols-4 gap-4">
                     <div className="border-[3px] border-black p-4 flex flex-col justify-center">
-                      <p className="text-[9px] font-black uppercase text-slate-400 mb-1">Total Fees</p>
+                      <p className="text-[11px] font-black uppercase text-black mb-1">Total Fees</p>
                       <p className="text-xl font-black">₹{viewingStudentForm.total_fees}</p>
                     </div>
                     <div className="border-[3px] border-black p-4 flex flex-col justify-center">
-                      <p className="text-[9px] font-black uppercase text-slate-400 mb-1">Discount</p>
+                      <p className="text-[11px] font-black uppercase text-black mb-1">Discount</p>
                       <p className="text-xl font-black">₹{viewingStudentForm.discount}</p>
                     </div>
                     <div className="border-[3px] border-black p-4 flex flex-col justify-center">
-                      <p className="text-[9px] font-black uppercase text-slate-400 mb-1">Free</p>
+                      <p className="text-[11px] font-black uppercase text-black mb-1">Free</p>
                       <p className="text-xl font-black">₹{viewingStudentForm.free || '0'}</p>
                     </div>
                     <div className="bg-black text-white p-4 flex flex-col justify-center">
-                      <p className="text-[9px] font-black uppercase text-slate-400 mb-1">Balance</p>
+                      <p className="text-[11px] font-black uppercase text-slate-300 mb-1">Balance</p>
                       <p className="text-2xl font-black">₹{viewingStudentForm.remaining_amount}</p>
                     </div>
                   </div>
@@ -3854,16 +3854,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
                 {/* Notes */}
                 {viewingStudentForm.notes && (
                   <div className="mb-12 border-[3px] border-black p-6">
-                    <h3 className="text-sm font-black uppercase tracking-[0.3em] text-slate-400 mb-4">NOTES</h3>
-                    <p className="text-base font-bold text-slate-800 leading-relaxed whitespace-pre-wrap italic">"{viewingStudentForm.notes}"</p>
+                    <h3 className="text-base font-black uppercase tracking-[0.3em] text-black mb-4">NOTES</h3>
+                    <p className="text-base font-bold text-black leading-relaxed whitespace-pre-wrap italic">"{viewingStudentForm.notes}"</p>
                   </div>
                 )}
                 
                 {/* Installments */}
                 <div className="grow">
-                  <h3 className="text-sm font-black uppercase tracking-[0.3em] text-slate-400 mb-4 flex items-center gap-3">
+                  <h3 className="text-base font-black uppercase tracking-[0.3em] text-black mb-4 flex items-center gap-3">
                     PAYMENT SCHEDULE
-                    <div className="flex-1 h-px bg-slate-200"></div>
+                    <div className="flex-1 h-px bg-black"></div>
                   </h3>
                   <div className="grid grid-cols-1 gap-2">
                     {[1, 2, 3, 4].map(num => {
@@ -3873,15 +3873,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
                       
                       return (
                         <div key={num} className={`flex border-[3px] border-black ${isPaid ? 'bg-slate-50' : ''}`}>
-                          <div className="w-32 p-3 font-black text-[10px] uppercase flex items-center justify-center border-r-[3px] border-black bg-slate-100">
+                          <div className="w-32 p-3 font-black text-[12px] uppercase flex items-center justify-center border-r-[3px] border-black bg-slate-100">
                             Installment {num}
                           </div>
                           <div className="flex-1 p-3 flex justify-between items-center px-8">
-                            <span className="text-[9px] font-black uppercase text-slate-400">{isPaid ? 'Amount Paid' : 'Status'}</span>
+                            <span className="text-[11px] font-black uppercase text-black">{isPaid ? 'Amount Paid' : 'Status'}</span>
                             <span className={`text-xl font-black ${!isPaid ? 'text-slate-300' : ''}`}>{isPaid ? `₹${amt}` : 'PENDING'}</span>
                           </div>
                           <div className="w-56 p-3 flex justify-between items-center px-6 border-l-[3px] border-black">
-                            <span className="text-[9px] font-black uppercase text-slate-400">Date</span>
+                            <span className="text-[11px] font-black uppercase text-black">Date</span>
                             <span className={`text-base font-black ${!isPaid ? 'text-slate-300' : ''}`}>{isPaid ? formatDateClean(date) : '-- / -- / ----'}</span>
                           </div>
                         </div>
@@ -3894,11 +3894,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
                 <div className="mt-16 flex justify-between items-end">
                   <div className="text-center">
                     <div className="w-56 border-b-[3px] border-black mb-2"></div>
-                    <p className="text-[10px] font-black uppercase tracking-widest">Student Signature</p>
+                    <p className="text-[12px] font-black uppercase tracking-widest">Student Signature</p>
                   </div>
                   <div className="text-center">
                     <div className="w-56 border-b-[3px] border-black mb-2"></div>
-                    <p className="text-[10px] font-black uppercase tracking-widest">Authorized Stamp</p>
+                    <p className="text-[12px] font-black uppercase tracking-widest">Authorized Stamp</p>
                   </div>
                 </div>
                 
