@@ -14,7 +14,7 @@ import {
   eachMonthOfInterval, eachYearOfInterval, eachWeekOfInterval, eachDayOfInterval,
   endOfMonth, endOfYear, endOfWeek
 } from 'date-fns';
-import { Calendar, ChevronDown, X, MapPin, Edit2, ChevronRight, ArrowLeft, Menu, Users, CreditCard, PieChart as PieIcon, Filter, Plus, BarChart3, Zap, Building2, GraduationCap, Languages } from 'lucide-react';
+import { Calendar, ChevronDown, X, MapPin, Edit2, ChevronRight, ArrowLeft, Menu, Users, CreditCard, PieChart as PieIcon, Filter, Plus, BarChart3, Zap, Building2, GraduationCap, Languages, RotateCcw } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { formatDateClean, parseDate } from '../services/utils';
 
@@ -2000,6 +2000,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
     let discountCount = 0;
     let freeCount = 0;
     let refundCount = 0;
+    let refundedAmount = 0;
 
     data.forEach(d => {
       const status = (d.status || 'confirm').toLowerCase();
@@ -2011,7 +2012,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
 
       if (status === 'cancelled') {
         cancelledCount++;
-        if (ps === 'refund') refundCount++;
+        if (ps === 'refund') {
+          refundCount++;
+          // Calculate payments for cancelled but refunded
+          for (let i = 1; i <= 10; i++) {
+            const amt = parseFloat(String((d as any)[`payment${i}_amount`]).replace(/[^0-9.]/g, '')) || 0;
+            refundedAmount += amt;
+          }
+        }
         return;
       }
       if (status === 'pending') {
@@ -2057,6 +2065,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
 
       if (ps === 'refund') {
         refundCount++;
+        refundedAmount += studentTotal;
       } else if (ps === 'free' || freeVal > 0 || (totalFeesVal === 0 && status !== 'cancelled')) {
         freeCount++;
       } else if (ps === 'discount' || discountVal > 0) {
@@ -2067,7 +2076,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
         partialPaid++;
       }
     });
-    return { total, genderMapConfirm, genderMapTotal, revenue, cashRevenue, accountRevenue, cancelledCount, pendingCount, stayOnlyCount, fullyPaid, partialPaid, discountCount, freeCount, refundCount };
+    return { total, genderMapConfirm, genderMapTotal, revenue, cashRevenue, accountRevenue, refundedAmount, cancelledCount, pendingCount, stayOnlyCount, fullyPaid, partialPaid, discountCount, freeCount, refundCount };
   };
 
   const globalStats = useMemo(() => getStats(filteredData), [filteredData]);
@@ -2495,6 +2504,24 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
                       <p className={`text-[8px] md:text-[10px] font-black uppercase tracking-widest ${filterPaymentMethod === 'account' ? 'text-indigo-100' : 'text-indigo-600 dark:text-indigo-400'}`}>EHA Account</p>
                     </div>
                     <p className={`text-sm md:text-lg font-black ${filterPaymentMethod === 'account' ? 'text-white' : 'text-indigo-700 dark:text-indigo-300'}`}>₹{globalStats.accountRevenue.toLocaleString()}</p>
+                  </div>
+                  <div 
+                    onClick={() => {
+                      if (activeFilters.find(f => f.key === 'payment_status' && f.value === 'refund')) {
+                        removeFilter('payment_status', 'refund');
+                      } else {
+                        addFilter('payment_status', 'refund');
+                      }
+                    }}
+                    className={`p-3 md:p-4 rounded-xl md:rounded-2xl border cursor-pointer transition-all flex justify-between items-center ${activeFilters.find(f => f.key === 'payment_status' && f.value === 'refund') ? 'bg-rose-600 border-rose-500' : 'bg-rose-50 dark:bg-rose-900/10 border-rose-100 dark:border-rose-900/20 hover:bg-rose-100 dark:hover:bg-rose-900/20'}`}
+                  >
+                    <div className="flex items-center gap-2 md:gap-3">
+                      <div className={`w-6 h-6 md:w-8 md:h-8 rounded-lg md:rounded-xl flex items-center justify-center ${activeFilters.find(f => f.key === 'payment_status' && f.value === 'refund') ? 'bg-white/20' : 'bg-rose-600'}`}>
+                        <RotateCcw className="w-3 h-3 md:w-4 md:h-4 text-white" />
+                      </div>
+                      <p className={`text-[8px] md:text-[10px] font-black uppercase tracking-widest ${activeFilters.find(f => f.key === 'payment_status' && f.value === 'refund') ? 'text-rose-100' : 'text-rose-600 dark:text-rose-400'}`}>Refunded Amount</p>
+                    </div>
+                    <p className={`text-sm md:text-lg font-black ${activeFilters.find(f => f.key === 'payment_status' && f.value === 'refund') ? 'text-white' : 'text-rose-700 dark:text-rose-300'}`}>₹{globalStats.refundedAmount.toLocaleString()}</p>
                   </div>
                 </div>
               </div>
