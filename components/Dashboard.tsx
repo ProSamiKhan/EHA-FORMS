@@ -2454,15 +2454,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
       {currentView === 'dashboard' ? (
         <>
           {/* MAIN STATS ROW */}
-          <div className={`grid gap-4 md:gap-6 ${userRole === 'super_admin' ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1'}`}>
+          <div className={`grid gap-6 ${userRole === 'super_admin' ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1'}`}>
             <div 
               onClick={() => { setFilterAdmissionStatus(null); setFilterPaymentStatus(null); setFilterGender(null); setFilterState(null); setFilterCity(null); setFilterDate(null); setFilterAgeRange(null); }}
-              className="bg-white dark:bg-slate-900 p-6 md:p-10 rounded-[32px] md:rounded-[48px] border border-slate-100 dark:border-slate-800 shadow-sm relative overflow-hidden group transition-all cursor-pointer hover:border-indigo-500 hover:shadow-2xl hover:shadow-indigo-100 dark:hover:shadow-none"
+              className="bg-white dark:bg-slate-900 p-8 md:p-10 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm relative overflow-hidden group transition-all cursor-pointer hover:border-indigo-500 hover:shadow-xl"
             >
-              <div className="absolute top-0 right-0 w-32 md:w-48 h-32 md:h-48 bg-indigo-50 dark:bg-indigo-900/10 rounded-full -mr-16 md:-mr-24 -mt-16 md:-mt-24 group-hover:scale-125 transition-transform duration-700"></div>
-              <h3 className="text-slate-400 dark:text-slate-500 text-[10px] md:text-[11px] font-black uppercase tracking-[0.2em] mb-2 md:mb-4 relative transition-colors">Total Admissions</h3>
-              <p className="text-5xl md:text-8xl font-black text-slate-900 dark:text-slate-100 relative transition-colors tracking-tighter leading-none">{globalStats.total}</p>
-              <div className="mt-4 md:mt-8 flex items-center gap-3 relative">
+              <div className="absolute top-0 right-0 w-32 md:w-48 h-32 md:h-48 bg-indigo-50 dark:bg-indigo-900/10 rounded-full -mr-16 md:-mr-24 -mt-16 md:-mt-24 group-hover:scale-110 transition-transform duration-700"></div>
+              <h3 className="text-slate-400 dark:text-slate-500 text-[10px] md:text-[11px] font-black uppercase tracking-[0.2em] mb-4 relative">Total Admissions</h3>
+              <p className="text-6xl md:text-7xl font-black text-slate-900 dark:text-slate-100 relative tracking-tighter leading-none">{globalStats.total}</p>
+              <div className="mt-8 flex items-center gap-3 relative">
                 <div className="px-3 py-1 bg-green-50 dark:bg-green-900/20 rounded-full">
                   <p className="text-green-600 dark:text-green-400 text-[8px] md:text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span> {isLoading ? "Syncing..." : "Live"}
@@ -2473,37 +2473,33 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
             </div>
 
             {userRole === 'super_admin' && (
-              <div className="bg-white dark:bg-slate-900 p-6 md:p-10 rounded-[32px] md:rounded-[48px] border border-slate-100 dark:border-slate-800 shadow-sm transition-all group hover:border-emerald-500">
-                <h3 className="text-slate-400 dark:text-slate-500 text-[10px] md:text-[11px] font-black uppercase tracking-[0.2em] mb-2 md:mb-4 transition-colors">Total Revenue</h3>
-                <div className="mb-4 md:mb-8">
-                  <p className="text-4xl md:text-6xl font-black text-slate-900 dark:text-slate-100 tracking-tighter leading-none transition-colors mb-3">₹{globalStats.revenue.toLocaleString()}</p>
+              <div className="bg-white dark:bg-slate-900 p-8 md:p-10 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm transition-all group hover:border-emerald-500 hover:shadow-xl">
+                <h3 className="text-slate-400 dark:text-slate-500 text-[10px] md:text-[11px] font-black uppercase tracking-[0.2em] mb-4">Total Revenue</h3>
+                <div className="mb-8">
+                  <p className="text-5xl md:text-6xl font-black text-slate-900 dark:text-slate-100 tracking-tighter leading-none mb-3">₹{globalStats.revenue.toLocaleString()}</p>
                   <p className="text-[10px] md:text-xs font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-[0.1em] leading-tight opacity-90 bg-emerald-50 dark:bg-emerald-900/20 px-3 py-1.5 rounded-lg inline-block">{numberToWords(globalStats.revenue)} ONLY</p>
                 </div>
                 
-                <div className="grid grid-cols-1 gap-2 md:gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div 
                     onClick={() => setFilterPaymentMethod(filterPaymentMethod === 'cash' ? null : 'cash')}
-                    className={`p-3 md:p-4 rounded-xl md:rounded-2xl border cursor-pointer transition-all flex justify-between items-center ${filterPaymentMethod === 'cash' ? 'bg-emerald-600 border-emerald-500' : 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-100 dark:border-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/20'}`}
+                    className={`p-4 rounded-2xl border cursor-pointer transition-all flex flex-col justify-between gap-2 ${filterPaymentMethod === 'cash' ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-100 dark:border-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/20'}`}
                   >
-                    <div className="flex items-center gap-2 md:gap-3">
-                      <div className={`w-6 h-6 md:w-8 md:h-8 rounded-lg md:rounded-xl flex items-center justify-center ${filterPaymentMethod === 'cash' ? 'bg-white/20' : 'bg-emerald-600'}`}>
-                        <CreditCard className="w-3 h-3 md:w-4 md:h-4 text-white" />
-                      </div>
-                      <p className={`text-[8px] md:text-[10px] font-black uppercase tracking-widest ${filterPaymentMethod === 'cash' ? 'text-emerald-100' : 'text-emerald-600 dark:text-emerald-400'}`}>Cash Collection</p>
+                    <div className="flex items-center gap-2">
+                      <CreditCard className={`w-3 h-3 ${filterPaymentMethod === 'cash' ? 'text-emerald-100' : 'text-emerald-600'}`} />
+                      <p className={`text-[8px] font-black uppercase tracking-widest ${filterPaymentMethod === 'cash' ? 'text-emerald-100' : 'text-emerald-600 dark:text-emerald-400'}`}>Cash</p>
                     </div>
-                    <p className={`text-sm md:text-lg font-black ${filterPaymentMethod === 'cash' ? 'text-white' : 'text-emerald-700 dark:text-emerald-300'}`}>₹{globalStats.cashRevenue.toLocaleString()}</p>
+                    <p className="text-lg font-black">₹{globalStats.cashRevenue.toLocaleString()}</p>
                   </div>
                   <div 
                     onClick={() => setFilterPaymentMethod(filterPaymentMethod === 'account' ? null : 'account')}
-                    className={`p-3 md:p-4 rounded-xl md:rounded-2xl border cursor-pointer transition-all flex justify-between items-center ${filterPaymentMethod === 'account' ? 'bg-indigo-600 border-indigo-500' : 'bg-indigo-50 dark:bg-indigo-900/10 border-indigo-100 dark:border-indigo-900/20 hover:bg-indigo-100 dark:hover:bg-indigo-900/20'}`}
+                    className={`p-4 rounded-2xl border cursor-pointer transition-all flex flex-col justify-between gap-2 ${filterPaymentMethod === 'account' ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-indigo-50 dark:bg-indigo-900/10 border-indigo-100 dark:border-indigo-900/20 hover:bg-indigo-100 dark:hover:bg-indigo-900/20'}`}
                   >
-                    <div className="flex items-center gap-2 md:gap-3">
-                      <div className={`w-6 h-6 md:w-8 md:h-8 rounded-lg md:rounded-xl flex items-center justify-center ${filterPaymentMethod === 'account' ? 'bg-white/20' : 'bg-indigo-600'}`}>
-                        <Building2 className="w-3 h-3 md:w-4 md:h-4 text-white" />
-                      </div>
-                      <p className={`text-[8px] md:text-[10px] font-black uppercase tracking-widest ${filterPaymentMethod === 'account' ? 'text-indigo-100' : 'text-indigo-600 dark:text-indigo-400'}`}>EHA Account</p>
+                    <div className="flex items-center gap-2">
+                      <Building2 className={`w-3 h-3 ${filterPaymentMethod === 'account' ? 'text-indigo-100' : 'text-indigo-600'}`} />
+                      <p className={`text-[8px] font-black uppercase tracking-widest ${filterPaymentMethod === 'account' ? 'text-indigo-100' : 'text-indigo-600 dark:text-indigo-400'}`}>Account</p>
                     </div>
-                    <p className={`text-sm md:text-lg font-black ${filterPaymentMethod === 'account' ? 'text-white' : 'text-indigo-700 dark:text-indigo-300'}`}>₹{globalStats.accountRevenue.toLocaleString()}</p>
+                    <p className="text-lg font-black">₹{globalStats.accountRevenue.toLocaleString()}</p>
                   </div>
                   <div 
                     onClick={() => {
@@ -2513,25 +2509,127 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
                         addFilter('payment_status', 'refund');
                       }
                     }}
-                    className={`p-3 md:p-4 rounded-xl md:rounded-2xl border cursor-pointer transition-all flex justify-between items-center ${activeFilters.find(f => f.key === 'payment_status' && f.value === 'refund') ? 'bg-rose-600 border-rose-500' : 'bg-rose-50 dark:bg-rose-900/10 border-rose-100 dark:border-rose-900/20 hover:bg-rose-100 dark:hover:bg-rose-900/20'}`}
+                    className={`p-4 rounded-2xl border cursor-pointer transition-all flex flex-col justify-between gap-2 ${activeFilters.find(f => f.key === 'payment_status' && f.value === 'refund') ? 'bg-rose-600 border-rose-500 text-white' : 'bg-rose-50 dark:bg-rose-900/10 border-rose-100 dark:border-rose-900/20 hover:bg-rose-100 dark:hover:bg-rose-900/20'}`}
                   >
-                    <div className="flex items-center gap-2 md:gap-3">
-                      <div className={`w-6 h-6 md:w-8 md:h-8 rounded-lg md:rounded-xl flex items-center justify-center ${activeFilters.find(f => f.key === 'payment_status' && f.value === 'refund') ? 'bg-white/20' : 'bg-rose-600'}`}>
-                        <RotateCcw className="w-3 h-3 md:w-4 md:h-4 text-white" />
-                      </div>
-                      <p className={`text-[8px] md:text-[10px] font-black uppercase tracking-widest ${activeFilters.find(f => f.key === 'payment_status' && f.value === 'refund') ? 'text-rose-100' : 'text-rose-600 dark:text-rose-400'}`}>Refunded Amount</p>
+                    <div className="flex items-center gap-2">
+                      <RotateCcw className={`w-3 h-3 ${activeFilters.find(f => f.key === 'payment_status' && f.value === 'refund') ? 'text-rose-100' : 'text-rose-600'}`} />
+                      <p className={`text-[8px] font-black uppercase tracking-widest ${activeFilters.find(f => f.key === 'payment_status' && f.value === 'refund') ? 'text-rose-100' : 'text-rose-600 dark:text-rose-400'}`}>Refund</p>
                     </div>
-                    <p className={`text-sm md:text-lg font-black ${activeFilters.find(f => f.key === 'payment_status' && f.value === 'refund') ? 'text-white' : 'text-rose-700 dark:text-rose-300'}`}>₹{globalStats.refundedAmount.toLocaleString()}</p>
+                    <p className="text-lg font-black">₹{globalStats.refundedAmount.toLocaleString()}</p>
                   </div>
                 </div>
               </div>
             )}
           </div>
 
+          {/* STATUS CARDS ROW */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
+            <div className="bg-white dark:bg-slate-900 p-8 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm">
+              <h3 className="text-slate-400 dark:text-slate-500 text-[10px] font-black uppercase tracking-[0.2em] mb-8">Payment Status</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div 
+                  onClick={() => setFilterPaymentStatus(filterPaymentStatus === 'fully_paid' ? null : 'fully_paid')}
+                  className={`flex flex-col justify-between p-5 rounded-2xl border cursor-pointer transition-all ${filterPaymentStatus === 'fully_paid' ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-200 dark:shadow-none' : 'bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                >
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className={`w-2 h-2 rounded-full ${filterPaymentStatus === 'fully_paid' ? 'bg-white' : 'bg-indigo-600'}`}></div>
+                    <span className={`text-[9px] font-black uppercase tracking-widest ${filterPaymentStatus === 'fully_paid' ? 'text-indigo-100' : 'text-slate-500'}`}>Fully Paid</span>
+                  </div>
+                  <span className="text-4xl font-black tracking-tighter">{globalStats.fullyPaid}</span>
+                </div>
+                <div 
+                  onClick={() => setFilterPaymentStatus(filterPaymentStatus === 'partial' ? null : 'partial')}
+                  className={`flex flex-col justify-between p-5 rounded-2xl border cursor-pointer transition-all ${filterPaymentStatus === 'partial' ? 'bg-amber-600 border-amber-500 text-white shadow-lg shadow-amber-200 dark:shadow-none' : 'bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                >
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className={`w-2 h-2 rounded-full ${filterPaymentStatus === 'partial' ? 'bg-white' : 'bg-amber-600'}`}></div>
+                    <span className={`text-[9px] font-black uppercase tracking-widest ${filterPaymentStatus === 'partial' ? 'text-amber-100' : 'text-slate-500'}`}>Partial</span>
+                  </div>
+                  <span className="text-4xl font-black tracking-tighter">{globalStats.partialPaid}</span>
+                </div>
+                <div 
+                  onClick={() => setFilterPaymentStatus(filterPaymentStatus === 'discount' ? null : 'discount')}
+                  className={`flex flex-col justify-between p-5 rounded-2xl border cursor-pointer transition-all ${filterPaymentStatus === 'discount' ? 'bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-200 dark:shadow-none' : 'bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                >
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className={`w-2 h-2 rounded-full ${filterPaymentStatus === 'discount' ? 'bg-white' : 'bg-blue-600'}`}></div>
+                    <span className={`text-[9px] font-black uppercase tracking-widest ${filterPaymentStatus === 'discount' ? 'text-blue-100' : 'text-slate-500'}`}>Discount</span>
+                  </div>
+                  <span className="text-4xl font-black tracking-tighter">{globalStats.discountCount}</span>
+                </div>
+                <div 
+                  onClick={() => setFilterPaymentStatus(filterPaymentStatus === 'free' ? null : 'free')}
+                  className={`flex flex-col justify-between p-5 rounded-2xl border cursor-pointer transition-all ${filterPaymentStatus === 'free' ? 'bg-emerald-600 border-emerald-500 text-white shadow-lg shadow-emerald-200 dark:shadow-none' : 'bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                >
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className={`w-2 h-2 rounded-full ${filterPaymentStatus === 'free' ? 'bg-white' : 'bg-emerald-600'}`}></div>
+                    <span className={`text-[9px] font-black uppercase tracking-widest ${filterPaymentStatus === 'free' ? 'text-emerald-100' : 'text-slate-500'}`}>Free</span>
+                  </div>
+                  <span className="text-4xl font-black tracking-tighter">{globalStats.freeCount}</span>
+                </div>
+                <div 
+                  onClick={() => setFilterPaymentStatus(filterPaymentStatus === 'refund' ? null : 'refund')}
+                  className={`flex flex-col justify-between p-5 rounded-2xl border cursor-pointer transition-all ${filterPaymentStatus === 'refund' ? 'bg-rose-600 border-rose-500 text-white shadow-lg shadow-rose-200 dark:shadow-none' : 'bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                >
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className={`w-2 h-2 rounded-full ${filterPaymentStatus === 'refund' ? 'bg-white' : 'bg-rose-600'}`}></div>
+                    <span className={`text-[9px] font-black uppercase tracking-widest ${filterPaymentStatus === 'refund' ? 'text-rose-100' : 'text-slate-500'}`}>Refunded</span>
+                  </div>
+                  <span className="text-4xl font-black tracking-tighter">{globalStats.refundCount}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white dark:bg-slate-900 p-8 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm">
+              <h3 className="text-slate-400 dark:text-slate-500 text-[10px] font-black uppercase tracking-[0.2em] mb-8">Admission Status</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div 
+                  onClick={() => setFilterAdmissionStatus(filterAdmissionStatus === 'cancelled' ? null : 'cancelled')}
+                  className={`flex flex-col justify-between p-5 rounded-2xl border cursor-pointer transition-all ${filterAdmissionStatus === 'cancelled' ? 'bg-red-600 border-red-500 text-white shadow-lg shadow-red-200 dark:shadow-none' : 'bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                >
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className={`w-2 h-2 rounded-full ${filterAdmissionStatus === 'cancelled' ? 'bg-white' : 'bg-red-500'}`}></div>
+                    <span className={`text-[9px] font-black uppercase tracking-widest ${filterAdmissionStatus === 'cancelled' ? 'text-red-100' : 'text-slate-500'}`}>Cancelled</span>
+                  </div>
+                  <span className="text-4xl font-black tracking-tighter">{globalStats.cancelledCount}</span>
+                </div>
+                <div 
+                  onClick={() => setFilterAdmissionStatus(filterAdmissionStatus === 'pending' ? null : 'pending')}
+                  className={`flex flex-col justify-between p-5 rounded-2xl border cursor-pointer transition-all ${filterAdmissionStatus === 'pending' ? 'bg-amber-600 border-amber-500 text-white shadow-lg shadow-amber-200 dark:shadow-none' : 'bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                >
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className={`w-2 h-2 rounded-full ${filterAdmissionStatus === 'pending' ? 'bg-white' : 'bg-amber-500'}`}></div>
+                    <span className={`text-[9px] font-black uppercase tracking-widest ${filterAdmissionStatus === 'pending' ? 'text-amber-100' : 'text-slate-500'}`}>Pending</span>
+                  </div>
+                  <span className="text-4xl font-black tracking-tighter">{globalStats.pendingCount}</span>
+                </div>
+                <div 
+                  onClick={() => setFilterAdmissionStatus(filterAdmissionStatus === 'stay only' ? null : 'stay only')}
+                  className={`flex flex-col justify-between p-5 rounded-2xl border cursor-pointer transition-all ${filterAdmissionStatus === 'stay only' ? 'bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-200 dark:shadow-none' : 'bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                >
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className={`w-2 h-2 rounded-full ${filterAdmissionStatus === 'stay only' ? 'bg-white' : 'bg-blue-500'}`}></div>
+                    <span className={`text-[9px] font-black uppercase tracking-widest ${filterAdmissionStatus === 'stay only' ? 'text-blue-100' : 'text-slate-500'}`}>Stay Only</span>
+                  </div>
+                  <span className="text-4xl font-black tracking-tighter">{globalStats.stayOnlyCount}</span>
+                </div>
+                <div 
+                  onClick={() => setFilterAdmissionStatus(filterAdmissionStatus === 'confirm' ? null : 'confirm')}
+                  className={`flex flex-col justify-between p-5 rounded-2xl border cursor-pointer transition-all ${filterAdmissionStatus === 'confirm' ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-200 dark:shadow-none' : 'bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                >
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className={`w-2 h-2 rounded-full ${filterAdmissionStatus === 'confirm' ? 'bg-white' : 'bg-indigo-600'}`}></div>
+                    <span className={`text-[9px] font-black uppercase tracking-widest ${filterAdmissionStatus === 'confirm' ? 'text-indigo-100' : 'text-slate-500'}`}>Confirmed</span>
+                  </div>
+                  <span className="text-4xl font-black tracking-tighter">{globalStats.total - globalStats.cancelledCount - globalStats.pendingCount - globalStats.stayOnlyCount}</span>
+                </div>
+              </div>
+            </div>
+          </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="bg-white dark:bg-slate-900 p-6 md:p-8 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm transition-colors flex flex-col lg:col-span-1">
-          <div className="flex justify-between items-center mb-4">
+        <div className="bg-white dark:bg-slate-900 p-8 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm transition-colors flex flex-col lg:col-span-1">
+          <div className="flex justify-between items-center mb-6">
             <h3 className="text-slate-400 dark:text-slate-500 text-[10px] font-black uppercase tracking-widest transition-colors">Gender Comparison</h3>
             <div className="flex items-center gap-1 bg-slate-50 dark:bg-slate-800 p-1 rounded-lg">
               <button 
@@ -2613,7 +2711,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-900 p-6 md:p-8 rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-sm transition-colors lg:col-span-2">
+        <div className="bg-white dark:bg-slate-900 p-8 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm transition-colors lg:col-span-2">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
             <div className="flex flex-col gap-1">
               <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
@@ -2838,7 +2936,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
 
       {/* REGIONAL & AGE DISTRIBUTION */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="bg-white dark:bg-slate-900 p-8 rounded-[48px] border border-slate-100 dark:border-slate-800 shadow-sm transition-colors">
+        <div className="bg-white dark:bg-slate-900 p-8 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm transition-colors">
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">State Distribution</h3>
             {filterState && (
@@ -2869,7 +2967,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-900 p-8 rounded-[48px] border border-slate-100 dark:border-slate-800 shadow-sm transition-colors">
+        <div className="bg-white dark:bg-slate-900 p-8 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm transition-colors">
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">City Distribution</h3>
             {filterCity && (
@@ -2900,7 +2998,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-900 p-8 rounded-[48px] border border-slate-100 dark:border-slate-800 shadow-sm transition-colors">
+        <div className="bg-white dark:bg-slate-900 p-8 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm transition-colors">
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">Age Distribution</h3>
             {filterAgeRange && (
@@ -2928,111 +3026,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
                 </div>
               </div>
             ))}
-          </div>
-        </div>
-      </div>
-
-      {/* STATUS CARDS ROW */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-10 mt-8 md:mt-12">
-        <div className="bg-white dark:bg-slate-900 p-8 md:p-14 rounded-[48px] md:rounded-[64px] border border-slate-100 dark:border-slate-800 shadow-sm transition-all hover:border-indigo-500 hover:shadow-2xl hover:shadow-indigo-100 dark:hover:shadow-none">
-          <h3 className="text-slate-400 dark:text-slate-500 text-sm md:text-lg font-black uppercase tracking-[0.25em] mb-8 md:mb-12 transition-colors">Payment Status</h3>
-          <div className="space-y-4 md:space-y-8">
-            <div 
-              onClick={() => setFilterPaymentStatus(filterPaymentStatus === 'fully_paid' ? null : 'fully_paid')}
-              className={`flex justify-between items-center cursor-pointer p-4 md:p-6 rounded-2xl md:rounded-3xl transition-all ${filterPaymentStatus === 'fully_paid' ? 'bg-indigo-50 dark:bg-indigo-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
-            >
-              <div className="flex items-center gap-4 md:gap-6">
-                <div className="w-3 h-3 md:w-5 md:h-5 rounded-full bg-indigo-600 shadow-lg shadow-indigo-200"></div>
-                <span className="text-base md:text-xl font-black text-slate-600 dark:text-slate-400 uppercase tracking-widest">Fully Paid</span>
-              </div>
-              <span className="text-4xl md:text-6xl font-black text-indigo-600 dark:text-indigo-400">{globalStats.fullyPaid}</span>
-            </div>
-            <div 
-              onClick={() => setFilterPaymentStatus(filterPaymentStatus === 'partial' ? null : 'partial')}
-              className={`flex justify-between items-center cursor-pointer p-4 md:p-6 rounded-2xl md:rounded-3xl transition-all ${filterPaymentStatus === 'partial' ? 'bg-amber-50 dark:bg-amber-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
-            >
-              <div className="flex items-center gap-4 md:gap-6">
-                <div className="w-3 h-3 md:w-5 md:h-5 rounded-full bg-amber-600 shadow-lg shadow-amber-200"></div>
-                <span className="text-base md:text-xl font-black text-slate-600 dark:text-slate-400 uppercase tracking-widest">Partial</span>
-              </div>
-              <span className="text-4xl md:text-6xl font-black text-amber-600 dark:text-amber-400">{globalStats.partialPaid}</span>
-            </div>
-            <div 
-              onClick={() => setFilterPaymentStatus(filterPaymentStatus === 'discount' ? null : 'discount')}
-              className={`flex justify-between items-center cursor-pointer p-4 md:p-6 rounded-2xl md:rounded-3xl transition-all ${filterPaymentStatus === 'discount' ? 'bg-blue-50 dark:bg-blue-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
-            >
-              <div className="flex items-center gap-4 md:gap-6">
-                <div className="w-3 h-3 md:w-5 md:h-5 rounded-full bg-blue-600 shadow-lg shadow-blue-200"></div>
-                <span className="text-base md:text-xl font-black text-slate-600 dark:text-slate-400 uppercase tracking-widest">Discount</span>
-              </div>
-              <span className="text-4xl md:text-6xl font-black text-blue-600 dark:text-blue-400">{globalStats.discountCount}</span>
-            </div>
-            <div 
-              onClick={() => setFilterPaymentStatus(filterPaymentStatus === 'free' ? null : 'free')}
-              className={`flex justify-between items-center cursor-pointer p-4 md:p-6 rounded-2xl md:rounded-3xl transition-all ${filterPaymentStatus === 'free' ? 'bg-emerald-50 dark:bg-emerald-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
-            >
-              <div className="flex items-center gap-4 md:gap-6">
-                <div className="w-3 h-3 md:w-5 md:h-5 rounded-full bg-emerald-600 shadow-lg shadow-emerald-200"></div>
-                <span className="text-base md:text-xl font-black text-slate-600 dark:text-slate-400 uppercase tracking-widest">Free</span>
-              </div>
-              <span className="text-4xl md:text-6xl font-black text-emerald-600 dark:text-emerald-400">{globalStats.freeCount}</span>
-            </div>
-            <div 
-              onClick={() => setFilterPaymentStatus(filterPaymentStatus === 'refund' ? null : 'refund')}
-              className={`flex justify-between items-center cursor-pointer p-4 md:p-6 rounded-2xl md:rounded-3xl transition-all ${filterPaymentStatus === 'refund' ? 'bg-purple-50 dark:bg-purple-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
-            >
-              <div className="flex items-center gap-4 md:gap-6">
-                <div className="w-3 h-3 md:w-5 md:h-5 rounded-full bg-purple-600 shadow-lg shadow-purple-200"></div>
-                <span className="text-base md:text-xl font-black text-slate-600 dark:text-slate-400 uppercase tracking-widest">Refunded</span>
-              </div>
-              <span className="text-4xl md:text-6xl font-black text-purple-600 dark:text-purple-400">{globalStats.refundCount}</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-slate-900 p-8 md:p-14 rounded-[48px] md:rounded-[64px] border border-slate-100 dark:border-slate-800 shadow-sm transition-all hover:border-orange-500 hover:shadow-2xl hover:shadow-orange-100 dark:hover:shadow-none">
-          <h3 className="text-slate-400 dark:text-slate-500 text-sm md:text-lg font-black uppercase tracking-[0.25em] mb-8 md:mb-12 transition-colors">Admission Status</h3>
-          <div className="space-y-4 md:space-y-8">
-            <div 
-              onClick={() => setFilterAdmissionStatus(filterAdmissionStatus === 'cancelled' ? null : 'cancelled')}
-              className={`flex justify-between items-center cursor-pointer p-4 md:p-6 rounded-2xl md:rounded-3xl transition-all ${filterAdmissionStatus === 'cancelled' ? 'bg-red-50 dark:bg-red-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
-            >
-              <div className="flex items-center gap-4 md:gap-6">
-                <div className="w-3 h-3 md:w-5 md:h-5 rounded-full bg-red-500 shadow-lg shadow-red-200"></div>
-                <span className="text-base md:text-xl font-black text-slate-600 dark:text-slate-400 uppercase tracking-widest">Cancelled</span>
-              </div>
-              <span className="text-4xl md:text-6xl font-black text-red-500">{globalStats.cancelledCount}</span>
-            </div>
-            <div 
-              onClick={() => setFilterAdmissionStatus(filterAdmissionStatus === 'pending' ? null : 'pending')}
-              className={`flex justify-between items-center cursor-pointer p-4 md:p-6 rounded-2xl md:rounded-3xl transition-all ${filterAdmissionStatus === 'pending' ? 'bg-amber-50 dark:bg-amber-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
-            >
-              <div className="flex items-center gap-4 md:gap-6">
-                <div className="w-3 h-3 md:w-5 md:h-5 rounded-full bg-amber-500 shadow-lg shadow-amber-200"></div>
-                <span className="text-base md:text-xl font-black text-slate-600 dark:text-slate-400 uppercase tracking-widest">Pending</span>
-              </div>
-              <span className="text-4xl md:text-6xl font-black text-amber-500">{globalStats.pendingCount}</span>
-            </div>
-            <div 
-              onClick={() => setFilterAdmissionStatus(filterAdmissionStatus === 'stay only' ? null : 'stay only')}
-              className={`flex justify-between items-center cursor-pointer p-4 md:p-6 rounded-2xl md:rounded-3xl transition-all ${filterAdmissionStatus === 'stay only' ? 'bg-blue-50 dark:bg-blue-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
-            >
-              <div className="flex items-center gap-4 md:gap-6">
-                <div className="w-3 h-3 md:w-5 md:h-5 rounded-full bg-blue-500 shadow-lg shadow-blue-200"></div>
-                <span className="text-base md:text-xl font-black text-slate-600 dark:text-slate-400 uppercase tracking-widest">Stay Only</span>
-              </div>
-              <span className="text-4xl md:text-6xl font-black text-blue-500">{globalStats.stayOnlyCount}</span>
-            </div>
-            <div 
-              onClick={() => setFilterAdmissionStatus(filterAdmissionStatus === 'confirm' ? null : 'confirm')}
-              className={`flex justify-between items-center pt-8 md:pt-12 border-t border-slate-50 dark:border-slate-800 cursor-pointer p-4 md:p-6 rounded-2xl md:rounded-3xl transition-all ${filterAdmissionStatus === 'confirm' ? 'bg-indigo-50 dark:bg-indigo-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
-            >
-              <div className="flex items-center gap-4 md:gap-6">
-                <div className="w-3 h-3 md:w-5 md:h-5 rounded-full bg-indigo-600 shadow-lg shadow-indigo-200"></div>
-                <span className="text-base md:text-xl font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">Confirmed</span>
-              </div>
-              <span className="text-5xl md:text-8xl font-black text-indigo-600 dark:text-indigo-400">{globalStats.total - globalStats.cancelledCount - globalStats.pendingCount - globalStats.stayOnlyCount}</span>
-            </div>
           </div>
         </div>
       </div>
