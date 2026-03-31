@@ -233,6 +233,201 @@ const AnalyticsView = ({ title, data, type, onBack }: { title: string, data: any
   );
 };
 
+const CallerTrackingView = ({ data, onBack }: { data: RegistrationData[], onBack: () => void }) => {
+  const [batchSize] = useState(100);
+  const [selectedBatchIndex, setSelectedBatchIndex] = useState(0);
+
+  const batches = useMemo(() => {
+    const b = [];
+    for (let i = 0; i < data.length; i += batchSize) {
+      b.push(data.slice(i, i + batchSize));
+    }
+    return b;
+  }, [data, batchSize]);
+
+  const currentBatch = batches[selectedBatchIndex] || [];
+  
+  const stats = useMemo(() => {
+    let paid = 0;
+    let later = 0;
+    let cancelled = 0;
+    let pending = 0;
+
+    currentBatch.forEach(d => {
+      const status = (d.status || '').toLowerCase();
+      const ps = (d.payment_status || '').toLowerCase();
+      const notes = (d.notes || '').toLowerCase();
+
+      if (ps === 'full paid') {
+        paid++;
+      } else if (status === 'cancelled') {
+        cancelled++;
+      } else if (notes.includes('later') || notes.includes('baad mein') || notes.includes('will pay') || notes.includes('call back')) {
+        later++;
+      } else if (status === 'pending' || notes.includes('no response') || notes.includes('pending') || notes.includes('not picking') || notes.includes('switch off')) {
+        pending++;
+      }
+    });
+
+    return { paid, later, cancelled, pending, total: currentBatch.length };
+  }, [currentBatch]);
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="space-y-8"
+    >
+      <div className="flex items-center gap-4 mb-6">
+        <button 
+          onClick={onBack}
+          className="p-3 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl shadow-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition-all text-slate-600 dark:text-slate-400"
+        >
+          <ArrowLeft className="w-5 h-5" />
+        </button>
+        <div>
+          <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Caller Tracking Insights</h2>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Follow-up Progress by Batch</p>
+        </div>
+      </div>
+
+      <div className="bg-white dark:bg-slate-900 p-8 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm">
+        <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-6">Select Batch (Group of 100)</h3>
+        <div className="flex flex-wrap gap-3">
+          {batches.map((_, idx) => (
+            <button
+              key={idx}
+              onClick={() => setSelectedBatchIndex(idx)}
+              className={`px-6 py-3 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all border flex flex-col items-center gap-1 ${
+                selectedBatchIndex === idx 
+                  ? 'bg-indigo-600 border-indigo-600 text-white shadow-xl shadow-indigo-200 dark:shadow-none' 
+                  : 'bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-800 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`}
+            >
+              <span>Batch {idx + 1}</span>
+              <span className={`text-[8px] opacity-60 ${selectedBatchIndex === idx ? 'text-white' : 'text-slate-400'}`}>
+                {idx * batchSize + 1} - {Math.min((idx + 1) * batchSize, data.length)}
+              </span>
+            </button>
+          ))}
+          {batches.length === 0 && (
+            <div className="p-8 text-center w-full border-2 border-dashed border-slate-100 dark:border-slate-800 rounded-3xl">
+              <p className="text-slate-400 font-bold text-xs uppercase tracking-widest">No data available for batching</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="bg-white dark:bg-slate-900 p-8 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-50 dark:bg-emerald-900/10 rounded-full -mr-12 -mt-12 transition-transform group-hover:scale-110"></div>
+          <div className="flex items-center gap-2 mb-4 relative">
+            <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Full Payment</span>
+          </div>
+          <p className="text-5xl font-black text-slate-900 dark:text-white tracking-tighter relative leading-none">{stats.paid}</p>
+          <p className="mt-4 text-[9px] font-bold text-emerald-600 uppercase tracking-widest relative bg-emerald-50 dark:bg-emerald-900/20 px-2 py-1 rounded inline-block">
+            {stats.total > 0 ? ((stats.paid / stats.total) * 100).toFixed(1) : 0}% of Batch
+          </p>
+        </div>
+
+        <div className="bg-white dark:bg-slate-900 p-8 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-blue-50 dark:bg-blue-900/10 rounded-full -mr-12 -mt-12 transition-transform group-hover:scale-110"></div>
+          <div className="flex items-center gap-2 mb-4 relative">
+            <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Pay Later</span>
+          </div>
+          <p className="text-5xl font-black text-slate-900 dark:text-white tracking-tighter relative leading-none">{stats.later}</p>
+          <p className="mt-4 text-[9px] font-bold text-blue-600 uppercase tracking-widest relative bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded inline-block">
+            {stats.total > 0 ? ((stats.later / stats.total) * 100).toFixed(1) : 0}% of Batch
+          </p>
+        </div>
+
+        <div className="bg-white dark:bg-slate-900 p-8 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-red-50 dark:bg-red-900/10 rounded-full -mr-12 -mt-12 transition-transform group-hover:scale-110"></div>
+          <div className="flex items-center gap-2 mb-4 relative">
+            <div className="w-2 h-2 rounded-full bg-red-500"></div>
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Cancelled</span>
+          </div>
+          <p className="text-5xl font-black text-slate-900 dark:text-white tracking-tighter relative leading-none">{stats.cancelled}</p>
+          <p className="mt-4 text-[9px] font-bold text-red-600 uppercase tracking-widest relative bg-red-50 dark:bg-red-900/20 px-2 py-1 rounded inline-block">
+            {stats.total > 0 ? ((stats.cancelled / stats.total) * 100).toFixed(1) : 0}% of Batch
+          </p>
+        </div>
+
+        <div className="bg-white dark:bg-slate-900 p-8 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-amber-50 dark:bg-amber-900/10 rounded-full -mr-12 -mt-12 transition-transform group-hover:scale-110"></div>
+          <div className="flex items-center gap-2 mb-4 relative">
+            <div className="w-2 h-2 rounded-full bg-amber-500"></div>
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">No Response</span>
+          </div>
+          <p className="text-5xl font-black text-slate-900 dark:text-white tracking-tighter relative leading-none">{stats.pending}</p>
+          <p className="mt-4 text-[9px] font-bold text-amber-600 uppercase tracking-widest relative bg-amber-50 dark:bg-amber-900/20 px-2 py-1 rounded inline-block">
+            {stats.total > 0 ? ((stats.pending / stats.total) * 100).toFixed(1) : 0}% of Batch
+          </p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 bg-white dark:bg-slate-900 p-8 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm">
+          <div className="flex justify-between items-center mb-8">
+            <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest">Batch {selectedBatchIndex + 1} Visual Breakdown</h3>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-indigo-600"></div>
+                <span className="text-[10px] font-bold text-slate-400 uppercase">Count</span>
+              </div>
+            </div>
+          </div>
+          <div className="h-[350px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={[
+                { name: 'Paid', value: stats.paid, fill: '#10b981' },
+                { name: 'Later', value: stats.later, fill: '#3b82f6' },
+                { name: 'Cancelled', value: stats.cancelled, fill: '#ef4444' },
+                { name: 'Pending', value: stats.pending, fill: '#f59e0b' },
+              ]}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700, fill: '#64748b' }} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700, fill: '#64748b' }} />
+                <Tooltip 
+                  contentStyle={{ borderRadius: '24px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }}
+                  cursor={{ fill: '#f8fafc' }}
+                />
+                <Bar dataKey="value" radius={[12, 12, 0, 0]} barSize={80}>
+                  <LabelList dataKey="value" position="top" style={{ fontSize: 14, fontWeight: 900, fill: '#1e293b' }} />
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-slate-900 p-8 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm">
+          <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest mb-8">Summary</h3>
+          <div className="space-y-6">
+            <div className="flex justify-between items-center p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Students</span>
+              <span className="text-xl font-black text-slate-900 dark:text-white">{stats.total}</span>
+            </div>
+            <div className="flex justify-between items-center p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-2xl border border-indigo-100 dark:border-indigo-800/50">
+              <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Response Rate</span>
+              <span className="text-xl font-black text-indigo-700 dark:text-indigo-300">
+                {stats.total > 0 ? (((stats.paid + stats.later + stats.cancelled) / stats.total) * 100).toFixed(1) : 0}%
+              </span>
+            </div>
+            <div className="p-6 border-t border-slate-100 dark:border-slate-800 mt-4">
+              <p className="text-[10px] font-bold text-slate-400 leading-relaxed italic">
+                * This analysis is based on batches of 100 students as they appear in the records. 
+                "Pay Later" and "No Response" statuses are inferred from notes and registration status.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
 const CustomAnalyticsView = ({ records, onBack, onSeedData, onRefresh, isRefreshing, onOpenMasterView }: { records: RegistrationData[], onBack: () => void, onSeedData?: () => void, onRefresh: () => void, isRefreshing: boolean, onOpenMasterView: () => void }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [activeDimension, setActiveDimension] = useState<'state' | 'city' | 'gender' | 'ageRange' | 'paymentStatus' | 'status' | 'qualification' | 'medium'>('state');
@@ -1012,7 +1207,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
   const [viewingStudentForm, setViewingStudentForm] = useState<RegistrationData | null>(null);
   const [isMasterViewOpen, setIsMasterViewOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [currentView, setCurrentView] = useState<'dashboard' | 'states' | 'cities' | 'admissions' | 'custom'>('dashboard');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'states' | 'cities' | 'admissions' | 'custom' | 'callerTracking'>('dashboard');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const modalRef = useRef<HTMLDivElement>(null);
   const studentFormRef = useRef<HTMLDivElement>(null);
@@ -2313,6 +2508,25 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
                   </div>
                   <ChevronRight className={`w-4 h-4 transition-transform group-hover:translate-x-1 ${currentView === 'custom' ? 'text-white/50' : 'text-slate-300'}`} />
                 </button>
+
+                <button 
+                  onClick={() => {
+                    setCurrentView('callerTracking');
+                    setIsSidebarOpen(false);
+                  }}
+                  className={`w-full flex items-center justify-between p-4 rounded-2xl transition-all group ${currentView === 'callerTracking' ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-200 dark:shadow-none' : 'bg-slate-50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                >
+                  <div className="flex items-center gap-4">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${currentView === 'callerTracking' ? 'bg-white/20' : 'bg-rose-600'}`}>
+                      <Zap className={`w-5 h-5 ${currentView === 'callerTracking' ? 'text-white' : 'text-white'}`} />
+                    </div>
+                    <div className="text-left">
+                      <span className={`text-[10px] font-black uppercase tracking-widest block mb-1 ${currentView === 'callerTracking' ? 'text-white/70' : 'text-slate-400'}`}>Caller Tracking</span>
+                      <span className="text-[13px] font-bold block leading-tight">Batch Analysis</span>
+                    </div>
+                  </div>
+                  <ChevronRight className={`w-4 h-4 transition-transform group-hover:translate-x-1 ${currentView === 'callerTracking' ? 'text-white/50' : 'text-slate-300'}`} />
+                </button>
               </div>
               
               <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
@@ -3505,6 +3719,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
           onRefresh={loadData}
           isRefreshing={isRefreshing}
           onOpenMasterView={() => setIsMasterViewOpen(true)}
+        />
+      ) : currentView === 'callerTracking' ? (
+        <CallerTrackingView 
+          data={allSyncedData} 
+          onBack={() => setCurrentView('dashboard')} 
         />
       ) : (
         <AnalyticsView 
