@@ -3561,6 +3561,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
                           )}
                         </div>
                       </th>
+                      <th className="px-4 md:px-8 py-4 text-[10px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-wider hidden xl:table-cell">Workshop</th>
                       <th className="px-4 md:px-8 py-4 text-[10px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-wider text-right">Action</th>
                   </tr>
                   </thead>
@@ -3593,6 +3594,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
                       </td>
                       <td className="px-4 md:px-8 py-4 text-[10px] font-bold text-slate-500 dark:text-slate-600 uppercase transition-colors hidden lg:table-cell max-w-[150px] truncate">
                         {data.notes || '—'}
+                      </td>
+                      <td className="px-4 md:px-8 py-4 hidden xl:table-cell">
+                          {data.pre_workshop_marks && data.post_workshop_marks ? (
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] font-bold text-slate-400">{data.pre_workshop_marks} → {data.post_workshop_marks}</span>
+                              <span className={`px-1.5 py-0.5 text-[8px] font-black rounded ${parseFloat(data.post_workshop_marks) - parseFloat(data.pre_workshop_marks) >= 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+                                {parseFloat(data.post_workshop_marks) - parseFloat(data.pre_workshop_marks) >= 0 ? '+' : ''}{parseFloat(data.post_workshop_marks) - parseFloat(data.pre_workshop_marks)}
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-[10px] text-slate-300">-</span>
+                          )}
                       </td>
                       <td className="px-4 md:px-8 py-4 text-right">
                           <div className="flex items-center justify-end gap-2">
@@ -3655,9 +3668,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
                       </span>
                     </div>
                     <div className="flex justify-between items-center pt-4 border-t border-slate-50 dark:border-slate-800">
-                      <div className="flex items-center gap-2 text-slate-500">
-                        <MapPin size={12} />
-                        <span className="text-[10px] font-bold uppercase">{data.city || 'Unknown'}</span>
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-2 text-slate-500">
+                          <MapPin size={12} />
+                          <span className="text-[10px] font-bold uppercase">{data.city || 'Unknown'}</span>
+                        </div>
+                        {data.pre_workshop_marks && data.post_workshop_marks && (
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">Improvement:</span>
+                            <span className={`px-1.5 py-0.5 text-[8px] font-black rounded ${parseFloat(data.post_workshop_marks) - parseFloat(data.pre_workshop_marks) >= 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+                              {parseFloat(data.post_workshop_marks) - parseFloat(data.pre_workshop_marks) >= 0 ? '+' : ''}{parseFloat(data.post_workshop_marks) - parseFloat(data.pre_workshop_marks)}
+                            </span>
+                          </div>
+                        )}
                       </div>
                       <div className="flex items-center gap-2">
                         <button 
@@ -3811,6 +3834,32 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
                           <div className="sm:col-span-2 mt-4 p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-800">
                             <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Notes</p>
                             <p className="text-xs font-bold text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">{viewingRecord.notes}</p>
+                          </div>
+                        )}
+                        {(viewingRecord.pre_workshop_marks || viewingRecord.post_workshop_marks) && (
+                          <div className="sm:col-span-2 mt-6 p-6 bg-emerald-50/50 dark:bg-emerald-900/10 rounded-3xl border border-emerald-100 dark:border-emerald-900/20">
+                            <h4 className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+                              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                              Workshop Performance
+                            </h4>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-6 items-center">
+                              <div>
+                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Pre Workshop</p>
+                                <p className="text-xl font-black text-slate-900 dark:text-white">{viewingRecord.pre_workshop_marks || 'N/A'}</p>
+                              </div>
+                              <div>
+                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Post Workshop</p>
+                                <p className="text-xl font-black text-slate-900 dark:text-white">{viewingRecord.post_workshop_marks || 'N/A'}</p>
+                              </div>
+                              {viewingRecord.pre_workshop_marks && viewingRecord.post_workshop_marks && (
+                                <div className="col-span-2 sm:col-span-1 p-3 bg-white dark:bg-slate-800 rounded-2xl border border-emerald-100 dark:border-emerald-900/30">
+                                  <p className="text-[8px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-1">Improvement</p>
+                                  <p className={`text-lg font-black ${parseFloat(viewingRecord.post_workshop_marks) - parseFloat(viewingRecord.pre_workshop_marks) >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                    {parseFloat(viewingRecord.post_workshop_marks) - parseFloat(viewingRecord.pre_workshop_marks)}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
                           </div>
                         )}
                       </div>
@@ -4071,6 +4120,34 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
                   </div>
                 )}
                 
+                {/* Workshop Performance */}
+                {(viewingStudentForm.pre_workshop_marks || viewingStudentForm.post_workshop_marks) && (
+                  <div className="mb-12">
+                    <h3 className="text-base font-black uppercase tracking-[0.3em] text-black mb-4 flex items-center gap-3">
+                      WORKSHOP PERFORMANCE
+                      <div className="flex-1 h-px bg-black"></div>
+                    </h3>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="border-[3px] border-black p-4 flex flex-col justify-center">
+                        <p className="text-[11px] font-black uppercase text-black mb-1">Pre Workshop</p>
+                        <p className="text-xl font-black">{viewingStudentForm.pre_workshop_marks || 'N/A'}</p>
+                      </div>
+                      <div className="border-[3px] border-black p-4 flex flex-col justify-center">
+                        <p className="text-[11px] font-black uppercase text-black mb-1">Post Workshop</p>
+                        <p className="text-xl font-black">{viewingStudentForm.post_workshop_marks || 'N/A'}</p>
+                      </div>
+                      <div className="bg-black text-white p-4 flex flex-col justify-center">
+                        <p className="text-[11px] font-black uppercase text-slate-300 mb-1">Improvement</p>
+                        <p className="text-2xl font-black">
+                          {viewingStudentForm.pre_workshop_marks && viewingStudentForm.post_workshop_marks 
+                            ? (parseFloat(viewingStudentForm.post_workshop_marks) - parseFloat(viewingStudentForm.pre_workshop_marks))
+                            : 'N/A'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Installments */}
                 <div className="grow">
                   <h3 className="text-base font-black uppercase tracking-[0.3em] text-black mb-4 flex items-center gap-3">

@@ -42,7 +42,9 @@ const INITIAL_DATA: RegistrationData = {
   notes: '',
   refund_date: '',
   status: 'confirm',
-  payment_status: 'unpaid'
+  payment_status: 'unpaid',
+  pre_workshop_marks: '',
+  post_workshop_marks: ''
 };
 
 const INDIAN_STATES_AND_UTS = [
@@ -422,6 +424,40 @@ export const ManualEntryModal: React.FC<ManualEntryModalProps> = ({ isOpen, onCl
                   placeholder="Add any additional notes here..." 
                   className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-500 dark:text-slate-100 transition-colors min-h-[100px]" 
                 />
+              </div>
+
+              <div className="space-y-5 pt-4">
+                <h3 className="text-[10px] font-black text-indigo-400 uppercase tracking-widest border-b border-indigo-50 dark:border-indigo-900/20 pb-2 transition-colors">Workshop Performance</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest ml-1 transition-colors">Pre Workshop Marks</label>
+                    <input 
+                      type="number" 
+                      value={formData.pre_workshop_marks || ''} 
+                      onChange={(e) => handleChange('pre_workshop_marks', e.target.value)} 
+                      placeholder="Marks"
+                      className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-500 dark:text-slate-100 transition-colors" 
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest ml-1 transition-colors">Post Workshop Marks</label>
+                    <input 
+                      type="number" 
+                      value={formData.post_workshop_marks || ''} 
+                      onChange={(e) => handleChange('post_workshop_marks', e.target.value)} 
+                      placeholder="Marks"
+                      className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-500 dark:text-slate-100 transition-colors" 
+                    />
+                  </div>
+                </div>
+                {formData.pre_workshop_marks && formData.post_workshop_marks && (
+                  <div className="p-4 bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-900/20 rounded-2xl flex justify-between items-center">
+                    <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">Improvement (Diff)</span>
+                    <span className={`text-lg font-black ${parseFloat(formData.post_workshop_marks) - parseFloat(formData.pre_workshop_marks) >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                      {parseFloat(formData.post_workshop_marks) - parseFloat(formData.pre_workshop_marks)}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
 

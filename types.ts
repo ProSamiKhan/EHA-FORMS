@@ -79,6 +79,8 @@ export interface RegistrationData {
   refund_date?: string;
   status: 'confirm' | 'cancelled' | 'pending' | 'stay only';
   payment_status?: 'full paid' | 'partial' | 'unpaid' | 'refund' | 'discount' | 'free';
+  pre_workshop_marks?: string;
+  post_workshop_marks?: string;
 }
 
 export interface ProcessingRecord {
