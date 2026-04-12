@@ -1546,6 +1546,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
         notes: String(row['notes'] || ''),
         refund_date: String(row['refund_date'] || row['refund date'] || ''),
         payment_status: (row['payment_status'] || row['payment status'] || '').toLowerCase() as any || undefined,
+        pre_workshop_marks: String(row['pre_workshop_marks'] || row['pre workshop marks'] || ''),
+        post_workshop_marks: String(row['post_workshop_marks'] || row['post workshop marks'] || ''),
         status: (() => {
           const s = (row['status'] || 'confirm').toLowerCase();
           if (s === 'active') return 'confirm';
@@ -1608,6 +1610,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
     { id: 'payment_method', label: 'Payment Method', options: ['cash', 'account'] },
     { id: 'state', label: 'State', dynamic: true },
     { id: 'city', label: 'City', dynamic: true },
+    { id: 'date_range', label: 'Date Range', custom: true },
+    { id: 'pre_marks', label: 'Pre Workshop Marks', custom: true },
+    { id: 'post_marks', label: 'Post Workshop Marks', custom: true },
   ];
 
   const dynamicOptions = useMemo(() => {
@@ -1771,6 +1776,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
   const [customAgeMax, setCustomAgeMax] = useState<string>('');
   const [customPaymentMin, setCustomPaymentMin] = useState<string>('');
   const [customPaymentMax, setCustomPaymentMax] = useState<string>('');
+  const [customDateStart, setCustomDateStart] = useState<string>('');
+  const [customDateEnd, setCustomDateEnd] = useState<string>('');
+  const [customPreMarksMin, setCustomPreMarksMin] = useState<string>('');
+  const [customPreMarksMax, setCustomPreMarksMax] = useState<string>('');
+  const [customPostMarksMin, setCustomPostMarksMin] = useState<string>('');
+  const [customPostMarksMax, setCustomPostMarksMax] = useState<string>('');
   const [filterGender, setFilterGender] = useState<string | null>(null);
   const [filterState, setFilterState] = useState<string | null>(null);
   const [filterCity, setFilterCity] = useState<string | null>(null);
@@ -1929,6 +1940,29 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
         } else if (key === 'discount') {
           const discount = parseFloat(String(d.discount || '0')) || 0;
           if (value === 'yes' && discount === 0) return false;
+        } else if (key === 'date_range') {
+          const date = parseDate(d.payment1_date);
+          if (!date) return false;
+          const [startStr, endStr] = value.split(' to ');
+          const start = parse(startStr, 'dd-MM-yyyy', new Date());
+          const end = parse(endStr, 'dd-MM-yyyy', new Date());
+          if (isBefore(date, startOfDay(start)) || isAfter(date, endOfDay(end))) return false;
+        } else if (key === 'pre_marks') {
+          const marksVal = parseFloat(d.pre_workshop_marks || '0');
+          if (value.includes('-')) {
+            const [min, max] = value.split('-').map(v => parseFloat(v));
+            if (marksVal < min || marksVal > max) return false;
+          } else {
+            if (marksVal !== parseFloat(value)) return false;
+          }
+        } else if (key === 'post_marks') {
+          const marksVal = parseFloat(d.post_workshop_marks || '0');
+          if (value.includes('-')) {
+            const [min, max] = value.split('-').map(v => parseFloat(v));
+            if (marksVal < min || marksVal > max) return false;
+          } else {
+            if (marksVal !== parseFloat(value)) return false;
+          }
         }
       }
 
@@ -3421,7 +3455,117 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
                                   </div>
                                 )}
 
-                                {selectedFilterType !== 'age' && selectedFilterType !== 'payment_amount' && (
+                                {selectedFilterType === 'date_range' && (
+                                  <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-700 space-y-2">
+                                    <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Select Date Range</p>
+                                    <div className="flex flex-col gap-2">
+                                      <div className="flex items-center gap-2">
+                                        <input 
+                                          type="date" 
+                                          value={customDateStart}
+                                          onChange={(e) => setCustomDateStart(e.target.value)}
+                                          className="w-full px-2 py-2 sm:py-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded text-[11px] sm:text-[10px] font-bold outline-none focus:ring-1 focus:ring-indigo-500"
+                                        />
+                                        <span className="text-slate-300">to</span>
+                                        <input 
+                                          type="date" 
+                                          value={customDateEnd}
+                                          onChange={(e) => setCustomDateEnd(e.target.value)}
+                                          className="w-full px-2 py-2 sm:py-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded text-[11px] sm:text-[10px] font-bold outline-none focus:ring-1 focus:ring-indigo-500"
+                                        />
+                                      </div>
+                                      <button 
+                                        onClick={() => {
+                                          if (customDateStart && customDateEnd) {
+                                            const start = format(new Date(customDateStart), 'dd-MM-yyyy');
+                                            const end = format(new Date(customDateEnd), 'dd-MM-yyyy');
+                                            addFilter('date_range', `${start} to ${end}`);
+                                            setCustomDateStart('');
+                                            setCustomDateEnd('');
+                                            setIsFilterMenuOpen(false);
+                                          }
+                                        }}
+                                        className="w-full py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-colors"
+                                      >
+                                        Apply Range
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {selectedFilterType === 'pre_marks' && (
+                                  <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-700 space-y-2">
+                                    <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Pre Workshop Marks Range</p>
+                                    <div className="flex items-center gap-2">
+                                      <input 
+                                        type="number" 
+                                        placeholder="Min"
+                                        value={customPreMarksMin}
+                                        onChange={(e) => setCustomPreMarksMin(e.target.value)}
+                                        className="w-full px-2 py-2 sm:py-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded text-[11px] sm:text-[10px] font-bold outline-none focus:ring-1 focus:ring-indigo-500"
+                                      />
+                                      <span className="text-slate-300">-</span>
+                                      <input 
+                                        type="number" 
+                                        placeholder="Max"
+                                        value={customPreMarksMax}
+                                        onChange={(e) => setCustomPreMarksMax(e.target.value)}
+                                        className="w-full px-2 py-2 sm:py-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded text-[11px] sm:text-[10px] font-bold outline-none focus:ring-1 focus:ring-indigo-500"
+                                      />
+                                      <button 
+                                        onClick={() => {
+                                          if (customPreMarksMin || customPreMarksMax) {
+                                            addFilter('pre_marks', `${customPreMarksMin || 0}-${customPreMarksMax || 100}`);
+                                            setCustomPreMarksMin('');
+                                            setCustomPreMarksMax('');
+                                            setIsFilterMenuOpen(false);
+                                          }
+                                        }}
+                                        className="p-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition-colors"
+                                      >
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {selectedFilterType === 'post_marks' && (
+                                  <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-700 space-y-2">
+                                    <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Post Workshop Marks Range</p>
+                                    <div className="flex items-center gap-2">
+                                      <input 
+                                        type="number" 
+                                        placeholder="Min"
+                                        value={customPostMarksMin}
+                                        onChange={(e) => setCustomPostMarksMin(e.target.value)}
+                                        className="w-full px-2 py-2 sm:py-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded text-[11px] sm:text-[10px] font-bold outline-none focus:ring-1 focus:ring-indigo-500"
+                                      />
+                                      <span className="text-slate-300">-</span>
+                                      <input 
+                                        type="number" 
+                                        placeholder="Max"
+                                        value={customPostMarksMax}
+                                        onChange={(e) => setCustomPostMarksMax(e.target.value)}
+                                        className="w-full px-2 py-2 sm:py-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded text-[11px] sm:text-[10px] font-bold outline-none focus:ring-1 focus:ring-indigo-500"
+                                      />
+                                      <button 
+                                        onClick={() => {
+                                          if (customPostMarksMin || customPostMarksMax) {
+                                            addFilter('post_marks', `${customPostMarksMin || 0}-${customPostMarksMax || 100}`);
+                                            setCustomPostMarksMin('');
+                                            setCustomPostMarksMax('');
+                                            setIsFilterMenuOpen(false);
+                                          }
+                                        }}
+                                        className="p-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition-colors"
+                                      >
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {selectedFilterType !== 'age' && selectedFilterType !== 'payment_amount' && selectedFilterType !== 'date_range' && selectedFilterType !== 'pre_marks' && selectedFilterType !== 'post_marks' && (
                                   <div className="max-h-[60vh] sm:max-h-48 overflow-y-auto custom-scrollbar">
                                     {(FILTER_CONFIG.find(c => c.id === selectedFilterType)?.dynamic 
                                       ? (dynamicOptions as any)[selectedFilterType] 
@@ -3561,7 +3705,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
                           )}
                         </div>
                       </th>
-                      <th className="px-4 md:px-8 py-4 text-[10px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-wider hidden xl:table-cell">Workshop</th>
                       <th className="px-4 md:px-8 py-4 text-[10px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-wider text-right">Action</th>
                   </tr>
                   </thead>
@@ -3594,18 +3737,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
                       </td>
                       <td className="px-4 md:px-8 py-4 text-[10px] font-bold text-slate-500 dark:text-slate-600 uppercase transition-colors hidden lg:table-cell max-w-[150px] truncate">
                         {data.notes || '—'}
-                      </td>
-                      <td className="px-4 md:px-8 py-4 hidden xl:table-cell">
-                          {data.pre_workshop_marks && data.post_workshop_marks ? (
-                            <div className="flex items-center gap-2">
-                              <span className="text-[10px] font-bold text-slate-400">{data.pre_workshop_marks} → {data.post_workshop_marks}</span>
-                              <span className={`px-1.5 py-0.5 text-[8px] font-black rounded ${parseFloat(data.post_workshop_marks) - parseFloat(data.pre_workshop_marks) >= 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
-                                {parseFloat(data.post_workshop_marks) - parseFloat(data.pre_workshop_marks) >= 0 ? '+' : ''}{parseFloat(data.post_workshop_marks) - parseFloat(data.pre_workshop_marks)}
-                              </span>
-                            </div>
-                          ) : (
-                            <span className="text-[10px] text-slate-300">-</span>
-                          )}
                       </td>
                       <td className="px-4 md:px-8 py-4 text-right">
                           <div className="flex items-center justify-end gap-2">
@@ -3677,7 +3808,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
                           <div className="flex items-center gap-2 mt-1">
                             <span className="text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">Improvement:</span>
                             <span className={`px-1.5 py-0.5 text-[8px] font-black rounded ${parseFloat(data.post_workshop_marks) - parseFloat(data.pre_workshop_marks) >= 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
-                              {parseFloat(data.post_workshop_marks) - parseFloat(data.pre_workshop_marks) >= 0 ? '+' : ''}{parseFloat(data.post_workshop_marks) - parseFloat(data.pre_workshop_marks)}
+                              {parseFloat(data.post_workshop_marks) - parseFloat(data.pre_workshop_marks) >= 0 ? '+' : ''}
+                              {parseFloat(data.post_workshop_marks) - parseFloat(data.pre_workshop_marks)}%
                             </span>
                           </div>
                         )}
@@ -3855,7 +3987,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
                                 <div className="col-span-2 sm:col-span-1 p-3 bg-white dark:bg-slate-800 rounded-2xl border border-emerald-100 dark:border-emerald-900/30">
                                   <p className="text-[8px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-1">Improvement</p>
                                   <p className={`text-lg font-black ${parseFloat(viewingRecord.post_workshop_marks) - parseFloat(viewingRecord.pre_workshop_marks) >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                                    {parseFloat(viewingRecord.post_workshop_marks) - parseFloat(viewingRecord.pre_workshop_marks)}
+                                    {parseFloat(viewingRecord.post_workshop_marks) - parseFloat(viewingRecord.pre_workshop_marks) >= 0 ? '+' : ''}
+                                    {parseFloat(viewingRecord.post_workshop_marks) - parseFloat(viewingRecord.pre_workshop_marks)}%
                                   </p>
                                 </div>
                               )}
@@ -4140,7 +4273,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
                         <p className="text-[11px] font-black uppercase text-slate-300 mb-1">Improvement</p>
                         <p className="text-2xl font-black">
                           {viewingStudentForm.pre_workshop_marks && viewingStudentForm.post_workshop_marks 
-                            ? (parseFloat(viewingStudentForm.post_workshop_marks) - parseFloat(viewingStudentForm.pre_workshop_marks))
+                            ? `${parseFloat(viewingStudentForm.post_workshop_marks) - parseFloat(viewingStudentForm.pre_workshop_marks) >= 0 ? '+' : ''}${parseFloat(viewingStudentForm.post_workshop_marks) - parseFloat(viewingStudentForm.pre_workshop_marks)}%`
                             : 'N/A'}
                         </p>
                       </div>
