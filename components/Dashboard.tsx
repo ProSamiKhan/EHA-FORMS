@@ -14,7 +14,7 @@ import {
   eachMonthOfInterval, eachYearOfInterval, eachWeekOfInterval, eachDayOfInterval,
   endOfMonth, endOfYear, endOfWeek
 } from 'date-fns';
-import { Calendar, ChevronDown, X, MapPin, Edit2, ChevronRight, ArrowLeft, Menu, Users, CreditCard, PieChart as PieIcon, Filter, Plus, BarChart3, Zap, Building2, GraduationCap, Languages, RotateCcw } from 'lucide-react';
+import { Calendar, ChevronDown, X, MapPin, Edit2, ChevronRight, ArrowLeft, Menu, Users, CreditCard, PieChart as PieIcon, Filter, Plus, BarChart3, Zap, Building2, GraduationCap, Languages, RotateCcw, Eye, EyeOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { formatDateClean, parseDate } from '../services/utils';
 
@@ -1791,6 +1791,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
   const [filterAdmissionStatus, setFilterAdmissionStatus] = useState<string | null>(null);
   const [filterAgeRange, setFilterAgeRange] = useState<string | null>(null);
   const [sortConfig, setSortConfig] = useState<{ key: keyof RegistrationData; direction: 'asc' | 'desc' } | null>(null);
+  const [showRevenue, setShowRevenue] = useState(false);
 
   const requestSort = (key: keyof RegistrationData) => {
     let direction: 'asc' | 'desc' = 'asc';
@@ -2721,14 +2722,34 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
             </div>
 
             {userRole === 'super_admin' && (
-              <div className="bg-white dark:bg-slate-900 p-8 md:p-10 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm transition-all group hover:border-emerald-500 hover:shadow-xl">
-                <h3 className="text-slate-400 dark:text-slate-500 text-[10px] md:text-[11px] font-black uppercase tracking-[0.2em] mb-4">Total Revenue</h3>
-                <div className="mb-8">
-                  <p className="text-5xl md:text-6xl font-black text-slate-900 dark:text-slate-100 tracking-tighter leading-none mb-3">₹{globalStats.revenue.toLocaleString()}</p>
-                  <p className="text-[10px] md:text-xs font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-[0.1em] leading-tight opacity-90 bg-emerald-50 dark:bg-emerald-900/20 px-3 py-1.5 rounded-lg inline-block">{numberToWords(globalStats.revenue)} ONLY</p>
+              <div className="bg-white dark:bg-slate-900 p-8 md:p-10 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm transition-all group hover:border-emerald-500 hover:shadow-xl relative overflow-hidden">
+                <div className="flex justify-between items-start mb-4 relative z-10">
+                  <h3 className="text-slate-400 dark:text-slate-500 text-[10px] md:text-[11px] font-black uppercase tracking-[0.2em]">Total Revenue</h3>
+                  <button 
+                    onClick={() => setShowRevenue(!showRevenue)}
+                    className="p-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-colors text-slate-400 hover:text-emerald-600"
+                    title={showRevenue ? "Hide Revenue" : "Show Revenue"}
+                  >
+                    {showRevenue ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+                <div className="mb-8 relative z-10">
+                  <div className="relative">
+                    <p className={`text-5xl md:text-6xl font-black text-slate-900 dark:text-slate-100 tracking-tighter leading-none mb-3 transition-all duration-300 ${!showRevenue ? 'blur-md select-none opacity-20' : ''}`}>
+                      ₹{globalStats.revenue.toLocaleString()}
+                    </p>
+                    {!showRevenue && (
+                      <div className="absolute inset-0 flex items-center justify-start">
+                        <span className="text-xs font-black text-slate-300 uppercase tracking-widest bg-slate-50 dark:bg-slate-800 px-3 py-1 rounded-full">Hidden</span>
+                      </div>
+                    )}
+                  </div>
+                  <p className={`text-[10px] md:text-xs font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-[0.1em] leading-tight opacity-90 bg-emerald-50 dark:bg-emerald-900/20 px-3 py-1.5 rounded-lg inline-block transition-all duration-300 ${!showRevenue ? 'blur-sm select-none opacity-10' : ''}`}>
+                    {numberToWords(globalStats.revenue)} ONLY
+                  </p>
                 </div>
                 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 relative z-10">
                   <div 
                     onClick={() => setFilterPaymentMethod(filterPaymentMethod === 'cash' ? null : 'cash')}
                     className={`p-4 rounded-2xl border cursor-pointer transition-all flex flex-col justify-between gap-2 ${filterPaymentMethod === 'cash' ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-100 dark:border-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/20'}`}
@@ -2737,7 +2758,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
                       <CreditCard className={`w-3 h-3 ${filterPaymentMethod === 'cash' ? 'text-emerald-100' : 'text-emerald-600'}`} />
                       <p className={`text-[8px] font-black uppercase tracking-widest ${filterPaymentMethod === 'cash' ? 'text-emerald-100' : 'text-emerald-600 dark:text-emerald-400'}`}>Cash</p>
                     </div>
-                    <p className="text-lg font-black">₹{globalStats.cashRevenue.toLocaleString()}</p>
+                    <p className={`text-lg font-black transition-all duration-300 ${!showRevenue ? 'blur-sm select-none opacity-20' : ''}`}>
+                      ₹{globalStats.cashRevenue.toLocaleString()}
+                    </p>
                   </div>
                   <div 
                     onClick={() => setFilterPaymentMethod(filterPaymentMethod === 'account' ? null : 'account')}
@@ -2747,7 +2770,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
                       <Building2 className={`w-3 h-3 ${filterPaymentMethod === 'account' ? 'text-indigo-100' : 'text-indigo-600'}`} />
                       <p className={`text-[8px] font-black uppercase tracking-widest ${filterPaymentMethod === 'account' ? 'text-indigo-100' : 'text-indigo-600 dark:text-indigo-400'}`}>Account</p>
                     </div>
-                    <p className="text-lg font-black">₹{globalStats.accountRevenue.toLocaleString()}</p>
+                    <p className={`text-lg font-black transition-all duration-300 ${!showRevenue ? 'blur-sm select-none opacity-20' : ''}`}>
+                      ₹{globalStats.accountRevenue.toLocaleString()}
+                    </p>
                   </div>
                   <div 
                     onClick={() => {
@@ -2763,7 +2788,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
                       <RotateCcw className={`w-3 h-3 ${activeFilters.find(f => f.key === 'payment_status' && f.value === 'refund') ? 'text-rose-100' : 'text-rose-600'}`} />
                       <p className={`text-[8px] font-black uppercase tracking-widest ${activeFilters.find(f => f.key === 'payment_status' && f.value === 'refund') ? 'text-rose-100' : 'text-rose-600 dark:text-rose-400'}`}>Refund</p>
                     </div>
-                    <p className="text-lg font-black">₹{globalStats.refundedAmount.toLocaleString()}</p>
+                    <p className={`text-lg font-black transition-all duration-300 ${!showRevenue ? 'blur-sm select-none opacity-20' : ''}`}>
+                      ₹{globalStats.refundedAmount.toLocaleString()}
+                    </p>
                   </div>
                 </div>
               </div>
