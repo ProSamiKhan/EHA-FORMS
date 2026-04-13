@@ -81,6 +81,7 @@ export interface RegistrationData {
   payment_status?: 'full paid' | 'partial' | 'unpaid' | 'refund' | 'discount' | 'free';
   pre_workshop_marks?: string;
   post_workshop_marks?: string;
+  arrival_status?: 'arrived' | 'not_arrived' | 'arrived_cancelled';
 }
 
 export interface ProcessingRecord {

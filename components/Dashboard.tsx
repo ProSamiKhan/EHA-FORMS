@@ -1207,7 +1207,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
   const [viewingStudentForm, setViewingStudentForm] = useState<RegistrationData | null>(null);
   const [isMasterViewOpen, setIsMasterViewOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [currentView, setCurrentView] = useState<'dashboard' | 'states' | 'cities' | 'admissions' | 'custom' | 'callerTracking'>('dashboard');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'states' | 'cities' | 'admissions'>('dashboard');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const modalRef = useRef<HTMLDivElement>(null);
   const studentFormRef = useRef<HTMLDivElement>(null);
@@ -1349,6 +1349,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
           'Remaining': record.remaining_amount,
           'Admission Status': record.status,
           'Payment Status': record.payment_status || 'N/A',
+          'Arrival Status': record.arrival_status || 'not_arrived',
           'Refund Date': record.refund_date || '-',
           'Notes': record.notes || '-'
         };
@@ -1613,6 +1614,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
     { id: 'date_range', label: 'Date Range', custom: true },
     { id: 'pre_marks', label: 'Pre Workshop Marks', custom: true },
     { id: 'post_marks', label: 'Post Workshop Marks', custom: true },
+    { id: 'arrival_status', label: 'Arrival Status', options: ['arrived', 'not_arrived', 'arrived_cancelled'] },
   ];
 
   const dynamicOptions = useMemo(() => {
@@ -2523,44 +2525,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
                     </div>
                   </div>
                   <ChevronRight className={`w-4 h-4 transition-transform group-hover:translate-x-1 ${currentView === 'admissions' ? 'text-white/50' : 'text-slate-300'}`} />
-                </button>
-
-                <button 
-                  onClick={() => {
-                    setCurrentView('custom');
-                    setIsSidebarOpen(false);
-                  }}
-                  className={`w-full flex items-center justify-between p-4 rounded-2xl transition-all group ${currentView === 'custom' ? 'bg-indigo-600 text-white' : 'bg-slate-50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${currentView === 'custom' ? 'bg-white/20' : 'bg-violet-600'}`}>
-                      <Filter className="w-5 h-5 text-white" />
-                    </div>
-                    <div className="text-left">
-                      <span className={`text-[10px] font-black uppercase tracking-widest block mb-1 ${currentView === 'custom' ? 'text-white/70' : 'text-slate-400'}`}>Advanced</span>
-                      <span className="text-sm font-black">Custom Filters</span>
-                    </div>
-                  </div>
-                  <ChevronRight className={`w-4 h-4 transition-transform group-hover:translate-x-1 ${currentView === 'custom' ? 'text-white/50' : 'text-slate-300'}`} />
-                </button>
-
-                <button 
-                  onClick={() => {
-                    setCurrentView('callerTracking');
-                    setIsSidebarOpen(false);
-                  }}
-                  className={`w-full flex items-center justify-between p-4 rounded-2xl transition-all group ${currentView === 'callerTracking' ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-200 dark:shadow-none' : 'bg-slate-50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-                >
-                  <div className="flex items-center gap-4">
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${currentView === 'callerTracking' ? 'bg-white/20' : 'bg-rose-600'}`}>
-                      <Zap className={`w-5 h-5 ${currentView === 'callerTracking' ? 'text-white' : 'text-white'}`} />
-                    </div>
-                    <div className="text-left">
-                      <span className={`text-[10px] font-black uppercase tracking-widest block mb-1 ${currentView === 'callerTracking' ? 'text-white/70' : 'text-slate-400'}`}>Caller Tracking</span>
-                      <span className="text-[13px] font-bold block leading-tight">Batch Analysis</span>
-                    </div>
-                  </div>
-                  <ChevronRight className={`w-4 h-4 transition-transform group-hover:translate-x-1 ${currentView === 'callerTracking' ? 'text-white/50' : 'text-slate-300'}`} />
                 </button>
               </div>
               
@@ -3893,20 +3857,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
           type="cities" 
           onBack={() => setCurrentView('dashboard')} 
         />
-      ) : currentView === 'custom' ? (
-        <CustomAnalyticsView 
-          records={remoteData} 
-          onBack={() => setCurrentView('dashboard')} 
-          onSeedData={onSeedData}
-          onRefresh={loadData}
-          isRefreshing={isRefreshing}
-          onOpenMasterView={() => setIsMasterViewOpen(true)}
-        />
-      ) : currentView === 'callerTracking' ? (
-        <CallerTrackingView 
-          data={allSyncedData} 
-          onBack={() => setCurrentView('dashboard')} 
-        />
       ) : (
         <AnalyticsView 
           title="Admissions Analytics" 
@@ -3995,6 +3945,25 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
                             <p className="text-xs font-bold text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">{viewingRecord.notes}</p>
                           </div>
                         )}
+                        
+                        <div className="sm:col-span-2 mt-6 p-6 bg-indigo-50/50 dark:bg-indigo-900/10 rounded-3xl border border-indigo-100 dark:border-indigo-900/20">
+                          <h4 className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
+                            Inaugural Day Status
+                          </h4>
+                          <div className="flex items-center gap-4">
+                            <div className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest ${
+                              viewingRecord.arrival_status === 'arrived' 
+                                ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' 
+                                : viewingRecord.arrival_status === 'arrived_cancelled'
+                                  ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400'
+                                  : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                            }`}>
+                              {viewingRecord.arrival_status === 'arrived' ? 'Arrived' : viewingRecord.arrival_status === 'arrived_cancelled' ? 'Arrived & Cancelled' : 'Not Arrived'}
+                            </div>
+                          </div>
+                        </div>
+
                         {(viewingRecord.pre_workshop_marks || viewingRecord.post_workshop_marks) && (
                           <div className="sm:col-span-2 mt-6 p-6 bg-emerald-50/50 dark:bg-emerald-900/10 rounded-3xl border border-emerald-100 dark:border-emerald-900/20">
                             <h4 className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
@@ -4279,6 +4248,32 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
                     <p className="text-base font-bold text-black leading-relaxed whitespace-pre-wrap italic">"{viewingStudentForm.notes}"</p>
                   </div>
                 )}
+
+                {/* Inaugural Day Status */}
+                <div className="mb-12">
+                  <h3 className="text-base font-black uppercase tracking-[0.3em] text-black mb-4 flex items-center gap-3">
+                    INAUGURAL DAY STATUS
+                    <div className="flex-1 h-px bg-black"></div>
+                  </h3>
+                  <div className="border-[3px] border-black p-6">
+                    <p className="text-2xl font-black uppercase tracking-widest">
+                      {viewingStudentForm.arrival_status === 'arrived' ? 'ARRIVED' : viewingStudentForm.arrival_status === 'arrived_cancelled' ? 'ARRIVED & CANCELLED' : 'NOT ARRIVED'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Inaugural Day Status */}
+                <div className="mb-12">
+                  <h3 className="text-base font-black uppercase tracking-[0.3em] text-black mb-4 flex items-center gap-3">
+                    INAUGURAL DAY STATUS
+                    <div className="flex-1 h-px bg-black"></div>
+                  </h3>
+                  <div className="border-[3px] border-black p-6">
+                    <p className="text-2xl font-black uppercase tracking-widest">
+                      {viewingStudentForm.arrival_status === 'arrived' ? 'ARRIVED' : viewingStudentForm.arrival_status === 'arrived_cancelled' ? 'ARRIVED & CANCELLED' : 'NOT ARRIVED'}
+                    </p>
+                  </div>
+                </div>
                 
                 {/* Workshop Performance */}
                 {(viewingStudentForm.pre_workshop_marks || viewingStudentForm.post_workshop_marks) && (

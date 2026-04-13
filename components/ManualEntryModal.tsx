@@ -44,7 +44,8 @@ const INITIAL_DATA: RegistrationData = {
   status: 'confirm',
   payment_status: 'unpaid',
   pre_workshop_marks: '',
-  post_workshop_marks: ''
+  post_workshop_marks: '',
+  arrival_status: 'not_arrived'
 };
 
 const INDIAN_STATES_AND_UTS = [
@@ -458,6 +459,28 @@ export const ManualEntryModal: React.FC<ManualEntryModalProps> = ({ isOpen, onCl
                     </span>
                   </div>
                 )}
+              </div>
+
+              <div className="space-y-5 pt-4">
+                <h3 className="text-[10px] font-black text-indigo-400 uppercase tracking-widest border-b border-indigo-50 dark:border-indigo-900/20 pb-2 transition-colors">Inaugural Day Status</h3>
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest ml-1 transition-colors">Arrival Status</label>
+                  <select 
+                    value={formData.arrival_status || ''} 
+                    onChange={(e) => handleChange('arrival_status', e.target.value)} 
+                    className={`w-full border rounded-xl px-4 py-2.5 text-sm font-black outline-none transition-colors ${
+                      formData.arrival_status === 'arrived' 
+                        ? 'bg-emerald-50 border-emerald-200 text-emerald-600 dark:bg-emerald-900/20 dark:border-emerald-900/30 dark:text-emerald-400' 
+                        : formData.arrival_status === 'arrived_cancelled'
+                          ? 'bg-rose-50 border-rose-200 text-rose-600 dark:bg-rose-900/20 dark:border-rose-900/30 dark:text-rose-400'
+                          : 'bg-slate-50 border-slate-200 text-slate-900 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100'
+                    }`}
+                  >
+                    <option value="not_arrived">Not Arrived</option>
+                    <option value="arrived">Arrived</option>
+                    <option value="arrived_cancelled">Arrived & Cancelled</option>
+                  </select>
+                </div>
               </div>
             </div>
 
