@@ -1549,6 +1549,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
         payment_status: (row['payment_status'] || row['payment status'] || '').toLowerCase() as any || undefined,
         pre_workshop_marks: String(row['pre_workshop_marks'] || row['pre workshop marks'] || ''),
         post_workshop_marks: String(row['post_workshop_marks'] || row['post workshop marks'] || ''),
+        arrival_status: String(row['arrival_status'] || row['arrival status'] || 'not_arrived') as any,
         status: (() => {
           const s = (row['status'] || 'confirm').toLowerCase();
           if (s === 'active') return 'confirm';
