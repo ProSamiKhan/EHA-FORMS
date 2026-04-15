@@ -1649,6 +1649,7 @@ Arrival: ${data.arrival_status || 'not_arrived'}`;
     { id: 'gender', label: 'Gender', options: ['male', 'female', 'other'] },
     { id: 'age', label: 'Age', dynamic: true, custom: true },
     { id: 'payment_amount', label: 'Payment Amount', dynamic: true, custom: true },
+    { id: 'remaining_amount', label: 'Remaining Amount', dynamic: true, custom: true },
     { id: 'medium', label: 'Medium', options: ['english', 'hindi', 'urdu'] },
     { id: 'payment_method', label: 'Payment Method', options: ['cash', 'account'] },
     { id: 'state', label: 'State', dynamic: true },
@@ -1682,23 +1683,29 @@ Arrival: ${data.arrival_status || 'not_arrived'}`;
     // Also add multiples of 1k up to 20k as requested
     const standardPayments = Array.from({ length: 20 }, (_, i) => String((i + 1) * 1000));
     
-    // Calculate total payments for each record to add to options
+    // Calculate total payments and remaining for each record to add to options
     const totalPaymentsSet = new Set<string>();
+    const remainingAmountsSet = new Set<string>();
     allSyncedData.forEach(d => {
       let total = 0;
       for (let i = 1; i <= 10; i++) {
         total += parseFloat(String((d as any)[`payment${i}_amount`]).replace(/[^0-9.]/g, '')) || 0;
       }
       if (total > 0) totalPaymentsSet.add(String(total));
+      
+      const remaining = parseFloat(String(d.remaining_amount || '0').replace(/[^0-9.]/g, '')) || 0;
+      if (remaining > 0) remainingAmountsSet.add(String(remaining));
     });
 
     const finalPaymentOptions = Array.from(new Set([...standardPayments, ...Array.from(totalPaymentsSet)])).sort((a, b) => parseFloat(a) - parseFloat(b));
+    const finalRemainingOptions = Array.from(remainingAmountsSet).sort((a, b) => parseFloat(a) - parseFloat(b));
 
     return {
       state: Array.from(states).sort(),
       city: Array.from(cities).sort(),
       age: ageOptions,
-      payment_amount: finalPaymentOptions
+      payment_amount: finalPaymentOptions,
+      remaining_amount: finalRemainingOptions
     };
   }, [allSyncedData]);
 
@@ -1820,6 +1827,8 @@ Arrival: ${data.arrival_status || 'not_arrived'}`;
   const [customAgeMax, setCustomAgeMax] = useState<string>('');
   const [customPaymentMin, setCustomPaymentMin] = useState<string>('');
   const [customPaymentMax, setCustomPaymentMax] = useState<string>('');
+  const [customRemainingMin, setCustomRemainingMin] = useState<string>('');
+  const [customRemainingMax, setCustomRemainingMax] = useState<string>('');
   const [customDateStart, setCustomDateStart] = useState<string>('');
   const [customDateEnd, setCustomDateEnd] = useState<string>('');
   const [customPreMarksMin, setCustomPreMarksMin] = useState<string>('');
@@ -1927,6 +1936,16 @@ Arrival: ${data.arrival_status || 'not_arrived'}`;
           } else {
             const targetAmt = parseFloat(value);
             if (totalPaid !== targetAmt) return false;
+          }
+        } else if (key === 'remaining_amount') {
+          const remaining = parseFloat(String(d.remaining_amount || '0').replace(/[^0-9.]/g, '')) || 0;
+          
+          if (value.includes('-')) {
+            const [min, max] = value.split('-').map(v => parseFloat(v));
+            if (remaining < min || remaining > max) return false;
+          } else {
+            const targetAmt = parseFloat(value);
+            if (remaining !== targetAmt) return false;
           }
         } else if (key === 'payment_status') {
           const remaining = parseFloat(d.remaining_amount) || 0;
@@ -3477,6 +3496,42 @@ Arrival: ${data.arrival_status || 'not_arrived'}`;
                                             addFilter('payment_amount', `${customPaymentMin || 0}-${customPaymentMax || 100000}`);
                                             setCustomPaymentMin('');
                                             setCustomPaymentMax('');
+                                            setIsFilterMenuOpen(false);
+                                          }
+                                        }}
+                                        className="p-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition-colors"
+                                      >
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {selectedFilterType === 'remaining_amount' && (
+                                  <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-700 space-y-2">
+                                    <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Custom Range</p>
+                                    <div className="flex items-center gap-2">
+                                      <input 
+                                        type="number" 
+                                        placeholder="Min"
+                                        value={customRemainingMin}
+                                        onChange={(e) => setCustomRemainingMin(e.target.value)}
+                                        className="w-full px-2 py-2 sm:py-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded text-[11px] sm:text-[10px] font-bold outline-none focus:ring-1 focus:ring-indigo-500"
+                                      />
+                                      <span className="text-slate-300">-</span>
+                                      <input 
+                                        type="number" 
+                                        placeholder="Max"
+                                        value={customRemainingMax}
+                                        onChange={(e) => setCustomRemainingMax(e.target.value)}
+                                        className="w-full px-2 py-2 sm:py-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded text-[11px] sm:text-[10px] font-bold outline-none focus:ring-1 focus:ring-indigo-500"
+                                      />
+                                      <button 
+                                        onClick={() => {
+                                          if (customRemainingMin || customRemainingMax) {
+                                            addFilter('remaining_amount', `${customRemainingMin || 0}-${customRemainingMax || 100000}`);
+                                            setCustomRemainingMin('');
+                                            setCustomRemainingMax('');
                                             setIsFilterMenuOpen(false);
                                           }
                                         }}
