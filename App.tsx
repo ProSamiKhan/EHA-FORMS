@@ -2,7 +2,7 @@ import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
-  Plus, Upload, LayoutDashboard, Settings as SettingsIcon, 
+  Plus, Camera, LayoutDashboard, Settings as SettingsIcon, 
   LogOut, Sun, Moon, Search, Download, Trash2, 
   Database, Cloud, ShieldCheck, UserCircle2, 
   ChevronRight, Info, AlertCircle, Loader2,
@@ -18,6 +18,7 @@ import { formatDateClean } from './services/utils';
 import { ProcessingCard } from './components/ProcessingCard';
 import { ManualEntryModal } from './components/ManualEntryModal';
 import { Dashboard } from './components/Dashboard';
+import { ScannerModal } from './components/ScannerModal';
 import { Settings } from './components/Settings';
 import { Login } from './components/Login';
 
@@ -32,6 +33,8 @@ const App: React.FC = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [autoViewRecord, setAutoViewRecord] = useState<RegistrationData | null>(null);
   const [editingRecord, setEditingRecord] = useState<RegistrationData | null>(null);
   const [isDarkMode, setIsDarkMode] = useState(() => {
     return localStorage.getItem('eha_theme') === 'dark';
@@ -297,6 +300,26 @@ const App: React.FC = () => {
     }
   };
 
+  const handleScan = (decodedText: string) => {
+    setIsScannerOpen(false);
+    
+    // Extract Admission ID from QR data
+    // Format: ID: EHA-XXXX
+    const idMatch = decodedText.match(/ID:\s*(EHA-[A-Z0-9-]+)/i);
+    const admissionId = idMatch ? idMatch[1] : null;
+
+    if (admissionId) {
+      const record = records.find(r => r.data?.admission_id === admissionId);
+      if (record && record.data) {
+        setAutoViewRecord(record.data);
+      } else {
+        alert(`Student with ID ${admissionId} not found in current records.`);
+      }
+    } else {
+      alert("Invalid QR Code. Could not find Admission ID.");
+    }
+  };
+
   const handleSeedData = async () => {
     if (!window.confirm("This will add 15 sample records to your database. Continue?")) return;
     
@@ -486,11 +509,11 @@ const App: React.FC = () => {
                   <span>Manual Entry</span>
                </button>
                <button 
-                  onClick={() => fileInputRef.current?.click()}
+                  onClick={() => setIsScannerOpen(true)}
                   className="px-6 py-3.5 bg-indigo-600 text-white rounded-2xl text-xs font-black uppercase tracking-widest shadow-xl shadow-indigo-200 dark:shadow-none hover:bg-indigo-700 transition-all flex items-center gap-3"
                >
-                  <Upload size={18} strokeWidth={3} />
-                  <span>Upload Image</span>
+                  <Camera size={18} strokeWidth={3} />
+                  <span>Scanner</span>
                </button>
              </div>
              
@@ -506,11 +529,11 @@ const App: React.FC = () => {
       {/* MOBILE ACTION BAR */}
       <div className="lg:hidden bg-white dark:bg-slate-900 px-6 py-4 border-b border-slate-50 dark:border-slate-800 flex gap-4 transition-colors duration-500">
           <button 
-            onClick={() => fileInputRef.current?.click()}
+            onClick={() => setIsScannerOpen(true)}
             className="flex-1 bg-indigo-600 text-white px-4 py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-xl shadow-indigo-200 dark:shadow-none flex items-center justify-center gap-3 active:scale-95 transition-all"
           >
-            <Upload size={16} strokeWidth={3} />
-            <span>Upload</span>
+            <Camera size={16} strokeWidth={3} />
+            <span>Scanner</span>
           </button>
           <button 
             onClick={() => setIsManualModalOpen(true)}
@@ -544,6 +567,8 @@ const App: React.FC = () => {
                 records={records} 
                 userRole={userRole}
                 config={config}
+                autoViewRecord={autoViewRecord}
+                onAutoViewClose={() => setAutoViewRecord(null)}
                 onEdit={(data) => {
                   setEditingRecord(data);
                   setIsManualModalOpen(true);
@@ -574,6 +599,12 @@ const App: React.FC = () => {
         onSubmit={handleManualSubmit}
         initialData={editingRecord}
         isSyncing={isSyncing}
+      />
+
+      <ScannerModal 
+        isOpen={isScannerOpen}
+        onClose={() => setIsScannerOpen(false)}
+        onScan={handleScan}
       />
 
       <input type="file" className="hidden" ref={fileInputRef} onChange={handleFileUpload} accept="image/*" multiple />

@@ -4,6 +4,7 @@ import { ProcessingRecord, RegistrationData, UserRole, AppConfig } from '../type
 import { fetchAllRegistrations } from '../services/sheetService';
 import { domToPng } from 'modern-screenshot';
 import * as XLSX from 'xlsx';
+import { QRCodeSVG } from 'qrcode.react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   LineChart, Line, Cell, PieChart, Pie, AreaChart, Area, LabelList, Legend
@@ -25,6 +26,8 @@ interface DashboardProps {
   records: ProcessingRecord[];
   userRole: UserRole | null;
   config: AppConfig;
+  autoViewRecord?: RegistrationData | null;
+  onAutoViewClose?: () => void;
   onEdit?: (record: RegistrationData) => void;
   onDelete?: (id: string, admissionId?: string) => void;
   onSeedData?: () => void;
@@ -1198,7 +1201,7 @@ const numberToWords = (num: number): string => {
   return result.trim().toUpperCase();
 };
 
-export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config, onEdit, onDelete, onSeedData }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config, autoViewRecord, onAutoViewClose, onEdit, onDelete, onSeedData }) => {
   const [remoteData, setRemoteData] = useState<RegistrationData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -1450,6 +1453,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
               .no-print { display: none; }
               @page { margin: 1cm; }
             }
+            .qr-code svg { width: 100% !important; height: 100% !important; }
           </style>
         </head>
         <body class="bg-white">
@@ -1468,6 +1472,35 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
       </html>
     `);
     printWindow.document.close();
+  };
+
+  const generateQRData = (data: RegistrationData) => {
+    return `EHA ADMISSION RECORD
+ID: ${data.admission_id}
+Name: ${data.name}
+Contact: ${data.contact_no}
+City: ${data.city}
+Status: ${data.status}
+Payment: ${data.payment_status}
+Arrival: ${data.arrival_status || 'not_arrived'}`;
+  };
+
+  const handleDownloadQR = async () => {
+    const qrElement = document.getElementById('student-qr-code');
+    if (!qrElement) return;
+    
+    try {
+      const dataUrl = await domToPng(qrElement, {
+        backgroundColor: '#ffffff',
+        scale: 5,
+      });
+      const link = document.createElement('a');
+      link.download = `QR-${viewingRecord?.admission_id || 'student'}.png`;
+      link.href = dataUrl;
+      link.click();
+    } catch (err) {
+      console.error('QR Download failed:', err);
+    }
   };
 
   const normalizeData = (rawItems: any[]): RegistrationData[] => {
@@ -1582,6 +1615,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
   useEffect(() => {
     loadData();
   }, [lastRefreshed]);
+
+  useEffect(() => {
+    if (autoViewRecord) {
+      setViewingRecord(autoViewRecord);
+      if (onAutoViewClose) onAutoViewClose();
+    }
+  }, [autoViewRecord, onAutoViewClose]);
 
   const allSyncedData = useMemo(() => {
     const localSynced = records.filter(r => r.syncStatus === 'synced' && r.data).map(r => r.data!);
@@ -3918,9 +3958,20 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
                             </span>
                           </div>
                         </div>
-                        <div className="text-left md:text-right">
-                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Registration Date</p>
-                          <p className="text-base md:text-lg font-bold text-slate-800 dark:text-slate-200">{formatDateClean(viewingRecord.payment1_date)}</p>
+                        <div className="text-left md:text-right flex flex-col items-start md:items-end gap-4">
+                          <div>
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Registration Date</p>
+                            <p className="text-base md:text-lg font-bold text-slate-800 dark:text-slate-200">{formatDateClean(viewingRecord.payment1_date)}</p>
+                          </div>
+                          <div className="bg-white p-2 rounded-xl border border-slate-100 shadow-sm">
+                            <QRCodeSVG 
+                              id="student-qr-code"
+                              value={generateQRData(viewingRecord)}
+                              size={80}
+                              level="H"
+                              includeMargin={true}
+                            />
+                          </div>
                         </div>
                       </div>
 
@@ -4087,6 +4138,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
                       Download PNG
                     </button>
                     <button 
+                      onClick={handleDownloadQR}
+                      className="flex-1 flex items-center justify-center gap-3 py-4 bg-emerald-600 text-white rounded-2xl font-black text-[11px] uppercase tracking-[0.15em] hover:bg-emerald-700 shadow-lg shadow-emerald-200 dark:shadow-none transition-all active:scale-95"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><rect x="7" y="7" width="3" height="3"/><rect x="14" y="7" width="3" height="3"/><rect x="7" y="14" width="3" height="3"/><path d="M14 14h3v3h-3z"/></svg>
+                      Download QR
+                    </button>
+                    <button 
                       onClick={() => setViewingRecord(null)}
                       className="md:w-16 flex items-center justify-center py-4 bg-slate-900 dark:bg-slate-700 text-white rounded-2xl hover:bg-black transition-all"
                     >
@@ -4168,6 +4226,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
                     <div>
                       <p className="text-[12px] font-black uppercase text-black tracking-widest mb-1">Registration Date</p>
                       <p className="text-xl font-black">{formatDateClean(viewingStudentForm.payment1_date)}</p>
+                    </div>
+                    <div className="mt-2">
+                      <QRCodeSVG 
+                        value={generateQRData(viewingStudentForm)}
+                        size={100}
+                        level="H"
+                        includeMargin={false}
+                        className="qr-code"
+                      />
                     </div>
                   </div>
                 </div>
