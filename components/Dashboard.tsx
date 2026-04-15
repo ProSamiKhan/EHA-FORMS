@@ -2087,26 +2087,31 @@ Arrival: ${data.arrival_status || 'not_arrived'}`;
         if (filterPaymentStatus === 'refund') {
           if (ps !== 'refund') return false;
         } else if (filterPaymentStatus === 'free') {
-          if (ps !== 'free' && freeVal === 0 && totalFeesVal !== 0) return false;
+          if (ps !== 'free' && freeVal === 0 && (totalFeesVal !== 0 || status === 'cancelled')) return false;
         } else if (filterPaymentStatus === 'discount') {
-          // Check if it's a discount student (and not free)
-          const isFree = ps === 'free' || freeVal > 0 || totalFeesVal === 0;
+          const isFree = ps === 'free' || freeVal > 0 || (totalFeesVal === 0 && status !== 'cancelled');
           if (isFree || (ps !== 'discount' && discountVal === 0)) return false;
         } else if (filterPaymentStatus === 'fully_paid') {
-          const isFree = ps === 'free' || freeVal > 0 || totalFeesVal === 0;
+          if (ps === 'refund') return false;
+          const isFree = ps === 'free' || freeVal > 0 || (totalFeesVal === 0 && status !== 'cancelled');
           const isDiscount = ps === 'discount' || discountVal > 0;
           if (isFree || isDiscount) return false;
-          if (ps !== 'full paid' && studentTotal < target) return false;
+          if (ps !== 'full paid' && (studentTotal < target || target <= 0)) return false;
         } else if (filterPaymentStatus === 'partial') {
-          const isFree = ps === 'free' || freeVal > 0 || totalFeesVal === 0;
+          if (ps === 'refund') return false;
+          const isFree = ps === 'free' || freeVal > 0 || (totalFeesVal === 0 && status !== 'cancelled');
           const isDiscount = ps === 'discount' || discountVal > 0;
           if (isFree || isDiscount) return false;
-          if (ps !== 'partial' && (studentTotal >= target || studentTotal === 0)) return false;
+          const isFull = ps === 'full paid' || (studentTotal >= target && target > 0);
+          if (isFull || (ps !== 'partial' && studentTotal === 0)) return false;
         } else if (filterPaymentStatus === 'unpaid') {
-          const isFree = ps === 'free' || freeVal > 0 || totalFeesVal === 0;
+          if (ps === 'refund') return false;
+          const isFree = ps === 'free' || freeVal > 0 || (totalFeesVal === 0 && status !== 'cancelled');
           const isDiscount = ps === 'discount' || discountVal > 0;
           if (isFree || isDiscount) return false;
-          if (studentTotal > 0) return false;
+          const isFull = ps === 'full paid' || (studentTotal >= target && target > 0);
+          const isPartial = ps === 'partial' || studentTotal > 0;
+          if (isFull || isPartial) return false;
         }
       }
 
@@ -2309,59 +2314,17 @@ Arrival: ${data.arrival_status || 'not_arrived'}`;
       // Always add to total map
       genderMapTotal[g] = (genderMapTotal[g] || 0) + 1;
 
-      if (status === 'cancelled') {
-        cancelledCount++;
-        if (ps === 'refund') {
-          refundCount++;
-          // Calculate payments for cancelled but refunded
-          for (let i = 1; i <= 10; i++) {
-            const amt = parseFloat(String((d as any)[`payment${i}_amount`]).replace(/[^0-9.]/g, '')) || 0;
-            refundedAmount += amt;
-          }
-        }
-        return;
-      }
-      if (status === 'pending') {
-        pendingCount++;
-        return;
-      }
-      if (status === 'stay only') {
-        stayOnlyCount++;
-        return;
-      }
-      
-      // Only add to confirm map if not cancelled/pending/stay only
-      genderMapConfirm[g] = (genderMapConfirm[g] || 0) + 1;
-      
       let studentTotal = 0;
       for (let i = 1; i <= 10; i++) {
-        const amt = parseFloat(String((d as any)[`payment${i}_amount`]).replace(/[^0-9.]/g, '')) || 0;
-        const utr = (d as any)[`payment${i}_utr`];
-        const rawMethod = (d as any)[`payment${i}_method`];
-        
-        // Inference logic: if method is missing but UTR is not a 12-digit number, assume Cash
-        let method = rawMethod || 'account';
-        if (!rawMethod && utr) {
-          const utrStr = String(utr).trim();
-          if (utrStr && !/^\d{12}$/.test(utrStr)) {
-            method = 'cash';
-          }
-        }
-
-        studentTotal += amt;
-        if (method === 'cash') {
-          cashRevenue += amt;
-        } else {
-          accountRevenue += amt;
-        }
+        studentTotal += parseFloat(String((d as any)[`payment${i}_amount`]).replace(/[^0-9.]/g, '')) || 0;
       }
-      revenue += studentTotal;
 
       const discountVal = parseFloat(String(d.discount || '0')) || 0;
       const freeVal = parseFloat(String(d.free || '0')) || 0;
       const totalFeesVal = parseFloat(String(d.total_fees || '20000').replace(/[^0-9.]/g, '')) || 20000;
       const target = totalFeesVal - discountVal - freeVal;
 
+      // Payment Status Counting (Inclusive of all statuses to match table filters)
       if (ps === 'refund') {
         refundCount++;
         refundedAmount += studentTotal;
@@ -2376,6 +2339,44 @@ Arrival: ${data.arrival_status || 'not_arrived'}`;
       } else {
         unpaidCount++;
       }
+
+      if (status === 'cancelled') {
+        cancelledCount++;
+        return;
+      }
+      if (status === 'pending') {
+        pendingCount++;
+        return;
+      }
+      if (status === 'stay only') {
+        stayOnlyCount++;
+        return;
+      }
+      
+      // Only add to confirm map if not cancelled/pending/stay only
+      genderMapConfirm[g] = (genderMapConfirm[g] || 0) + 1;
+      
+      for (let i = 1; i <= 10; i++) {
+        const amt = parseFloat(String((d as any)[`payment${i}_amount`]).replace(/[^0-9.]/g, '')) || 0;
+        const utr = (d as any)[`payment${i}_utr`];
+        const rawMethod = (d as any)[`payment${i}_method`];
+        
+        // Inference logic: if method is missing but UTR is not a 12-digit number, assume Cash
+        let method = rawMethod || 'account';
+        if (!rawMethod && utr) {
+          const utrStr = String(utr).trim();
+          if (utrStr && !/^\d{12}$/.test(utrStr)) {
+            method = 'cash';
+          }
+        }
+
+        if (method === 'cash') {
+          cashRevenue += amt;
+        } else {
+          accountRevenue += amt;
+        }
+      }
+      revenue += studentTotal;
     });
     return { total, genderMapConfirm, genderMapTotal, revenue, cashRevenue, accountRevenue, refundedAmount, cancelledCount, pendingCount, stayOnlyCount, fullyPaid, partialPaid, unpaidCount, discountCount, freeCount, refundCount };
   };
