@@ -3761,12 +3761,12 @@ Arrival: ${data.arrival_status || 'not_arrived'}`;
                         </div>
                       </th>
                       <th 
-                        onClick={() => requestSort('city')}
+                        onClick={() => requestSort('state')}
                         className="px-4 md:px-8 py-4 text-[10px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-wider cursor-pointer hover:text-indigo-600 transition-colors hidden sm:table-cell"
                       >
                         <div className="flex items-center gap-1">
-                          City
-                          {sortConfig?.key === 'city' && (
+                          State
+                          {sortConfig?.key === 'state' && (
                             <span className="text-indigo-500">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
                           )}
                         </div>
@@ -3776,8 +3776,19 @@ Arrival: ${data.arrival_status || 'not_arrived'}`;
                         className="px-4 md:px-8 py-4 text-[10px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-wider cursor-pointer hover:text-indigo-600 transition-colors"
                       >
                         <div className="flex items-center gap-1">
-                          Status
+                          Admission Status
                           {sortConfig?.key === 'status' && (
+                            <span className="text-indigo-500">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+                          )}
+                        </div>
+                      </th>
+                      <th 
+                        onClick={() => requestSort('payment_status')}
+                        className="px-4 md:px-8 py-4 text-[10px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-wider cursor-pointer hover:text-indigo-600 transition-colors"
+                      >
+                        <div className="flex items-center gap-1">
+                          Payment Status
+                          {sortConfig?.key === 'payment_status' && (
                             <span className="text-indigo-500">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
                           )}
                         </div>
@@ -3813,7 +3824,7 @@ Arrival: ${data.arrival_status || 'not_arrived'}`;
                       <td className="px-4 md:px-8 py-4">
                           <span className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-tight transition-colors">{data.name}</span>
                       </td>
-                      <td className="px-4 md:px-8 py-4 text-[10px] font-bold text-slate-500 dark:text-slate-600 uppercase transition-colors hidden sm:table-cell">{data.city || '—'}</td>
+                      <td className="px-4 md:px-8 py-4 text-[10px] font-bold text-slate-500 dark:text-slate-600 uppercase transition-colors hidden sm:table-cell">{data.state || '—'}</td>
                       <td className="px-4 md:px-8 py-4">
                           <span className={`px-2 py-0.5 text-[8px] font-black uppercase rounded-md ${
                             data.status === 'cancelled' ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400' : 
@@ -3821,6 +3832,16 @@ Arrival: ${data.arrival_status || 'not_arrived'}`;
                             'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400'
                           }`}>
                             {data.status}
+                          </span>
+                      </td>
+                      <td className="px-4 md:px-8 py-4">
+                          <span className={`px-2 py-0.5 text-[8px] font-black uppercase rounded-md ${
+                            data.payment_status === 'full paid' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400' : 
+                            data.payment_status === 'partial' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400' :
+                            data.payment_status === 'unpaid' ? 'bg-slate-100 text-slate-700 dark:bg-slate-900/40 dark:text-slate-400' :
+                            'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-400'
+                          }`}>
+                            {data.payment_status || 'unpaid'}
                           </span>
                       </td>
                       <td className="px-4 md:px-8 py-4 text-[10px] font-bold text-slate-500 dark:text-slate-600 uppercase transition-colors hidden lg:table-cell max-w-[150px] truncate">
@@ -3885,12 +3906,20 @@ Arrival: ${data.arrival_status || 'not_arrived'}`;
                       }`}>
                         {data.status}
                       </span>
+                      <span className={`px-2 py-0.5 text-[8px] font-black uppercase rounded-md ${
+                        data.payment_status === 'full paid' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400' : 
+                        data.payment_status === 'partial' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400' :
+                        data.payment_status === 'unpaid' ? 'bg-slate-100 text-slate-700 dark:bg-slate-900/40 dark:text-slate-400' :
+                        'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-400'
+                      }`}>
+                        {data.payment_status || 'unpaid'}
+                      </span>
                     </div>
                     <div className="flex justify-between items-center pt-4 border-t border-slate-50 dark:border-slate-800">
                       <div className="flex flex-col gap-1">
                         <div className="flex items-center gap-2 text-slate-500">
                           <MapPin size={12} />
-                          <span className="text-[10px] font-bold uppercase">{data.city || 'Unknown'}</span>
+                          <span className="text-[10px] font-bold uppercase">{data.state || 'Unknown'}</span>
                         </div>
                         {data.pre_workshop_marks && data.post_workshop_marks && (
                           <div className="flex items-center gap-2 mt-1">
