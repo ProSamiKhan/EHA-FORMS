@@ -2116,10 +2116,23 @@ Arrival: ${data.arrival_status || 'not_arrived'}`;
       }
 
       if (filterPaymentMethod) {
+        const status = (d.status || 'confirm').toLowerCase();
+        if (status === 'cancelled' || status === 'pending' || status === 'stay only') return false;
+
         let hasMethod = false;
         for (let i = 1; i <= 10; i++) {
           const amt = parseFloat(String((d as any)[`payment${i}_amount`]).replace(/[^0-9.]/g, '')) || 0;
-          const method = (d as any)[`payment${i}_method`] || 'account';
+          const utr = (d as any)[`payment${i}_utr`];
+          const rawMethod = (d as any)[`payment${i}_method`];
+          
+          let method = rawMethod || 'account';
+          if (!rawMethod && utr) {
+            const utrStr = String(utr).trim();
+            if (utrStr && !/^\d{12}$/.test(utrStr)) {
+              method = 'cash';
+            }
+          }
+
           if (amt > 0 && method === filterPaymentMethod) {
             hasMethod = true;
             break;
