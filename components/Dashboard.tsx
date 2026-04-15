@@ -1207,6 +1207,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, userRole, config,
   const [error, setError] = useState<string | null>(null);
   const [lastRefreshed, setLastRefreshed] = useState<number>(Date.now());
   const [viewingRecord, setViewingRecord] = useState<RegistrationData | null>(null);
+  const [scannerResult, setScannerResult] = useState<RegistrationData | null>(null);
   const [viewingStudentForm, setViewingStudentForm] = useState<RegistrationData | null>(null);
   const [isMasterViewOpen, setIsMasterViewOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -1618,7 +1619,7 @@ Arrival: ${data.arrival_status || 'not_arrived'}`;
 
   useEffect(() => {
     if (autoViewRecord) {
-      setViewingRecord(autoViewRecord);
+      setScannerResult(autoViewRecord);
       if (onAutoViewClose) onAutoViewClose();
     }
   }, [autoViewRecord, onAutoViewClose]);
@@ -4152,6 +4153,114 @@ Arrival: ${data.arrival_status || 'not_arrived'}`;
                     </button>
                 </div>
             </div>
+        </div>
+      )}
+
+      {/* SCANNER RESULT MODAL (SIMPLE VIEW) */}
+      {scannerResult && (
+        <div className="fixed inset-0 z-[150] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-300">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[32px] shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800"
+          >
+            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/50">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg">
+                  <Zap size={20} strokeWidth={2.5} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest">Scan Result</h3>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Quick Student Info</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setScannerResult(null)}
+                className="p-2 text-slate-400 hover:text-red-500 rounded-xl transition-all"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="p-8 space-y-1">
+              <div className="flex justify-between items-center mb-6">
+                <span className="px-3 py-1 bg-indigo-600 text-white text-[10px] font-black rounded-lg tracking-widest uppercase">{scannerResult.admission_id}</span>
+                <span className={`px-3 py-1 text-[10px] font-black rounded-lg tracking-widest uppercase ${
+                  scannerResult.status === 'confirm' ? 'bg-emerald-100 text-emerald-700' : 
+                  scannerResult.status === 'pending' ? 'bg-amber-100 text-amber-700' : 
+                  'bg-red-100 text-red-700'
+                }`}>
+                  {scannerResult.status}
+                </span>
+              </div>
+
+              <div className="space-y-4">
+                <div className="pb-4 border-b border-slate-50 dark:border-slate-800/50">
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Student Name</p>
+                  <p className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">{scannerResult.name}</p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">State</p>
+                    <p className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase">{scannerResult.state}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Payment Status</p>
+                    <p className="text-sm font-black text-emerald-600 dark:text-emerald-400 uppercase">{scannerResult.payment_status || 'UNPAID'}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Gender</p>
+                    <p className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase">{scannerResult.gender}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Age</p>
+                    <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{scannerResult.age}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Contact</p>
+                    <p className="text-sm font-mono font-bold text-slate-800 dark:text-slate-200">{scannerResult.contact_no}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">WhatsApp</p>
+                    <p className="text-sm font-mono font-bold text-slate-800 dark:text-slate-200">{scannerResult.whatsapp_no}</p>
+                  </div>
+                </div>
+
+                <div className="pt-4 mt-2">
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Arrival Status</p>
+                  <div className={`inline-block px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest ${
+                    scannerResult.arrival_status === 'arrived' 
+                      ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' 
+                      : scannerResult.arrival_status === 'arrived_cancelled'
+                        ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400'
+                        : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                  }`}>
+                    {scannerResult.arrival_status === 'arrived' ? 'Arrived' : scannerResult.arrival_status === 'arrived_cancelled' ? 'Arrived & Cancelled' : 'Not Arrived'}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 flex gap-3">
+              <button 
+                onClick={() => {
+                  if (onEdit) onEdit(scannerResult);
+                  setScannerResult(null);
+                }}
+                className="flex-1 flex items-center justify-center gap-3 py-4 bg-indigo-600 text-white rounded-2xl font-black text-[11px] uppercase tracking-[0.15em] hover:bg-indigo-700 shadow-lg shadow-indigo-200 dark:shadow-none transition-all active:scale-95"
+              >
+                <Edit2 size={16} strokeWidth={3} />
+                Edit Record
+              </button>
+              <button 
+                onClick={() => setScannerResult(null)}
+                className="flex-1 py-4 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-600 rounded-2xl font-black text-[11px] uppercase tracking-[0.15em] hover:bg-slate-50 transition-all active:scale-95"
+              >
+                Close
+              </button>
+            </div>
+          </motion.div>
         </div>
       )}
 
