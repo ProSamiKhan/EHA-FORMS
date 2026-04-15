@@ -1487,7 +1487,7 @@ Arrival: ${data.arrival_status || 'not_arrived'}`;
   };
 
   const handleDownloadQR = async () => {
-    const qrElement = document.getElementById('student-qr-code');
+    const qrElement = document.getElementById('student-qr-code-container');
     if (!qrElement) return;
     
     try {
@@ -3964,14 +3964,15 @@ Arrival: ${data.arrival_status || 'not_arrived'}`;
                             <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Registration Date</p>
                             <p className="text-base md:text-lg font-bold text-slate-800 dark:text-slate-200">{formatDateClean(viewingRecord.payment1_date)}</p>
                           </div>
-                          <div className="bg-white p-2 rounded-xl border border-slate-100 shadow-sm">
+                          <div id="student-qr-code-container" className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col items-center gap-2">
+                            <p className="text-[10px] font-black text-slate-900 uppercase tracking-widest">{viewingRecord.admission_id}</p>
                             <QRCodeSVG 
-                              id="student-qr-code"
                               value={generateQRData(viewingRecord)}
-                              size={80}
+                              size={100}
                               level="H"
-                              includeMargin={true}
+                              includeMargin={false}
                             />
+                            <p className="text-[10px] font-black text-slate-900 uppercase tracking-tight text-center max-w-[120px] truncate">{viewingRecord.name}</p>
                           </div>
                         </div>
                       </div>
@@ -4336,7 +4337,7 @@ Arrival: ${data.arrival_status || 'not_arrived'}`;
                       <p className="text-[12px] font-black uppercase text-black tracking-widest mb-1">Registration Date</p>
                       <p className="text-xl font-black">{formatDateClean(viewingStudentForm.payment1_date)}</p>
                     </div>
-                    <div className="mt-2">
+                    <div className="mt-2 flex flex-col items-end gap-1">
                       <QRCodeSVG 
                         value={generateQRData(viewingStudentForm)}
                         size={100}
@@ -4344,6 +4345,7 @@ Arrival: ${data.arrival_status || 'not_arrived'}`;
                         includeMargin={false}
                         className="qr-code"
                       />
+                      <p className="text-[8px] font-black uppercase text-black tracking-tight text-right">{viewingStudentForm.name}</p>
                     </div>
                   </div>
                 </div>
