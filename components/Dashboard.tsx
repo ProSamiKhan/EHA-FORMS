@@ -2102,6 +2102,11 @@ Arrival: ${data.arrival_status || 'not_arrived'}`;
           const isDiscount = ps === 'discount' || discountVal > 0;
           if (isFree || isDiscount) return false;
           if (ps !== 'partial' && (studentTotal >= target || studentTotal === 0)) return false;
+        } else if (filterPaymentStatus === 'unpaid') {
+          const isFree = ps === 'free' || freeVal > 0 || totalFeesVal === 0;
+          const isDiscount = ps === 'discount' || discountVal > 0;
+          if (isFree || isDiscount) return false;
+          if (studentTotal > 0) return false;
         }
       }
 
@@ -2290,6 +2295,7 @@ Arrival: ${data.arrival_status || 'not_arrived'}`;
     let stayOnlyCount = 0;
     let fullyPaid = 0;
     let partialPaid = 0;
+    let unpaidCount = 0;
     let discountCount = 0;
     let freeCount = 0;
     let refundCount = 0;
@@ -2367,9 +2373,11 @@ Arrival: ${data.arrival_status || 'not_arrived'}`;
         fullyPaid++;
       } else if (ps === 'partial' || studentTotal > 0) {
         partialPaid++;
+      } else {
+        unpaidCount++;
       }
     });
-    return { total, genderMapConfirm, genderMapTotal, revenue, cashRevenue, accountRevenue, refundedAmount, cancelledCount, pendingCount, stayOnlyCount, fullyPaid, partialPaid, discountCount, freeCount, refundCount };
+    return { total, genderMapConfirm, genderMapTotal, revenue, cashRevenue, accountRevenue, refundedAmount, cancelledCount, pendingCount, stayOnlyCount, fullyPaid, partialPaid, unpaidCount, discountCount, freeCount, refundCount };
   };
 
   const globalStats = useMemo(() => getStats(filteredData), [filteredData]);
@@ -2846,6 +2854,16 @@ Arrival: ${data.arrival_status || 'not_arrived'}`;
                     <span className={`text-[9px] font-black uppercase tracking-widest ${filterPaymentStatus === 'partial' ? 'text-amber-100' : 'text-slate-500'}`}>Partial</span>
                   </div>
                   <span className="text-4xl font-black tracking-tighter">{globalStats.partialPaid}</span>
+                </div>
+                <div 
+                  onClick={() => setFilterPaymentStatus(filterPaymentStatus === 'unpaid' ? null : 'unpaid')}
+                  className={`flex flex-col justify-between p-5 rounded-2xl border cursor-pointer transition-all ${filterPaymentStatus === 'unpaid' ? 'bg-slate-600 border-slate-500 text-white shadow-lg shadow-slate-200 dark:shadow-none' : 'bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                >
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className={`w-2 h-2 rounded-full ${filterPaymentStatus === 'unpaid' ? 'bg-white' : 'bg-slate-400'}`}></div>
+                    <span className={`text-[9px] font-black uppercase tracking-widest ${filterPaymentStatus === 'unpaid' ? 'text-slate-100' : 'text-slate-500'}`}>Unpaid</span>
+                  </div>
+                  <span className="text-4xl font-black tracking-tighter">{globalStats.unpaidCount}</span>
                 </div>
                 <div 
                   onClick={() => setFilterPaymentStatus(filterPaymentStatus === 'discount' ? null : 'discount')}
