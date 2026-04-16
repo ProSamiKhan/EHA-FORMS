@@ -4080,15 +4080,18 @@ Arrival: ${data.arrival_status || 'not_arrived'}`;
                             <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Registration Date</p>
                             <p className="text-base md:text-lg font-bold text-slate-800 dark:text-slate-200">{formatDateClean(viewingRecord.payment1_date)}</p>
                           </div>
-                          <div id="student-qr-code-container" className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col items-center gap-2">
-                            <p className="text-[10px] font-black text-slate-900 uppercase tracking-widest">{viewingRecord.admission_id}</p>
-                            <QRCodeSVG 
-                              value={generateQRData(viewingRecord)}
-                              size={100}
-                              level="H"
-                              includeMargin={false}
-                            />
-                            <p className="text-[10px] font-black text-slate-900 uppercase tracking-tight text-center max-w-[120px] truncate">{viewingRecord.name}</p>
+                          {/* QR Code Hidden from UI but kept for Download Functionality */}
+                          <div className="absolute opacity-0 pointer-events-none -z-10 overflow-hidden" style={{ width: '1px', height: '1px' }}>
+                            <div id="student-qr-code-container" className="bg-white p-6 rounded-2xl inline-flex flex-col items-center gap-3">
+                              <p className="text-[14px] font-black text-slate-900 uppercase tracking-widest">{viewingRecord.admission_id}</p>
+                              <QRCodeSVG 
+                                value={generateQRData(viewingRecord)}
+                                size={200}
+                                level="H"
+                                includeMargin={false}
+                              />
+                              <p className="text-[14px] font-black text-slate-900 uppercase tracking-tight text-center max-w-[200px]">{viewingRecord.name}</p>
+                            </div>
                           </div>
                         </div>
                       </div>
