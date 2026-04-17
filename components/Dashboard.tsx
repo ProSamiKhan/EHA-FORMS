@@ -15,7 +15,7 @@ import {
   eachMonthOfInterval, eachYearOfInterval, eachWeekOfInterval, eachDayOfInterval,
   endOfMonth, endOfYear, endOfWeek
 } from 'date-fns';
-import { Calendar, ChevronDown, X, MapPin, Edit2, ChevronRight, ArrowLeft, Menu, Users, CreditCard, PieChart as PieIcon, Filter, Plus, BarChart3, Zap, Building2, GraduationCap, Languages, RotateCcw, Eye, EyeOff } from 'lucide-react';
+import { Calendar, ChevronDown, X, MapPin, Edit2, ChevronRight, ArrowLeft, Menu, Users, CreditCard, PieChart as PieIcon, Filter, Plus, BarChart3, Zap, Building2, GraduationCap, Languages, RotateCcw, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { formatDateClean, parseDate } from '../services/utils';
 
@@ -1515,15 +1515,24 @@ Arrival: ${data.arrival_status || 'not_arrived'}`;
     // Filter out completely empty or header rows
     const validItems = rawItems.filter(item => {
       if (!item || typeof item !== 'object') return false;
-      const id = String(item['admission id'] || item['admission_id'] || item['id'] || item['Admission ID'] || '').trim();
-      const name = String(item['name'] || item['student name'] || item['Student Name'] || item['Name'] || '').trim();
       
-      // Filter out empty rows or header-like rows
-      if (id === '' && name === '') return false;
-      if (id.toLowerCase() === 'admission id' || name.toLowerCase() === 'student name') return false;
+      // Look for Admission ID (Mapping might vary based on sheet headers)
+      const id = String(
+        item['admission id'] || 
+        item['admission_id'] || 
+        item['id'] || 
+        item['Admission ID'] || 
+        item['Admission_ID'] || 
+        ''
+      ).trim();
       
-      // Minimum validation: a valid entry should have at least some basic data
-      // If it only has an ID or only a name, it might be a partial entry, but we'll include it for count accuracy
+      // 1. Skip completely empty IDs
+      if (id === '') return false;
+      
+      // 2. Skip the header row if it's present in the data as a value
+      if (id.toLowerCase() === 'admission id') return false;
+      
+      // If Admission ID is present, count it as a valid entry
       return true;
     });
 
@@ -1647,40 +1656,39 @@ Arrival: ${data.arrival_status || 'not_arrived'}`;
   }, [autoViewRecord, onAutoViewClose]);
 
   const allSyncedData = useMemo(() => {
-    const uniqueMap = new Map<string, RegistrationData>();
+    // 1. Start with all valid records from Google Sheets (Source of Truth)
+    // We use an array here to preserve every single row from the sheet as requested
+    const sheetData = [...remoteData];
     
-    // 1. First, populate from Google Sheet (Source of Truth)
-    remoteData.forEach(item => { 
-      if (item.admission_id) uniqueMap.set(item.admission_id, item); 
-    });
+    // Create a set of IDs already in the sheet to avoid double-counting with local records
+    const sheetIds = new Set(remoteData.map(d => d.admission_id).filter(id => !!id));
 
     // 2. Only add local records that are newly synced but might not have reflected in remoteData yet
-    // This handles the gap between clicking 'sync' and the next sheet refresh
     const now = Date.now();
     const recentlySynced = records.filter(r => 
       r.syncStatus === 'synced' && 
       r.data && 
+      r.data.admission_id &&
       r.syncedAt && 
-      (now - r.syncedAt < 300000) // 5 minute window for new syncs to appear in sheet
+      (now - r.syncedAt < 300000) && // 5 minute window
+      !sheetIds.has(r.data.admission_id)
     ).map(r => r.data!);
 
-    recentlySynced.forEach(item => {
-      if (item.admission_id && !uniqueMap.has(item.admission_id)) {
-        uniqueMap.set(item.admission_id, item);
-      }
-    });
+    // 3. Combine them
+    const combined = [...sheetData, ...recentlySynced];
 
-    // 3. Fallback: If remoteData is completely empty (e.g., initial load or failed fetch), 
-    // use all local synced records so the UI isn't empty.
-    if (remoteData.length === 0) {
+    // 4. Fallback: If remoteData is completely empty, use all local synced records
+    if (sheetData.length === 0) {
+      const localMap = new Map<string, RegistrationData>();
       records.forEach(r => {
         if (r.syncStatus === 'synced' && r.data && r.data.admission_id) {
-          uniqueMap.set(r.data.admission_id, r.data);
+          localMap.set(r.data.admission_id, r.data);
         }
       });
+      return Array.from(localMap.values());
     }
 
-    return Array.from(uniqueMap.values()).sort((a, b) => {
+    return combined.sort((a, b) => {
         try {
             const timeB = parseDate(b.payment1_date)?.getTime() || 0;
             const timeA = parseDate(a.payment1_date)?.getTime() || 0;
@@ -1894,6 +1902,7 @@ Arrival: ${data.arrival_status || 'not_arrived'}`;
   const [filterPaymentMethod, setFilterPaymentMethod] = useState<'cash' | 'account' | null>(null);
   const [filterAdmissionStatus, setFilterAdmissionStatus] = useState<string | null>(null);
   const [filterAgeRange, setFilterAgeRange] = useState<string | null>(null);
+  const [filterDuplicates, setFilterDuplicates] = useState<boolean>(false);
   const [sortConfig, setSortConfig] = useState<{ key: keyof RegistrationData; direction: 'asc' | 'desc' } | null>(null);
   const [showRevenue, setShowRevenue] = useState(false);
 
@@ -1907,6 +1916,18 @@ Arrival: ${data.arrival_status || 'not_arrived'}`;
 
   const getFilteredData = () => {
     let baseFiltered = allSyncedData;
+
+    if (filterDuplicates) {
+      const idCounts: Record<string, number> = {};
+      allSyncedData.forEach(d => {
+        const id = (d.admission_id || '').trim();
+        if (id) idCounts[id] = (idCounts[id] || 0) + 1;
+      });
+      baseFiltered = baseFiltered.filter(d => {
+        const id = (d.admission_id || '').trim();
+        return id && idCounts[id] > 1;
+      });
+    }
 
     // Time Filtering based on Drill-down or Custom Range
     if (drillLevel === 'custom') {
@@ -2365,8 +2386,15 @@ Arrival: ${data.arrival_status || 'not_arrived'}`;
     let refundCount = 0;
     let refundedAmount = 0;
     let confirmedCount = 0;
+    
+    const idCounts: Record<string, number> = {};
 
     data.forEach(d => {
+      const id = (d.admission_id || '').trim();
+      if (id) {
+        idCounts[id] = (idCounts[id] || 0) + 1;
+      }
+
       const status = (d.status || 'confirm').toLowerCase();
       const g = (d.gender || 'Other').trim().toLowerCase();
       const ps = (d.payment_status || '').toLowerCase();
@@ -2451,7 +2479,10 @@ Arrival: ${data.arrival_status || 'not_arrived'}`;
       }
       revenue += studentTotal;
     });
-    return { total, confirmedCount, genderMapConfirm, genderMapTotal, revenue, cashRevenue, accountRevenue, refundedAmount, cancelledCount, pendingCount, stayOnlyCount, fullyPaid, partialPaid, unpaidCount, discountCount, freeCount, refundCount };
+
+    const duplicateCount = Object.values(idCounts).reduce((acc, count) => acc + (count > 1 ? count - 1 : 0), 0);
+
+    return { total, confirmedCount, duplicateCount, genderMapConfirm, genderMapTotal, revenue, cashRevenue, accountRevenue, refundedAmount, cancelledCount, pendingCount, stayOnlyCount, fullyPaid, partialPaid, unpaidCount, discountCount, freeCount, refundCount };
   };
 
   const globalStats = useMemo(() => getStats(filteredData), [filteredData]);
@@ -2817,12 +2848,27 @@ Arrival: ${data.arrival_status || 'not_arrived'}`;
             >
               <div className="absolute top-0 right-0 w-32 md:w-48 h-32 md:h-48 bg-indigo-50 dark:bg-indigo-900/10 rounded-full -mr-16 md:-mr-24 -mt-16 md:-mt-24 group-hover:scale-110 transition-transform duration-700"></div>
               <h3 className="text-slate-400 dark:text-slate-500 text-[10px] md:text-[11px] font-black uppercase tracking-[0.2em] mb-4 relative">Total Admissions</h3>
-              <div className="flex items-baseline gap-3 relative">
-                <p className="text-6xl md:text-7xl font-black text-slate-900 dark:text-slate-100 tracking-tighter leading-none">{globalStats.total}</p>
-                <div className="flex flex-col">
-                  <span className="text-slate-400 text-xs font-bold leading-none">Registered</span>
-                  <span className="text-indigo-500 text-[10px] font-black tracking-tight">{globalStats.confirmedCount} Confirmed</span>
+              <div className="flex flex-col gap-4 relative">
+                <div className="flex items-baseline gap-4">
+                  <div className="flex flex-col">
+                    <p className="text-6xl md:text-7xl font-black text-slate-900 dark:text-slate-100 tracking-tighter leading-none">{globalStats.total}</p>
+                    <span className="text-slate-400 text-[10px] font-black uppercase tracking-widest mt-1">Total Registered</span>
+                  </div>
+                  <div className="h-12 w-px bg-slate-100 dark:bg-slate-800 hidden md:block"></div>
+                  <div className="flex flex-col">
+                    <p className="text-4xl md:text-5xl font-black text-indigo-600 dark:text-indigo-400 tracking-tighter leading-none">{globalStats.confirmedCount}</p>
+                    <span className="text-indigo-400 text-[10px] font-black uppercase tracking-widest mt-1">Confirmed</span>
+                  </div>
                 </div>
+
+                {globalStats.duplicateCount > 0 && (
+                  <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-900/30 rounded-xl w-fit">
+                    <AlertCircle size={14} className="text-amber-600 dark:text-amber-500" />
+                    <p className="text-[10px] font-black text-amber-700 dark:text-amber-400 uppercase tracking-wider">
+                      {globalStats.duplicateCount} Duplicate Entries Found
+                    </p>
+                  </div>
+                )}
               </div>
               <div className="mt-8 flex items-center gap-3 relative">
                 <div className="px-3 py-1 bg-green-50 dark:bg-green-900/20 rounded-full">
@@ -3020,6 +3066,16 @@ Arrival: ${data.arrival_status || 'not_arrived'}`;
                     <span className={`text-[9px] font-black uppercase tracking-widest ${filterAdmissionStatus === 'confirm' ? 'text-indigo-100' : 'text-slate-500'}`}>Confirmed</span>
                   </div>
                   <span className="text-4xl font-black tracking-tighter">{globalStats.confirmedCount}</span>
+                </div>
+                <div 
+                  onClick={() => setFilterDuplicates(!filterDuplicates)}
+                  className={`flex flex-col justify-between p-5 rounded-2xl border cursor-pointer transition-all ${filterDuplicates ? 'bg-amber-600 border-amber-500 text-white shadow-lg shadow-amber-200 dark:shadow-none' : 'bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                >
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className={`w-2 h-2 rounded-full ${filterDuplicates ? 'bg-white' : 'bg-amber-600'}`}></div>
+                    <span className={`text-[9px] font-black uppercase tracking-widest ${filterDuplicates ? 'text-amber-100' : 'text-slate-500'}`}>Duplicates</span>
+                  </div>
+                  <span className="text-4xl font-black tracking-tighter">{globalStats.duplicateCount}</span>
                 </div>
               </div>
             </div>
