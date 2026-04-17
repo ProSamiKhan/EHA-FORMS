@@ -555,25 +555,32 @@ const CustomAnalyticsView = ({ records, onBack, onSeedData, onRefresh, isRefresh
       
       if (filters.paymentStatus !== 'All') {
         const ps = (d.payment_status || '').toLowerCase();
-        const discountVal = parseFloat(String(d.discount || '0')) || 0;
-        const freeVal = parseFloat(String(d.free || '0')) || 0;
+        const discountVal = parseFloat(String(d.discount || '0').replace(/[^0-9.]/g, '')) || 0;
+        const freeVal = parseFloat(String(d.free || '0').replace(/[^0-9.]/g, '')) || 0;
         const totalFeesVal = parseFloat(String(d.total_fees || '20000').replace(/[^0-9.]/g, '')) || 20000;
-        const remaining = parseFloat(String(d.remaining_amount || '0').replace(/[^0-9.]/g, '')) || 0;
+        const remainingVal = parseFloat(String(d.remaining_amount || '0').replace(/[^0-9.]/g, '')) || 0;
+        const status = (d.status || 'confirm').toLowerCase();
 
-        if (filters.paymentStatus === 'Refund') return ps === 'refund';
-        if (filters.paymentStatus === 'Free') return ps === 'free' || freeVal > 0 || (totalFeesVal === 0 && d.status !== 'cancelled');
-        if (filters.paymentStatus === 'Discount') {
-          const isFree = ps === 'free' || freeVal > 0 || totalFeesVal === 0;
-          return !isFree && (ps === 'discount' || discountVal > 0);
+        let studentTotal = 0;
+        for (let i = 1; i <= 10; i++) {
+          studentTotal += parseFloat(String((d as any)[`payment${i}_amount`]).replace(/[^0-9.]/g, '')) || 0;
         }
-        
-        const isFree = ps === 'free' || freeVal > 0 || totalFeesVal === 0;
-        const isDiscount = ps === 'discount' || discountVal > 0;
-        if (isFree || isDiscount) return false;
+        const target = totalFeesVal - discountVal - freeVal;
 
-        if (filters.paymentStatus === 'Full Paid') return remaining <= 0;
-        if (filters.paymentStatus === 'Partial') return remaining > 0 && remaining < totalFeesVal;
-        if (filters.paymentStatus === 'Unpaid') return remaining >= totalFeesVal && totalFeesVal > 0;
+        const isActuallyFullyPaid = ps.includes('full') || remainingVal <= 0 || (studentTotal >= target && target > 0);
+        const isActuallyFree = ps === 'free' || freeVal > 0 || (totalFeesVal === 0 && status !== 'cancelled');
+        const isActuallyDiscount = ps === 'discount' || discountVal > 0;
+        const isActuallyRefund = ps === 'refund';
+
+        if (filters.paymentStatus === 'Refund') return isActuallyRefund;
+        if (filters.paymentStatus === 'Free') return isActuallyFree;
+        if (filters.paymentStatus === 'Discount') return isActuallyDiscount;
+        if (filters.paymentStatus === 'Full Paid') return isActuallyFullyPaid && !isActuallyFree;
+        
+        if (isActuallyFree || isActuallyFullyPaid || isActuallyRefund) return false;
+
+        if (filters.paymentStatus === 'Partial') return studentTotal > 0;
+        if (filters.paymentStatus === 'Unpaid') return studentTotal === 0;
         return false;
       }
 
@@ -2078,40 +2085,35 @@ Arrival: ${data.arrival_status || 'not_arrived'}`;
         for (let i = 1; i <= 10; i++) {
           studentTotal += parseFloat(String((d as any)[`payment${i}_amount`]).replace(/[^0-9.]/g, '')) || 0;
         }
-        const discountVal = parseFloat(String(d.discount || '0')) || 0;
-        const freeVal = parseFloat(String(d.free || '0')) || 0;
+        const discountVal = parseFloat(String(d.discount || '0').replace(/[^0-9.]/g, '')) || 0;
+        const freeVal = parseFloat(String(d.free || '0').replace(/[^0-9.]/g, '')) || 0;
         const totalFeesVal = parseFloat(String(d.total_fees || '20000').replace(/[^0-9.]/g, '')) || 20000;
+        const remainingVal = parseFloat(String(d.remaining_amount || '0').replace(/[^0-9.]/g, '')) || 0;
         const target = totalFeesVal - discountVal - freeVal;
         const ps = (d.payment_status || '').toLowerCase();
+        const status = (d.status || 'confirm').toLowerCase();
+
+        const isActuallyFullyPaid = ps.includes('full') || remainingVal <= 0 || (studentTotal >= target && target > 0);
+        const isActuallyFree = ps === 'free' || freeVal > 0 || (totalFeesVal === 0 && status !== 'cancelled');
+        const isActuallyDiscount = ps === 'discount' || discountVal > 0;
+        const isActuallyRefund = ps === 'refund';
 
         if (filterPaymentStatus === 'refund') {
-          if (ps !== 'refund') return false;
+          if (!isActuallyRefund) return false;
         } else if (filterPaymentStatus === 'free') {
-          if (ps !== 'free' && freeVal === 0 && (totalFeesVal !== 0 || status === 'cancelled')) return false;
-        } else if (filterPaymentStatus === 'discount') {
-          const isFree = ps === 'free' || freeVal > 0 || (totalFeesVal === 0 && status !== 'cancelled');
-          if (isFree || (ps !== 'discount' && discountVal === 0)) return false;
+          if (!isActuallyFree) return false;
         } else if (filterPaymentStatus === 'fully_paid') {
-          if (ps === 'refund') return false;
-          const isFree = ps === 'free' || freeVal > 0 || (totalFeesVal === 0 && status !== 'cancelled');
-          const isDiscount = ps === 'discount' || discountVal > 0;
-          if (isFree || isDiscount) return false;
-          if (ps !== 'full paid' && (studentTotal < target || target <= 0)) return false;
+          if (!isActuallyFullyPaid || isActuallyFree) return false;
+        } else if (filterPaymentStatus === 'discount') {
+          // Now "Discount" filter shows ALL students with a discount, as requested
+          if (!isActuallyDiscount) return false;
         } else if (filterPaymentStatus === 'partial') {
-          if (ps === 'refund') return false;
-          const isFree = ps === 'free' || freeVal > 0 || (totalFeesVal === 0 && status !== 'cancelled');
-          const isDiscount = ps === 'discount' || discountVal > 0;
-          if (isFree || isDiscount) return false;
-          const isFull = ps === 'full paid' || (studentTotal >= target && target > 0);
-          if (isFull || (ps !== 'partial' && studentTotal === 0)) return false;
-        } else if (filterPaymentStatus === 'unpaid') {
-          if (ps === 'refund') return false;
-          const isFree = ps === 'free' || freeVal > 0 || (totalFeesVal === 0 && status !== 'cancelled');
-          const isDiscount = ps === 'discount' || discountVal > 0;
-          if (isFree || isDiscount) return false;
-          const isFull = ps === 'full paid' || (studentTotal >= target && target > 0);
+          if (isActuallyRefund || isActuallyFree || isActuallyFullyPaid) return false;
           const isPartial = ps === 'partial' || studentTotal > 0;
-          if (isFull || isPartial) return false;
+          if (!isPartial) return false;
+        } else if (filterPaymentStatus === 'unpaid') {
+          if (isActuallyRefund || isActuallyFree || isActuallyFullyPaid) return false;
+          if (studentTotal > 0) return false;
         }
       }
 
@@ -2332,20 +2334,29 @@ Arrival: ${data.arrival_status || 'not_arrived'}`;
         studentTotal += parseFloat(String((d as any)[`payment${i}_amount`]).replace(/[^0-9.]/g, '')) || 0;
       }
 
-      const discountVal = parseFloat(String(d.discount || '0')) || 0;
-      const freeVal = parseFloat(String(d.free || '0')) || 0;
+      const discountVal = parseFloat(String(d.discount || '0').replace(/[^0-9.]/g, '')) || 0;
+      const freeVal = parseFloat(String(d.free || '0').replace(/[^0-9.]/g, '')) || 0;
       const totalFeesVal = parseFloat(String(d.total_fees || '20000').replace(/[^0-9.]/g, '')) || 20000;
+      const remainingVal = parseFloat(String(d.remaining_amount || '0').replace(/[^0-9.]/g, '')) || 0;
       const target = totalFeesVal - discountVal - freeVal;
 
-      // Payment Status Counting (Inclusive of all statuses to match table filters)
-      if (ps === 'refund') {
+      // Payment Status Counting
+      const isActuallyFullyPaid = ps.includes('full') || remainingVal <= 0 || (studentTotal >= target && target > 0);
+      const isActuallyFree = ps === 'free' || freeVal > 0 || (totalFeesVal === 0 && status !== 'cancelled');
+      const isActuallyDiscount = ps === 'discount' || discountVal > 0;
+      const isActuallyRefund = ps === 'refund';
+
+      // Count Discounts independently to show "Total Discounts" as requested
+      if (isActuallyDiscount) {
+        discountCount++;
+      }
+
+      if (isActuallyRefund) {
         refundCount++;
         refundedAmount += studentTotal;
-      } else if (ps === 'free' || freeVal > 0 || (totalFeesVal === 0 && status !== 'cancelled')) {
+      } else if (isActuallyFree) {
         freeCount++;
-      } else if (ps === 'discount' || discountVal > 0) {
-        discountCount++;
-      } else if (ps === 'full paid' || (studentTotal >= target && target > 0)) {
+      } else if (isActuallyFullyPaid) {
         fullyPaid++;
       } else if (ps === 'partial' || studentTotal > 0) {
         partialPaid++;
