@@ -1512,7 +1512,22 @@ Arrival: ${data.arrival_status || 'not_arrived'}`;
   };
 
   const normalizeData = (rawItems: any[]): RegistrationData[] => {
-    return rawItems.map(item => {
+    // Filter out completely empty or header rows
+    const validItems = rawItems.filter(item => {
+      if (!item || typeof item !== 'object') return false;
+      const id = String(item['admission id'] || item['admission_id'] || item['id'] || item['Admission ID'] || '').trim();
+      const name = String(item['name'] || item['student name'] || item['Student Name'] || item['Name'] || '').trim();
+      
+      // Filter out empty rows or header-like rows
+      if (id === '' && name === '') return false;
+      if (id.toLowerCase() === 'admission id' || name.toLowerCase() === 'student name') return false;
+      
+      // Minimum validation: a valid entry should have at least some basic data
+      // If it only has an ID or only a name, it might be a partial entry, but we'll include it for count accuracy
+      return true;
+    });
+
+    return validItems.map(item => {
       const row: any = {};
       Object.keys(item).forEach(k => {
         row[k.toLowerCase().trim()] = item[k];
@@ -1632,10 +1647,39 @@ Arrival: ${data.arrival_status || 'not_arrived'}`;
   }, [autoViewRecord, onAutoViewClose]);
 
   const allSyncedData = useMemo(() => {
-    const localSynced = records.filter(r => r.syncStatus === 'synced' && r.data).map(r => r.data!);
     const uniqueMap = new Map<string, RegistrationData>();
-    remoteData.forEach(item => { if (item.admission_id) uniqueMap.set(item.admission_id, item); });
-    localSynced.forEach(item => { if (item.admission_id && !uniqueMap.has(item.admission_id)) uniqueMap.set(item.admission_id, item); });
+    
+    // 1. First, populate from Google Sheet (Source of Truth)
+    remoteData.forEach(item => { 
+      if (item.admission_id) uniqueMap.set(item.admission_id, item); 
+    });
+
+    // 2. Only add local records that are newly synced but might not have reflected in remoteData yet
+    // This handles the gap between clicking 'sync' and the next sheet refresh
+    const now = Date.now();
+    const recentlySynced = records.filter(r => 
+      r.syncStatus === 'synced' && 
+      r.data && 
+      r.syncedAt && 
+      (now - r.syncedAt < 300000) // 5 minute window for new syncs to appear in sheet
+    ).map(r => r.data!);
+
+    recentlySynced.forEach(item => {
+      if (item.admission_id && !uniqueMap.has(item.admission_id)) {
+        uniqueMap.set(item.admission_id, item);
+      }
+    });
+
+    // 3. Fallback: If remoteData is completely empty (e.g., initial load or failed fetch), 
+    // use all local synced records so the UI isn't empty.
+    if (remoteData.length === 0) {
+      records.forEach(r => {
+        if (r.syncStatus === 'synced' && r.data && r.data.admission_id) {
+          uniqueMap.set(r.data.admission_id, r.data);
+        }
+      });
+    }
+
     return Array.from(uniqueMap.values()).sort((a, b) => {
         try {
             const timeB = parseDate(b.payment1_date)?.getTime() || 0;
@@ -2320,6 +2364,7 @@ Arrival: ${data.arrival_status || 'not_arrived'}`;
     let freeCount = 0;
     let refundCount = 0;
     let refundedAmount = 0;
+    let confirmedCount = 0;
 
     data.forEach(d => {
       const status = (d.status || 'confirm').toLowerCase();
@@ -2328,6 +2373,10 @@ Arrival: ${data.arrival_status || 'not_arrived'}`;
       
       // Always add to total map
       genderMapTotal[g] = (genderMapTotal[g] || 0) + 1;
+
+      if (status === 'confirm' || status === 'active') {
+        confirmedCount++;
+      }
 
       let studentTotal = 0;
       for (let i = 1; i <= 10; i++) {
@@ -2402,7 +2451,7 @@ Arrival: ${data.arrival_status || 'not_arrived'}`;
       }
       revenue += studentTotal;
     });
-    return { total, genderMapConfirm, genderMapTotal, revenue, cashRevenue, accountRevenue, refundedAmount, cancelledCount, pendingCount, stayOnlyCount, fullyPaid, partialPaid, unpaidCount, discountCount, freeCount, refundCount };
+    return { total, confirmedCount, genderMapConfirm, genderMapTotal, revenue, cashRevenue, accountRevenue, refundedAmount, cancelledCount, pendingCount, stayOnlyCount, fullyPaid, partialPaid, unpaidCount, discountCount, freeCount, refundCount };
   };
 
   const globalStats = useMemo(() => getStats(filteredData), [filteredData]);
@@ -2768,7 +2817,13 @@ Arrival: ${data.arrival_status || 'not_arrived'}`;
             >
               <div className="absolute top-0 right-0 w-32 md:w-48 h-32 md:h-48 bg-indigo-50 dark:bg-indigo-900/10 rounded-full -mr-16 md:-mr-24 -mt-16 md:-mt-24 group-hover:scale-110 transition-transform duration-700"></div>
               <h3 className="text-slate-400 dark:text-slate-500 text-[10px] md:text-[11px] font-black uppercase tracking-[0.2em] mb-4 relative">Total Admissions</h3>
-              <p className="text-6xl md:text-7xl font-black text-slate-900 dark:text-slate-100 relative tracking-tighter leading-none">{globalStats.total}</p>
+              <div className="flex items-baseline gap-3 relative">
+                <p className="text-6xl md:text-7xl font-black text-slate-900 dark:text-slate-100 tracking-tighter leading-none">{globalStats.total}</p>
+                <div className="flex flex-col">
+                  <span className="text-slate-400 text-xs font-bold leading-none">Registered</span>
+                  <span className="text-indigo-500 text-[10px] font-black tracking-tight">{globalStats.confirmedCount} Confirmed</span>
+                </div>
+              </div>
               <div className="mt-8 flex items-center gap-3 relative">
                 <div className="px-3 py-1 bg-green-50 dark:bg-green-900/20 rounded-full">
                   <p className="text-green-600 dark:text-green-400 text-[8px] md:text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5">
@@ -2964,7 +3019,7 @@ Arrival: ${data.arrival_status || 'not_arrived'}`;
                     <div className={`w-2 h-2 rounded-full ${filterAdmissionStatus === 'confirm' ? 'bg-white' : 'bg-indigo-600'}`}></div>
                     <span className={`text-[9px] font-black uppercase tracking-widest ${filterAdmissionStatus === 'confirm' ? 'text-indigo-100' : 'text-slate-500'}`}>Confirmed</span>
                   </div>
-                  <span className="text-4xl font-black tracking-tighter">{globalStats.total - globalStats.cancelledCount - globalStats.pendingCount - globalStats.stayOnlyCount}</span>
+                  <span className="text-4xl font-black tracking-tighter">{globalStats.confirmedCount}</span>
                 </div>
               </div>
             </div>
