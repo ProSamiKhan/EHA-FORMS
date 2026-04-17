@@ -2212,7 +2212,14 @@ Arrival: ${data.arrival_status || 'not_arrived'}`;
     });
   };
 
-  const filteredData = useMemo(() => getFilteredData(), [allSyncedData, timeRange, drillLevel, drillContext, customStart, customEnd, filterGender, filterState, filterCity, filterDate, filterPaymentStatus, filterAdmissionStatus, dashboardSearchQuery, filterPaymentMethod, filterAgeRange, activeFilters]);
+  const filteredData = useMemo(() => getFilteredData(), [
+    allSyncedData, timeRange, drillLevel, drillContext, 
+    customStart, customEnd, filterGender, filterState, 
+    filterCity, filterDate, filterPaymentStatus, 
+    filterAdmissionStatus, dashboardSearchQuery, 
+    filterPaymentMethod, filterAgeRange, activeFilters, 
+    filterDuplicates
+  ]);
 
   const sortedMasterData = useMemo(() => {
     let sortableData = [...filteredData];
@@ -2849,15 +2856,15 @@ Arrival: ${data.arrival_status || 'not_arrived'}`;
               <div className="absolute top-0 right-0 w-32 md:w-48 h-32 md:h-48 bg-indigo-50 dark:bg-indigo-900/10 rounded-full -mr-16 md:-mr-24 -mt-16 md:-mt-24 group-hover:scale-110 transition-transform duration-700"></div>
               <h3 className="text-slate-400 dark:text-slate-500 text-[10px] md:text-[11px] font-black uppercase tracking-[0.2em] mb-4 relative">Total Admissions</h3>
               <div className="flex flex-col gap-4 relative">
-                <div className="flex items-baseline gap-4">
+                <div className="flex flex-col sm:flex-row items-start sm:items-baseline gap-4 sm:gap-8 justify-between">
                   <div className="flex flex-col">
                     <p className="text-6xl md:text-7xl font-black text-slate-900 dark:text-slate-100 tracking-tighter leading-none">{globalStats.total}</p>
-                    <span className="text-slate-400 text-[10px] font-black uppercase tracking-widest mt-1">Total Registered</span>
+                    <span className="text-slate-400 text-[10px] font-black uppercase tracking-widest mt-2">Registered</span>
                   </div>
-                  <div className="h-12 w-px bg-slate-100 dark:bg-slate-800 hidden md:block"></div>
+                  
                   <div className="flex flex-col">
-                    <p className="text-4xl md:text-5xl font-black text-indigo-600 dark:text-indigo-400 tracking-tighter leading-none">{globalStats.confirmedCount}</p>
-                    <span className="text-indigo-400 text-[10px] font-black uppercase tracking-widest mt-1">Confirmed</span>
+                    <p className="text-6xl md:text-7xl font-black text-indigo-600 dark:text-indigo-400 tracking-tighter leading-none">{globalStats.confirmedCount}</p>
+                    <span className="text-indigo-400 text-[10px] font-black uppercase tracking-widest mt-2">Confirmed</span>
                   </div>
                 </div>
 
