@@ -2864,7 +2864,12 @@ Arrival: ${data.arrival_status || 'not_arrived'}`;
                   
                   <div className="flex flex-col">
                     <p className="text-6xl md:text-7xl font-black text-indigo-600 dark:text-indigo-400 tracking-tighter leading-none">{globalStats.confirmedCount}</p>
-                    <span className="text-indigo-400 text-[10px] font-black uppercase tracking-widest mt-2">Confirmed</span>
+                    <div className="flex items-center gap-2 mt-2">
+                      <span className="text-indigo-400 text-[10px] font-black uppercase tracking-widest">Confirmed</span>
+                      <span className="px-1.5 py-0.5 bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-300 text-[9px] font-black rounded-md border border-indigo-100 dark:border-indigo-800/50">
+                        {globalStats.total > 0 ? ((globalStats.confirmedCount / globalStats.total) * 100).toFixed(1) : 0}%
+                      </span>
+                    </div>
                   </div>
                 </div>
 
@@ -2972,9 +2977,14 @@ Arrival: ${data.arrival_status || 'not_arrived'}`;
                   onClick={() => setFilterPaymentStatus(filterPaymentStatus === 'fully_paid' ? null : 'fully_paid')}
                   className={`flex flex-col justify-between p-5 rounded-2xl border cursor-pointer transition-all ${filterPaymentStatus === 'fully_paid' ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-200 dark:shadow-none' : 'bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
                 >
-                  <div className="flex items-center gap-2 mb-4">
-                    <div className={`w-2 h-2 rounded-full ${filterPaymentStatus === 'fully_paid' ? 'bg-white' : 'bg-indigo-600'}`}></div>
-                    <span className={`text-[9px] font-black uppercase tracking-widest ${filterPaymentStatus === 'fully_paid' ? 'text-indigo-100' : 'text-slate-500'}`}>Fully Paid</span>
+                  <div className="flex items-center justify-between gap-2 mb-4">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${filterPaymentStatus === 'fully_paid' ? 'bg-white' : 'bg-indigo-600'}`}></div>
+                      <span className={`text-[9px] font-black uppercase tracking-widest ${filterPaymentStatus === 'fully_paid' ? 'text-indigo-100' : 'text-slate-500'}`}>Fully Paid</span>
+                    </div>
+                    <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-md ${filterPaymentStatus === 'fully_paid' ? 'bg-indigo-500/30 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-400'}`}>
+                      {globalStats.total > 0 ? ((globalStats.fullyPaid / globalStats.total) * 100).toFixed(1) : 0}%
+                    </span>
                   </div>
                   <span className="text-4xl font-black tracking-tighter">{globalStats.fullyPaid}</span>
                 </div>
@@ -2982,9 +2992,14 @@ Arrival: ${data.arrival_status || 'not_arrived'}`;
                   onClick={() => setFilterPaymentStatus(filterPaymentStatus === 'partial' ? null : 'partial')}
                   className={`flex flex-col justify-between p-5 rounded-2xl border cursor-pointer transition-all ${filterPaymentStatus === 'partial' ? 'bg-amber-600 border-amber-500 text-white shadow-lg shadow-amber-200 dark:shadow-none' : 'bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
                 >
-                  <div className="flex items-center gap-2 mb-4">
-                    <div className={`w-2 h-2 rounded-full ${filterPaymentStatus === 'partial' ? 'bg-white' : 'bg-amber-600'}`}></div>
-                    <span className={`text-[9px] font-black uppercase tracking-widest ${filterPaymentStatus === 'partial' ? 'text-amber-100' : 'text-slate-500'}`}>Partial</span>
+                  <div className="flex items-center justify-between gap-2 mb-4">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${filterPaymentStatus === 'partial' ? 'bg-white' : 'bg-amber-600'}`}></div>
+                      <span className={`text-[9px] font-black uppercase tracking-widest ${filterPaymentStatus === 'partial' ? 'text-amber-100' : 'text-slate-500'}`}>Partial</span>
+                    </div>
+                    <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-md ${filterPaymentStatus === 'partial' ? 'bg-amber-500/30 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-400'}`}>
+                      {globalStats.total > 0 ? ((globalStats.partialPaid / globalStats.total) * 100).toFixed(1) : 0}%
+                    </span>
                   </div>
                   <span className="text-4xl font-black tracking-tighter">{globalStats.partialPaid}</span>
                 </div>
@@ -2992,9 +3007,14 @@ Arrival: ${data.arrival_status || 'not_arrived'}`;
                   onClick={() => setFilterPaymentStatus(filterPaymentStatus === 'unpaid' ? null : 'unpaid')}
                   className={`flex flex-col justify-between p-5 rounded-2xl border cursor-pointer transition-all ${filterPaymentStatus === 'unpaid' ? 'bg-slate-600 border-slate-500 text-white shadow-lg shadow-slate-200 dark:shadow-none' : 'bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
                 >
-                  <div className="flex items-center gap-2 mb-4">
-                    <div className={`w-2 h-2 rounded-full ${filterPaymentStatus === 'unpaid' ? 'bg-white' : 'bg-slate-400'}`}></div>
-                    <span className={`text-[9px] font-black uppercase tracking-widest ${filterPaymentStatus === 'unpaid' ? 'text-slate-100' : 'text-slate-500'}`}>Unpaid</span>
+                  <div className="flex items-center justify-between gap-2 mb-4">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${filterPaymentStatus === 'unpaid' ? 'bg-white' : 'bg-slate-400'}`}></div>
+                      <span className={`text-[9px] font-black uppercase tracking-widest ${filterPaymentStatus === 'unpaid' ? 'text-slate-100' : 'text-slate-500'}`}>Unpaid</span>
+                    </div>
+                    <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-md ${filterPaymentStatus === 'unpaid' ? 'bg-slate-500/30 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-400'}`}>
+                      {globalStats.total > 0 ? ((globalStats.unpaidCount / globalStats.total) * 100).toFixed(1) : 0}%
+                    </span>
                   </div>
                   <span className="text-4xl font-black tracking-tighter">{globalStats.unpaidCount}</span>
                 </div>
@@ -3002,9 +3022,14 @@ Arrival: ${data.arrival_status || 'not_arrived'}`;
                   onClick={() => setFilterPaymentStatus(filterPaymentStatus === 'discount' ? null : 'discount')}
                   className={`flex flex-col justify-between p-5 rounded-2xl border cursor-pointer transition-all ${filterPaymentStatus === 'discount' ? 'bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-200 dark:shadow-none' : 'bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
                 >
-                  <div className="flex items-center gap-2 mb-4">
-                    <div className={`w-2 h-2 rounded-full ${filterPaymentStatus === 'discount' ? 'bg-white' : 'bg-blue-600'}`}></div>
-                    <span className={`text-[9px] font-black uppercase tracking-widest ${filterPaymentStatus === 'discount' ? 'text-blue-100' : 'text-slate-500'}`}>Discount</span>
+                  <div className="flex items-center justify-between gap-2 mb-4">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${filterPaymentStatus === 'discount' ? 'bg-white' : 'bg-blue-600'}`}></div>
+                      <span className={`text-[9px] font-black uppercase tracking-widest ${filterPaymentStatus === 'discount' ? 'text-blue-100' : 'text-slate-500'}`}>Discount</span>
+                    </div>
+                    <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-md ${filterPaymentStatus === 'discount' ? 'bg-blue-500/30 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-400'}`}>
+                      {globalStats.total > 0 ? ((globalStats.discountCount / globalStats.total) * 100).toFixed(1) : 0}%
+                    </span>
                   </div>
                   <span className="text-4xl font-black tracking-tighter">{globalStats.discountCount}</span>
                 </div>
@@ -3012,9 +3037,14 @@ Arrival: ${data.arrival_status || 'not_arrived'}`;
                   onClick={() => setFilterPaymentStatus(filterPaymentStatus === 'free' ? null : 'free')}
                   className={`flex flex-col justify-between p-5 rounded-2xl border cursor-pointer transition-all ${filterPaymentStatus === 'free' ? 'bg-emerald-600 border-emerald-500 text-white shadow-lg shadow-emerald-200 dark:shadow-none' : 'bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
                 >
-                  <div className="flex items-center gap-2 mb-4">
-                    <div className={`w-2 h-2 rounded-full ${filterPaymentStatus === 'free' ? 'bg-white' : 'bg-emerald-600'}`}></div>
-                    <span className={`text-[9px] font-black uppercase tracking-widest ${filterPaymentStatus === 'free' ? 'text-emerald-100' : 'text-slate-500'}`}>Free</span>
+                  <div className="flex items-center justify-between gap-2 mb-4">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${filterPaymentStatus === 'free' ? 'bg-white' : 'bg-emerald-600'}`}></div>
+                      <span className={`text-[9px] font-black uppercase tracking-widest ${filterPaymentStatus === 'free' ? 'text-emerald-100' : 'text-slate-500'}`}>Free</span>
+                    </div>
+                    <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-md ${filterPaymentStatus === 'free' ? 'bg-emerald-500/30 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-400'}`}>
+                      {globalStats.total > 0 ? ((globalStats.freeCount / globalStats.total) * 100).toFixed(1) : 0}%
+                    </span>
                   </div>
                   <span className="text-4xl font-black tracking-tighter">{globalStats.freeCount}</span>
                 </div>
@@ -3022,9 +3052,14 @@ Arrival: ${data.arrival_status || 'not_arrived'}`;
                   onClick={() => setFilterPaymentStatus(filterPaymentStatus === 'refund' ? null : 'refund')}
                   className={`flex flex-col justify-between p-5 rounded-2xl border cursor-pointer transition-all ${filterPaymentStatus === 'refund' ? 'bg-rose-600 border-rose-500 text-white shadow-lg shadow-rose-200 dark:shadow-none' : 'bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
                 >
-                  <div className="flex items-center gap-2 mb-4">
-                    <div className={`w-2 h-2 rounded-full ${filterPaymentStatus === 'refund' ? 'bg-white' : 'bg-rose-600'}`}></div>
-                    <span className={`text-[9px] font-black uppercase tracking-widest ${filterPaymentStatus === 'refund' ? 'text-rose-100' : 'text-slate-500'}`}>Refunded</span>
+                  <div className="flex items-center justify-between gap-2 mb-4">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${filterPaymentStatus === 'refund' ? 'bg-white' : 'bg-rose-600'}`}></div>
+                      <span className={`text-[9px] font-black uppercase tracking-widest ${filterPaymentStatus === 'refund' ? 'text-rose-100' : 'text-slate-500'}`}>Refunded</span>
+                    </div>
+                    <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-md ${filterPaymentStatus === 'refund' ? 'bg-rose-500/30 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-400'}`}>
+                      {globalStats.total > 0 ? ((globalStats.refundCount / globalStats.total) * 100).toFixed(1) : 0}%
+                    </span>
                   </div>
                   <span className="text-4xl font-black tracking-tighter">{globalStats.refundCount}</span>
                 </div>
@@ -3038,9 +3073,14 @@ Arrival: ${data.arrival_status || 'not_arrived'}`;
                   onClick={() => setFilterAdmissionStatus(filterAdmissionStatus === 'cancelled' ? null : 'cancelled')}
                   className={`flex flex-col justify-between p-5 rounded-2xl border cursor-pointer transition-all ${filterAdmissionStatus === 'cancelled' ? 'bg-red-600 border-red-500 text-white shadow-lg shadow-red-200 dark:shadow-none' : 'bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
                 >
-                  <div className="flex items-center gap-2 mb-4">
-                    <div className={`w-2 h-2 rounded-full ${filterAdmissionStatus === 'cancelled' ? 'bg-white' : 'bg-red-500'}`}></div>
-                    <span className={`text-[9px] font-black uppercase tracking-widest ${filterAdmissionStatus === 'cancelled' ? 'text-red-100' : 'text-slate-500'}`}>Cancelled</span>
+                  <div className="flex items-center justify-between gap-2 mb-4">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${filterAdmissionStatus === 'cancelled' ? 'bg-white' : 'bg-red-500'}`}></div>
+                      <span className={`text-[9px] font-black uppercase tracking-widest ${filterAdmissionStatus === 'cancelled' ? 'text-red-100' : 'text-slate-500'}`}>Cancelled</span>
+                    </div>
+                    <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-md ${filterAdmissionStatus === 'cancelled' ? 'bg-red-500/30 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-400'}`}>
+                      {globalStats.total > 0 ? ((globalStats.cancelledCount / globalStats.total) * 100).toFixed(1) : 0}%
+                    </span>
                   </div>
                   <span className="text-4xl font-black tracking-tighter">{globalStats.cancelledCount}</span>
                 </div>
@@ -3048,9 +3088,14 @@ Arrival: ${data.arrival_status || 'not_arrived'}`;
                   onClick={() => setFilterAdmissionStatus(filterAdmissionStatus === 'pending' ? null : 'pending')}
                   className={`flex flex-col justify-between p-5 rounded-2xl border cursor-pointer transition-all ${filterAdmissionStatus === 'pending' ? 'bg-amber-600 border-amber-500 text-white shadow-lg shadow-amber-200 dark:shadow-none' : 'bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
                 >
-                  <div className="flex items-center gap-2 mb-4">
-                    <div className={`w-2 h-2 rounded-full ${filterAdmissionStatus === 'pending' ? 'bg-white' : 'bg-amber-500'}`}></div>
-                    <span className={`text-[9px] font-black uppercase tracking-widest ${filterAdmissionStatus === 'pending' ? 'text-amber-100' : 'text-slate-500'}`}>Pending</span>
+                  <div className="flex items-center justify-between gap-2 mb-4">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${filterAdmissionStatus === 'pending' ? 'bg-white' : 'bg-amber-500'}`}></div>
+                      <span className={`text-[9px] font-black uppercase tracking-widest ${filterAdmissionStatus === 'pending' ? 'text-amber-100' : 'text-slate-500'}`}>Pending</span>
+                    </div>
+                    <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-md ${filterAdmissionStatus === 'pending' ? 'bg-amber-500/30 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-400'}`}>
+                      {globalStats.total > 0 ? ((globalStats.pendingCount / globalStats.total) * 100).toFixed(1) : 0}%
+                    </span>
                   </div>
                   <span className="text-4xl font-black tracking-tighter">{globalStats.pendingCount}</span>
                 </div>
@@ -3058,9 +3103,14 @@ Arrival: ${data.arrival_status || 'not_arrived'}`;
                   onClick={() => setFilterAdmissionStatus(filterAdmissionStatus === 'stay only' ? null : 'stay only')}
                   className={`flex flex-col justify-between p-5 rounded-2xl border cursor-pointer transition-all ${filterAdmissionStatus === 'stay only' ? 'bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-200 dark:shadow-none' : 'bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
                 >
-                  <div className="flex items-center gap-2 mb-4">
-                    <div className={`w-2 h-2 rounded-full ${filterAdmissionStatus === 'stay only' ? 'bg-white' : 'bg-blue-500'}`}></div>
-                    <span className={`text-[9px] font-black uppercase tracking-widest ${filterAdmissionStatus === 'stay only' ? 'text-blue-100' : 'text-slate-500'}`}>Stay Only</span>
+                  <div className="flex items-center justify-between gap-2 mb-4">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${filterAdmissionStatus === 'stay only' ? 'bg-white' : 'bg-blue-500'}`}></div>
+                      <span className={`text-[9px] font-black uppercase tracking-widest ${filterAdmissionStatus === 'stay only' ? 'text-blue-100' : 'text-slate-500'}`}>Stay Only</span>
+                    </div>
+                    <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-md ${filterAdmissionStatus === 'stay only' ? 'bg-blue-500/30 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-400'}`}>
+                      {globalStats.total > 0 ? ((globalStats.stayOnlyCount / globalStats.total) * 100).toFixed(1) : 0}%
+                    </span>
                   </div>
                   <span className="text-4xl font-black tracking-tighter">{globalStats.stayOnlyCount}</span>
                 </div>
@@ -3068,9 +3118,14 @@ Arrival: ${data.arrival_status || 'not_arrived'}`;
                   onClick={() => setFilterAdmissionStatus(filterAdmissionStatus === 'confirm' ? null : 'confirm')}
                   className={`flex flex-col justify-between p-5 rounded-2xl border cursor-pointer transition-all ${filterAdmissionStatus === 'confirm' ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-200 dark:shadow-none' : 'bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
                 >
-                  <div className="flex items-center gap-2 mb-4">
-                    <div className={`w-2 h-2 rounded-full ${filterAdmissionStatus === 'confirm' ? 'bg-white' : 'bg-indigo-600'}`}></div>
-                    <span className={`text-[9px] font-black uppercase tracking-widest ${filterAdmissionStatus === 'confirm' ? 'text-indigo-100' : 'text-slate-500'}`}>Confirmed</span>
+                  <div className="flex items-center justify-between gap-2 mb-4">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${filterAdmissionStatus === 'confirm' ? 'bg-white' : 'bg-indigo-600'}`}></div>
+                      <span className={`text-[9px] font-black uppercase tracking-widest ${filterAdmissionStatus === 'confirm' ? 'text-indigo-100' : 'text-slate-500'}`}>Confirmed</span>
+                    </div>
+                    <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-md ${filterAdmissionStatus === 'confirm' ? 'bg-indigo-500/30 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-400'}`}>
+                      {globalStats.total > 0 ? ((globalStats.confirmedCount / globalStats.total) * 100).toFixed(1) : 0}%
+                    </span>
                   </div>
                   <span className="text-4xl font-black tracking-tighter">{globalStats.confirmedCount}</span>
                 </div>
@@ -3078,9 +3133,14 @@ Arrival: ${data.arrival_status || 'not_arrived'}`;
                   onClick={() => setFilterDuplicates(!filterDuplicates)}
                   className={`flex flex-col justify-between p-5 rounded-2xl border cursor-pointer transition-all ${filterDuplicates ? 'bg-amber-600 border-amber-500 text-white shadow-lg shadow-amber-200 dark:shadow-none' : 'bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
                 >
-                  <div className="flex items-center gap-2 mb-4">
-                    <div className={`w-2 h-2 rounded-full ${filterDuplicates ? 'bg-white' : 'bg-amber-600'}`}></div>
-                    <span className={`text-[9px] font-black uppercase tracking-widest ${filterDuplicates ? 'text-amber-100' : 'text-slate-500'}`}>Duplicates</span>
+                  <div className="flex items-center justify-between gap-2 mb-4">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${filterDuplicates ? 'bg-white' : 'bg-amber-600'}`}></div>
+                      <span className={`text-[9px] font-black uppercase tracking-widest ${filterDuplicates ? 'text-amber-100' : 'text-slate-500'}`}>Duplicates</span>
+                    </div>
+                    <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-md ${filterDuplicates ? 'bg-amber-500/30 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-400'}`}>
+                      {globalStats.total > 0 ? ((globalStats.duplicateCount / globalStats.total) * 100).toFixed(1) : 0}%
+                    </span>
                   </div>
                   <span className="text-4xl font-black tracking-tighter">{globalStats.duplicateCount}</span>
                 </div>
