@@ -1903,6 +1903,7 @@ Arrival: ${data.arrival_status || 'not_arrived'}`;
   const [filterAdmissionStatus, setFilterAdmissionStatus] = useState<string | null>(null);
   const [filterAgeRange, setFilterAgeRange] = useState<string | null>(null);
   const [filterDuplicates, setFilterDuplicates] = useState<boolean>(false);
+  const [filterArrivalStatus, setFilterArrivalStatus] = useState<string | null>(null);
   const [sortConfig, setSortConfig] = useState<{ key: keyof RegistrationData; direction: 'asc' | 'desc' } | null>(null);
   const [showRevenue, setShowRevenue] = useState(false);
 
@@ -1927,6 +1928,10 @@ Arrival: ${data.arrival_status || 'not_arrived'}`;
         const id = (d.admission_id || '').trim();
         return id && idCounts[id] > 1;
       });
+    }
+
+    if (filterArrivalStatus) {
+      baseFiltered = baseFiltered.filter(d => (d.arrival_status || 'not_arrived').toLowerCase() === filterArrivalStatus.toLowerCase());
     }
 
     // Time Filtering based on Drill-down or Custom Range
@@ -2099,6 +2104,8 @@ Arrival: ${data.arrival_status || 'not_arrived'}`;
           } else {
             if (marksVal !== parseFloat(value)) return false;
           }
+        } else if (key === 'arrival_status') {
+          if ((d.arrival_status || 'not_arrived').toLowerCase() !== value.toLowerCase()) return false;
         }
       }
 
@@ -2218,7 +2225,7 @@ Arrival: ${data.arrival_status || 'not_arrived'}`;
     filterCity, filterDate, filterPaymentStatus, 
     filterAdmissionStatus, dashboardSearchQuery, 
     filterPaymentMethod, filterAgeRange, activeFilters, 
-    filterDuplicates
+    filterDuplicates, filterArrivalStatus
   ]);
 
   const sortedMasterData = useMemo(() => {
@@ -2393,6 +2400,7 @@ Arrival: ${data.arrival_status || 'not_arrived'}`;
     let refundCount = 0;
     let refundedAmount = 0;
     let confirmedCount = 0;
+    let arrivedCount = 0;
     
     const idCounts: Record<string, number> = {};
 
@@ -2403,6 +2411,7 @@ Arrival: ${data.arrival_status || 'not_arrived'}`;
       }
 
       const status = (d.status || 'confirm').toLowerCase();
+      const arrival = (d.arrival_status || '').toLowerCase();
       const g = (d.gender || 'Other').trim().toLowerCase();
       const ps = (d.payment_status || '').toLowerCase();
       
@@ -2411,6 +2420,10 @@ Arrival: ${data.arrival_status || 'not_arrived'}`;
 
       if (status === 'confirm' || status === 'active') {
         confirmedCount++;
+      }
+
+      if (arrival === 'arrived') {
+        arrivedCount++;
       }
 
       let studentTotal = 0;
@@ -2489,7 +2502,7 @@ Arrival: ${data.arrival_status || 'not_arrived'}`;
 
     const duplicateCount = Object.values(idCounts).reduce((acc, count) => acc + (count > 1 ? count - 1 : 0), 0);
 
-    return { total, confirmedCount, duplicateCount, genderMapConfirm, genderMapTotal, revenue, cashRevenue, accountRevenue, refundedAmount, cancelledCount, pendingCount, stayOnlyCount, fullyPaid, partialPaid, unpaidCount, discountCount, freeCount, refundCount };
+    return { total, confirmedCount, duplicateCount, arrivedCount, genderMapConfirm, genderMapTotal, revenue, cashRevenue, accountRevenue, refundedAmount, cancelledCount, pendingCount, stayOnlyCount, fullyPaid, partialPaid, unpaidCount, discountCount, freeCount, refundCount };
   };
 
   const globalStats = useMemo(() => getStats(filteredData), [filteredData]);
@@ -2850,7 +2863,17 @@ Arrival: ${data.arrival_status || 'not_arrived'}`;
           {/* MAIN STATS ROW */}
           <div className={`grid gap-6 ${userRole === 'super_admin' ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1'}`}>
             <div 
-              onClick={() => { setFilterAdmissionStatus(null); setFilterPaymentStatus(null); setFilterGender(null); setFilterState(null); setFilterCity(null); setFilterDate(null); setFilterAgeRange(null); }}
+              onClick={() => { 
+                setFilterAdmissionStatus(null); 
+                setFilterPaymentStatus(null); 
+                setFilterGender(null); 
+                setFilterState(null); 
+                setFilterCity(null); 
+                setFilterDate(null); 
+                setFilterAgeRange(null); 
+                setFilterArrivalStatus(null);
+                setFilterDuplicates(false);
+              }}
               className="bg-white dark:bg-slate-900 p-8 md:p-10 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm relative overflow-hidden group transition-all cursor-pointer hover:border-indigo-500 hover:shadow-xl"
             >
               <div className="absolute top-0 right-0 w-32 md:w-48 h-32 md:h-48 bg-indigo-50 dark:bg-indigo-900/10 rounded-full -mr-16 md:-mr-24 -mt-16 md:-mt-24 group-hover:scale-110 transition-transform duration-700"></div>
@@ -3143,6 +3166,21 @@ Arrival: ${data.arrival_status || 'not_arrived'}`;
                     </span>
                   </div>
                   <span className="text-4xl font-black tracking-tighter">{globalStats.duplicateCount}</span>
+                </div>
+                <div 
+                  onClick={() => setFilterArrivalStatus(filterArrivalStatus === 'arrived' ? null : 'arrived')}
+                  className={`flex flex-col justify-between p-5 rounded-2xl border cursor-pointer transition-all ${filterArrivalStatus === 'arrived' ? 'bg-green-600 border-green-500 text-white shadow-lg shadow-green-200 dark:shadow-none' : 'bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                >
+                  <div className="flex items-center justify-between gap-2 mb-4">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${filterArrivalStatus === 'arrived' ? 'bg-white' : 'bg-green-600'}`}></div>
+                      <span className={`text-[9px] font-black uppercase tracking-widest ${filterArrivalStatus === 'arrived' ? 'text-green-100' : 'text-slate-500'}`}>Arrived</span>
+                    </div>
+                    <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-md ${filterArrivalStatus === 'arrived' ? 'bg-green-500/30 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-400'}`}>
+                      {globalStats.total > 0 ? ((globalStats.arrivedCount / globalStats.total) * 100).toFixed(1) : 0}%
+                    </span>
+                  </div>
+                  <span className="text-4xl font-black tracking-tighter">{globalStats.arrivedCount}</span>
                 </div>
               </div>
             </div>
